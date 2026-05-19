@@ -1,0 +1,63 @@
+# Documentacion GLAM HOMES
+
+Este es el punto de entrada para que un nuevo agente retome el proyecto sin
+perder contexto.
+
+## Estado actual
+
+- Carpeta principal: `/Users/dryehoshuapython/Desktop/GLAM HOMES`.
+- App local: `http://127.0.0.1:3000`.
+- Voz por defecto: `ash`.
+- Numero Twilio previsto: `+17864813013`.
+- Guesty Open API ya esta configurado localmente con OAuth y funciona en modo
+  lectura.
+- El agente puede consultar reservas, listings, disponibilidad y calendario
+  minificado desde Guesty.
+- Las acciones de escritura en Guesty, pagos y links de pago siguen bloqueadas
+  por diseno hasta definir aprobaciones humanas.
+
+## Secciones de la carpeta
+
+- `documentacion/`: resumen ejecutivo, estado del proyecto y handoff.
+- `docs/`: documentacion tecnica y documentos base extraidos de PDFs.
+- `programas/`: acceso humano a los programas del proyecto.
+- `apps/voice-agent/`: codigo activo del concierge local.
+- `data/`: exports operativos, incluyendo links publicos de propiedades.
+- `reports/`: capturas de QA visual.
+
+## Archivos clave
+
+- `documentacion/00-handoff-nuevo-agente.md`
+- `docs/09-guesty-api-capabilities-map.md`
+- `docs/06-prompt-maestro-concierge-voz.md`
+- `data/guesty-property-links.csv`
+- `data/guesty-property-links.json`
+- `data/guesty-property-links.md`
+
+## Arranque local
+
+Desde la carpeta principal:
+
+```bash
+python3 apps/voice-agent/server.py
+```
+
+Luego abrir:
+
+```text
+http://127.0.0.1:3000
+```
+
+## Actualizar links publicos de propiedades
+
+```bash
+python3 apps/voice-agent/export_property_links.py
+```
+
+El script refresca el inventario visible en:
+
+```text
+https://theglamhomes.guestybookings.com/en/properties?minOccupancy=1
+```
+
+Al 2026-05-19 devuelve 55 propiedades publicas.

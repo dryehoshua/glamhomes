@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLAM HOMES Concierge</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ink: #17130c;
+      --muted: #6f6658;
+      --line: #dfd4bd;
+      --panel: #fffdf8;
+      --panel-strong: #fbf3df;
+      --gold: #c89b3c;
+      --gold-deep: #8a641a;
+      --champagne: #f8ead0;
+      --black: #17130c;
+      --green: #245a46;
+      --red: #a33a2d;
+      --shadow: 0 20px 46px rgba(72, 52, 16, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 720px;
+      overflow: hidden;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #fffaf0 0, #f7edda 44%, #eee1c5 100%);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      min-height: 74px;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: rgba(255, 253, 248, 0.94);
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    button,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.58;
+    }
+
+    .eyebrow {
+      color: var(--gold-deep);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: #fffaf0;
+      color: #4d412e;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    main {
+      min-height: 0;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .panel {
+      min-height: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .control-panel {
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+    }
+
+    .stage {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .portrait-wrap {
+      display: grid;
+      grid-template-columns: 124px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+    }
+
+    .portrait {
+      width: 124px;
+      height: 124px;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 52% 30%, #fff8e6 0 22%, transparent 23%),
+        linear-gradient(150deg, #1d1710, #3c2d14 48%, #9d7624);
+      border: 1px solid #d5b66d;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .portrait svg {
+      width: 116px;
+      height: 116px;
+      display: block;
+    }
+
+    .agent-meta {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .agent-name {
+      font-size: 17px;
+      line-height: 1.2;
+      font-weight: 780;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      min-height: 38px;
+    }
+
+    .voice-meter {
+      height: 86px;
+      border: 1px solid #d5b66d;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #fff8e6, #f8ead0);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .wave {
+      position: absolute;
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      border: 2px solid rgba(200, 155, 60, 0.34);
+      opacity: 0;
+      transform: scale(0.72);
+    }
+
+    .wave:nth-child(2) {
+      animation-delay: 0.34s;
+    }
+
+    .wave:nth-child(3) {
+      animation-delay: 0.68s;
+    }
+
+    body[data-voice-state="listening"] .wave,
+    body[data-voice-state="speaking"] .wave,
+    body[data-voice-state="working"] .wave {
+      animation: voiceWave 1.7s ease-out infinite;
+      opacity: 1;
+    }
+
+    body[data-voice-state="speaking"] .voice-meter {
+      background: linear-gradient(180deg, #fff1cc, #ead08f);
+    }
+
+    .mic-button {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      border: 1px solid var(--gold-deep);
+      color: var(--gold-deep);
+      background: #fffdf8;
+      display: grid;
+      place-items: center;
+      z-index: 2;
+    }
+
+    .mic-button svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    @keyframes voiceWave {
+      0% {
+        opacity: 0.92;
+        transform: scale(0.72);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(2.35);
+      }
+    }
+
+    .actions,
+    .device-panel,
+    .voice-panel {
+      padding: 14px 18px;
+      display: grid;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .primary,
+    .secondary,
+    .danger {
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      padding: 9px 13px;
+      font-weight: 760;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .primary {
+      background: linear-gradient(180deg, #d8ad4b, #b88420);
+      color: #17130c;
+      border-color: #8a641a;
+    }
+
+    .secondary {
+      background: #fffaf0;
+      color: #3f3321;
+      border-color: var(--line);
+    }
+
+    .danger {
+      background: #fff1ed;
+      color: var(--red);
+      border-color: #e8b0a5;
+    }
+
+    .compact {
+      min-height: 36px;
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fffdf8;
+      outline: none;
+    }
+
+    select {
+      min-height: 40px;
+      padding: 8px 10px;
+    }
+
+    textarea {
+      resize: none;
+      padding: 12px;
+      line-height: 1.45;
+    }
+
+    .level-meter {
+      height: 8px;
+      background: #eee0c2;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .level-meter span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--gold));
+      transition: width 120ms linear;
+    }
+
+    .device-state,
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .voice-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .voice-option {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: #3f3321;
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    .voice-option.active {
+      border-color: var(--gold-deep);
+      background: #fff4d7;
+      box-shadow: inset 0 0 0 1px rgba(138, 100, 26, 0.22);
+    }
+
+    .side-notes {
+      min-height: 0;
+      padding: 18px;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .note {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .note strong {
+      font-size: 13px;
+    }
+
+    .note span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .chat-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    .chat-header {
+      min-height: 70px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf0;
+    }
+
+    .chat-feed {
+      min-height: 0;
+      padding: 18px;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      background:
+        linear-gradient(180deg, rgba(255, 253, 248, 0.88), rgba(255, 250, 240, 0.72));
+    }
+
+    .message {
+      max-width: 82%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(72, 52, 16, 0.06);
+    }
+
+    .message.user {
+      justify-self: end;
+      background: #f8ead0;
+      border-color: #d5b66d;
+    }
+
+    .message.system {
+      justify-self: center;
+      background: #f4efe5;
+      color: var(--muted);
+      max-width: 96%;
+      font-size: 13px;
+    }
+
+    .speaker {
+      color: var(--gold-deep);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .bubble-text {
+      white-space: pre-wrap;
+      line-height: 1.46;
+      font-size: 14px;
+    }
+
+    .composer {
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      background: #fffdf8;
+    }
+
+    .composer textarea {
+      height: 48px;
+      min-height: 48px;
+      max-height: 96px;
+    }
+
+    .mobile-title {
+      display: none;
+    }
+
+    @media (max-width: 920px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+        display: block;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .panel {
+        min-height: auto;
+        overflow: visible;
+      }
+
+      .control-panel {
+        display: block;
+      }
+
+      .side-notes {
+        max-height: none;
+        overflow: visible;
+      }
+
+      .chat-panel {
+        min-height: 620px;
+        overflow: hidden;
+      }
+    }
+
+    @media (max-width: 560px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      main {
+        padding: 12px;
+        gap: 12px;
+      }
+
+      .portrait-wrap,
+      .composer {
+        grid-template-columns: 1fr;
+      }
+
+      .portrait {
+        width: 112px;
+        height: 112px;
+      }
+
+      .button-row,
+      .voice-list {
+        grid-template-columns: 1fr;
+      }
+
+      .message {
+        max-width: 96%;
+      }
+
+      .composer textarea {
+        height: 76px;
+        min-height: 76px;
+      }
+    }
+  </style>
+</head>
+<body data-voice-state="idle">
+  <header>
+    <div>
+      <p class="eyebrow">Private booking desk</p>
+      <h1>GLAM HOMES CONCIERGE</h1>
+    </div>
+    <span class="pill" id="serverState">Local preparando</span>
+  </header>
+
+  <main>
+    <section class="panel control-panel" aria-label="Controles de voz">
+      <div class="stage">
+        <div class="portrait-wrap">
+          <div class="portrait" aria-label="Asistente ejecutivo de Glam Homes">
+            <svg viewBox="0 0 124 124" role="img" aria-label="Concierge ejecutivo">
+              <defs>
+                <linearGradient id="suitGold" x1="31" x2="94" y1="77" y2="118" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#14100b"/>
+                  <stop offset="0.58" stop-color="#241a0f"/>
+                  <stop offset="1" stop-color="#664816"/>
+                </linearGradient>
+                <linearGradient id="faceLight" x1="43" x2="82" y1="25" y2="70" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#f0c990"/>
+                  <stop offset="1" stop-color="#c78345"/>
+                </linearGradient>
+                <linearGradient id="badgeGold" x1="76" x2="92" y1="84" y2="101" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#f3d27d"/>
+                  <stop offset="1" stop-color="#b88420"/>
+                </linearGradient>
+              </defs>
+              <rect x="14" y="14" width="96" height="98" rx="16" fill="#0f0c08" opacity="0.2"/>
+              <path d="M30 112c2-25 17-39 32-39s30 14 32 39H30Z" fill="url(#suitGold)"/>
+              <path d="M47 75l15 11 15-11 7 37H40l7-37Z" fill="#fbf3df"/>
+              <path d="M53 80l9 8 9-8-9 26-9-26Z" fill="#15110b"/>
+              <path d="M58 91h8l4 21H54l4-21Z" fill="#c89b3c"/>
+              <path d="M41 83l14 29H31c2-15 6-24 10-29Z" fill="#15110b"/>
+              <path d="M83 83c4 5 8 14 10 29H69l14-29Z" fill="#20170d"/>
+              <circle cx="83" cy="93" r="7" fill="url(#badgeGold)"/>
+              <text x="83" y="96" text-anchor="middle" font-size="6.5" font-weight="800" fill="#17130c">GH</text>
+              <circle cx="62" cy="45" r="23" fill="url(#faceLight)"/>
+              <path d="M40 42c1-15 11-25 25-25 12 0 21 8 22 22-10-5-20-6-30-4-6 1-11 3-17 7Z" fill="#17130c"/>
+              <path d="M43 41c7-8 17-13 31-12 5 3 10 7 13 14-13-5-30-5-44-2Z" fill="#2b2114"/>
+              <path d="M47 53c3-2 7-2 10 0M68 53c3-2 7-2 10 0" stroke="#17130c" stroke-width="2.4" stroke-linecap="round"/>
+              <circle cx="53" cy="58" r="2.2" fill="#17130c"/>
+              <circle cx="73" cy="58" r="2.2" fill="#17130c"/>
+              <path d="M60 58l-2 7h6" stroke="#8b5e32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <path d="M57 68c3 2 8 2 11 0" stroke="#17130c" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+              <path d="M38 53c-7 1-10 11-5 18" stroke="#15110b" stroke-width="4" stroke-linecap="round" fill="none"/>
+              <path d="M86 53c7 1 10 11 5 18" stroke="#15110b" stroke-width="4" stroke-linecap="round" fill="none"/>
+              <rect x="32" y="55" width="8" height="18" rx="4" fill="#d8ad4b"/>
+              <rect x="84" y="55" width="8" height="18" rx="4" fill="#d8ad4b"/>
+              <path d="M90 70c1 9-5 16-17 17" stroke="#d8ad4b" stroke-width="4" stroke-linecap="round" fill="none"/>
+              <rect x="68" y="83" width="13" height="7" rx="3.5" fill="#d8ad4b"/>
+            </svg>
+          </div>
+          <div class="agent-meta">
+            <p class="agent-name">Concierge masculino</p>
+            <p class="status" id="statusText">Listo para prueba local. Selecciona una voz y pulsa Probar voz o Iniciar voz.</p>
+          </div>
+        </div>
+        <div class="voice-meter" aria-hidden="true">
+          <span class="wave"></span>
+          <span class="wave"></span>
+          <span class="wave"></span>
+          <div class="mic-button">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V6a3 3 0 0 0-3-3Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="button-row">
+          <button class="primary" id="startVoice">Iniciar voz</button>
+          <button class="secondary" id="testVoice">Probar voz</button>
+        </div>
+        <button class="danger" id="stopVoice" disabled>Terminar sesion</button>
+      </div>
+
+      <div class="voice-panel">
+        <label>
+          Voz GPT Calls
+          <select id="voiceSelect">
+            <option value="ash" selected>Ash - masculina recomendada</option>
+            <option value="echo">Echo - masculina clara</option>
+            <option value="cedar">Cedar - masculina profunda</option>
+            <option value="verse">Verse - neutra energica</option>
+            <option value="marin">Marin - premium recomendada</option>
+          </select>
+        </label>
+        <div class="voice-list" id="voiceButtons">
+          <button class="voice-option active" data-voice="ash">Ash</button>
+          <button class="voice-option" data-voice="echo">Echo</button>
+          <button class="voice-option" data-voice="cedar">Cedar</button>
+          <button class="voice-option" data-voice="verse">Verse</button>
+        </div>
+        <p class="hint">Para cambiar la voz despues de que hable, termina la sesion y abre otra.</p>
+      </div>
+
+      <div class="device-panel">
+        <label>
+          Microfono
+          <select id="micSelect">
+            <option value="">Sistema</option>
+          </select>
+        </label>
+        <button class="secondary compact" id="testMic">Probar microfono</button>
+        <div class="level-meter" aria-hidden="true"><span id="micLevel"></span></div>
+        <span class="device-state" id="micState">El navegador pedira permiso cuando inicies voz.</span>
+      </div>
+
+      <div class="side-notes">
+        <div class="note">
+          <strong>Modo local</strong>
+          <span>Corre en esta Mac para preparar el tunel de Cloudflare despues.</span>
+        </div>
+        <div class="note">
+          <strong>Alcance</strong>
+          <span>Frontend Concierge + voz instantanea. Guesty queda en modo lectura para reservas y propiedades.</span>
+        </div>
+        <div class="note" id="guestyNote">
+          <strong>Guesty</strong>
+          <span id="guestyState">Revisando conexion local...</span>
+        </div>
+        <div class="note">
+          <strong>Marca</strong>
+          <span>Paleta dorada, tono premium y asistente masculino para llamadas de booking.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel chat-panel" aria-label="Conversacion">
+      <div class="chat-header">
+        <div>
+          <p class="eyebrow">Realtime console</p>
+          <h2 id="threadTitle">Sesion GLAM HOMES</h2>
+        </div>
+        <span class="pill" id="sessionLabel">Sin llamada</span>
+      </div>
+
+      <div class="chat-feed" id="chatFeed">
+        <div class="message system">
+          <div class="bubble-text">Listo. La voz usa WebRTC local; si falta OPENAI_API_KEY, el servidor te lo dira antes de conectar.</div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <textarea id="manualInput" placeholder="Escribe una instruccion para el Concierge..."></textarea>
+        <button class="primary" id="sendText">Enviar</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const voices = ["ash", "echo", "cedar", "verse", "marin", "alloy", "ballad", "coral", "sage", "shimmer"];
+    let peer = null;
+    let channel = null;
+    let micStream = null;
+    let micTestStream = null;
+    let assistantDraft = "";
+    let assistantBubble = null;
+    let selectedMicDeviceId = "";
+    let activeMode = "";
+    const sessionId = "GH-" + new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+
+    $("sessionLabel").textContent = sessionId;
+
+    function setStatus(text, state = "idle") {
+      $("statusText").textContent = text;
+      document.body.dataset.voiceState = state;
+    }
+
+    function appendMessage(speaker, text, kind = "assistant") {
+      const feed = $("chatFeed");
+      const message = document.createElement("div");
+      message.className = "message " + (kind === "user" ? "user" : kind === "system" ? "system" : "assistant");
+      if (kind !== "system") {
+        const label = document.createElement("div");
+        label.className = "speaker";
+        label.textContent = speaker;
+        message.appendChild(label);
+      }
+      const body = document.createElement("div");
+      body.className = "bubble-text";
+      body.textContent = text;
+      message.appendChild(body);
+      feed.appendChild(message);
+      feed.scrollTop = feed.scrollHeight;
+      return body;
+    }
+
+    function setControls(active) {
+      $("startVoice").disabled = active;
+      $("testVoice").disabled = active;
+      $("stopVoice").disabled = !active;
+      $("voiceSelect").disabled = active;
+      for (const button of document.querySelectorAll(".voice-option")) button.disabled = active;
+    }
+
+    function currentVoice() {
+      const voice = $("voiceSelect").value || "ash";
+      return voices.includes(voice) ? voice : "ash";
+    }
+
+    function setVoice(voice) {
+      if (!voices.includes(voice) || peer) return;
+      $("voiceSelect").value = voice;
+      for (const button of document.querySelectorAll(".voice-option")) {
+        button.classList.toggle("active", button.dataset.voice === voice);
+      }
+    }
+
+    function audioConstraints() {
+      const audio = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      };
+      if (selectedMicDeviceId) audio.deviceId = { exact: selectedMicDeviceId };
+      return { audio };
+    }
+
+    async function loadDevices() {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices.filter((device) => device.kind === "audioinput");
+        const select = $("micSelect");
+        select.innerHTML = '<option value="">Sistema</option>' + inputs.map((device, index) => {
+          const label = device.label || "Microfono " + (index + 1);
+          return '<option value="' + device.deviceId + '">' + label.replace(/[<>&"]/g, "") + '</option>';
+        }).join("");
+      } catch (error) {
+        $("micState").textContent = "No pude listar microfonos: " + error.message;
+      }
+    }
+
+    async function testMicrophone() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        $("micState").textContent = "Este navegador no permite probar microfono.";
+        return;
+      }
+      $("micState").textContent = "Probando microfono: habla ahora...";
+      try {
+        if (micTestStream) micTestStream.getTracks().forEach((track) => track.stop());
+        micTestStream = await navigator.mediaDevices.getUserMedia(audioConstraints());
+        await loadDevices();
+        const audioContext = new AudioContext();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(micTestStream);
+        source.connect(analyser);
+        analyser.fftSize = 512;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        let peak = 0;
+        let ticks = 0;
+        const interval = setInterval(() => {
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (const value of data) {
+            const centered = (value - 128) / 128;
+            sum += centered * centered;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          peak = Math.max(peak, rms);
+          $("micLevel").style.width = Math.min(100, Math.round(rms * 360)) + "%";
+          ticks += 1;
+          if (ticks > 45) {
+            clearInterval(interval);
+            micTestStream.getTracks().forEach((track) => track.stop());
+            micTestStream = null;
+            audioContext.close();
+            $("micLevel").style.width = "0%";
+            $("micState").textContent = peak > 0.035 ? "Microfono detectado correctamente." : "Senal baja. Prueba otro microfono.";
+          }
+        }, 100);
+      } catch (error) {
+        $("micState").textContent = "No pude abrir el microfono: " + error.message;
+      }
+    }
+
+    function sendEvent(event) {
+      if (!channel || channel.readyState !== "open") return false;
+      channel.send(JSON.stringify(event));
+      return true;
+    }
+
+    function createUserText(text) {
+      return {
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text }]
+        }
+      };
+    }
+
+    function createResponse(instructions) {
+      return {
+        type: "response.create",
+        response: {
+          output_modalities: ["audio"],
+          instructions
+        }
+      };
+    }
+
+    async function runFunctionCall(call) {
+      let args = {};
+      try {
+        args = JSON.parse(call.arguments || "{}");
+      } catch {
+        args = {};
+      }
+      setStatus("Consultando Guesty...", "working");
+      let result;
+      try {
+        const response = await fetch("/api/guesty/tool", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: call.name, arguments: args })
+        });
+        result = await response.json();
+      } catch (error) {
+        result = { ok: false, error: error.message };
+      }
+      sendEvent({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: call.call_id,
+          output: JSON.stringify(result)
+        }
+      });
+      sendEvent(createResponse("Usa el resultado de Guesty para responder por voz. Si no hay credenciales o no hay datos, dilo claro y pide escalar o validar informacion. No reveles datos sensibles sin validacion."));
+    }
+
+    function functionCallsFromResponse(event) {
+      return (event.response?.output || []).filter((item) => item.type === "function_call");
+    }
+
+    function handleRealtimeEvent(raw) {
+      let event;
+      try {
+        event = JSON.parse(raw.data);
+      } catch {
+        return;
+      }
+      if (event.type === "session.created" || event.type === "session.updated") {
+        setStatus("Sesion Realtime conectada con voz " + currentVoice() + ".", activeMode === "test" ? "speaking" : "listening");
+      }
+      if (event.type === "conversation.item.input_audio_transcription.completed") {
+        const text = (event.transcript || "").trim();
+        if (text) appendMessage("Huesped", text, "user");
+      }
+      if (event.type === "response.output_audio_transcript.delta" || event.type === "response.output_text.delta") {
+        assistantDraft += event.delta || "";
+        if (!assistantBubble) assistantBubble = appendMessage("Concierge", "", "assistant");
+        assistantBubble.textContent = assistantDraft || "Hablando...";
+        setStatus("Concierge hablando...", "speaking");
+      }
+      if (event.type === "response.output_audio_transcript.done" || event.type === "response.output_text.done") {
+        if (event.transcript && !assistantDraft) assistantDraft = event.transcript;
+        if (event.text && !assistantDraft) assistantDraft = event.text;
+        if (assistantBubble) assistantBubble.textContent = assistantDraft || assistantBubble.textContent;
+      }
+      if (event.type === "response.done") {
+        const functionCalls = functionCallsFromResponse(event);
+        if (functionCalls.length) {
+          assistantDraft = "";
+          assistantBubble = null;
+          setStatus("Consultando Guesty...", "working");
+          for (const call of functionCalls) runFunctionCall(call);
+          return;
+        }
+        assistantDraft = "";
+        assistantBubble = null;
+        if (activeMode === "test") {
+          setStatus("Prueba de voz terminada. Cambia voz o inicia una sesion.", "idle");
+          window.setTimeout(() => stopSession("Prueba de voz terminada. Cambia voz o inicia una sesion."), 450);
+        } else {
+          setStatus("Escuchando...", "listening");
+        }
+      }
+      if (event.type === "error") {
+        const detail = event.error?.message || event.error?.code || "Error Realtime";
+        appendMessage("Sistema", detail, "system");
+        setStatus(detail, "idle");
+      }
+    }
+
+    async function startSession(mode) {
+      if (peer) return;
+      activeMode = mode;
+      setControls(true);
+      setStatus(mode === "test" ? "Preparando prueba de voz..." : "Pidiendo permiso de microfono...", "working");
+      assistantDraft = "";
+      assistantBubble = null;
+
+      try {
+        peer = new RTCPeerConnection();
+        const remoteAudio = document.createElement("audio");
+        remoteAudio.autoplay = true;
+        peer.ontrack = (event) => {
+          remoteAudio.srcObject = event.streams[0];
+        };
+
+        if (mode === "call") {
+          micStream = await navigator.mediaDevices.getUserMedia(audioConstraints());
+          await loadDevices();
+          const label = micStream.getAudioTracks()[0]?.label || "Sistema";
+          $("micState").textContent = "Escuchando por: " + label;
+          peer.addTrack(micStream.getAudioTracks()[0], micStream);
+        } else {
+          peer.addTransceiver("audio", { direction: "recvonly" });
+        }
+
+        channel = peer.createDataChannel("oai-events");
+        channel.addEventListener("message", handleRealtimeEvent);
+        channel.addEventListener("open", () => {
+          if (mode === "test") {
+            const text = "Haz una prueba de voz breve en espanol: 'Hola, soy el concierge de Glam Homes. Estoy listo para atender llamadas de booking con un tono premium y claro.'";
+            appendMessage("Sistema", "Prueba de voz " + currentVoice() + " enviada.", "system");
+            sendEvent(createUserText(text));
+            sendEvent(createResponse("Responde solo con la frase de prueba. Voz masculina, segura, calida y profesional."));
+          } else {
+            appendMessage("Sistema", "Voz instantanea abierta. Habla cuando quieras.", "system");
+            sendEvent(createUserText("Saluda en una frase corta como GLAM HOMES CONCIERGE y confirma que puedes atender booking y soporte."));
+            sendEvent(createResponse("Saluda en espanol primero, con voz masculina, premium y natural. Se breve."));
+          }
+        });
+
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        const response = await fetch("/api/realtime-call?voice=" + encodeURIComponent(currentVoice()), {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: offer.sdp
+        });
+        const answerSdp = await response.text();
+        if (!response.ok) {
+          throw new Error(answerSdp.slice(0, 600));
+        }
+        await peer.setRemoteDescription({ type: "answer", sdp: answerSdp });
+        setStatus(mode === "test" ? "Reproduciendo prueba..." : "Escuchando...", mode === "test" ? "speaking" : "listening");
+      } catch (error) {
+        appendMessage("Sistema", "No pude abrir Realtime: " + error.message, "system");
+        await stopSession();
+      }
+    }
+
+    async function stopSession(finalStatus) {
+      if (channel) {
+        try { channel.close(); } catch {}
+      }
+      if (peer) {
+        try { peer.close(); } catch {}
+      }
+      if (micStream) {
+        micStream.getTracks().forEach((track) => track.stop());
+      }
+      channel = null;
+      peer = null;
+      micStream = null;
+      activeMode = "";
+      assistantDraft = "";
+      assistantBubble = null;
+      setControls(false);
+      setStatus(finalStatus || "Sesion terminada. Puedes probar otra voz o iniciar de nuevo.", "idle");
+    }
+
+    function sendManualText() {
+      const text = $("manualInput").value.trim();
+      if (!text) return;
+      $("manualInput").value = "";
+      appendMessage("Operacion", text, "user");
+      if (!sendEvent(createUserText(text))) {
+        appendMessage("Sistema", "Texto guardado en pantalla. Inicia voz para enviarlo al modelo.", "system");
+        return;
+      }
+      sendEvent(createResponse("Responde al mensaje como concierge masculino de Glam Homes. Se breve, claro y orientado a booking."));
+      setStatus("Texto enviado al Concierge.", "working");
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch("/api/status");
+        const data = await response.json();
+        $("serverState").textContent = data.openai_configured ? "Local + Realtime listo" : "Falta OPENAI_API_KEY";
+        if (!data.openai_configured) {
+          appendMessage("Sistema", "Configura OPENAI_API_KEY en .env o Keychain para activar voz real.", "system");
+        }
+        $("guestyState").textContent = data.guesty_configured
+          ? "Credenciales detectadas. El agente puede consultar Guesty en modo lectura."
+          : "Faltan Client ID y Client Secret. Usa setup_guesty_env.py.";
+      } catch (error) {
+        $("serverState").textContent = "Servidor no disponible";
+        $("guestyState").textContent = "No pude revisar Guesty.";
+      }
+    }
+
+    $("startVoice").onclick = () => startSession("call");
+    $("testVoice").onclick = () => startSession("test");
+    $("stopVoice").onclick = stopSession;
+    $("testMic").onclick = testMicrophone;
+    $("sendText").onclick = sendManualText;
+    $("manualInput").addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
+    });
+    $("voiceSelect").addEventListener("change", () => setVoice($("voiceSelect").value));
+    $("micSelect").addEventListener("change", () => {
+      selectedMicDeviceId = $("micSelect").value;
+      $("micState").textContent = selectedMicDeviceId ? "Microfono seleccionado." : "Usando microfono del sistema.";
+    });
+    for (const button of document.querySelectorAll(".voice-option")) {
+      button.addEventListener("click", () => setVoice(button.dataset.voice));
+    }
+
+    window.addEventListener("beforeunload", () => {
+      if (micStream) micStream.getTracks().forEach((track) => track.stop());
+      if (peer) peer.close();
+    });
+
+    loadStatus();
+    loadDevices();
+  </script>
+</body>
+</html>
