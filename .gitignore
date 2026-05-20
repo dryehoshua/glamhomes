@@ -1,5 +1,8 @@
 .env
 .cache/
+transcripts/*
+!transcripts/.gitkeep
+logs/
 __pycache__/
 *.pyc
 .DS_Store

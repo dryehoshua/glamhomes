@@ -1,0 +1,18 @@
+# Copia este archivo a una ruta privada de cloudflared y ajusta tunnel/credentials.
+# Host objetivo: glamhomes.aipeople.app
+#
+# Requiere un named tunnel para poder rutear HTTP y WebSocket a dos puertos
+# locales distintos:
+# - HTTP app/Twilio webhooks -> 127.0.0.1:3000
+# - Twilio Media Streams WS -> 127.0.0.1:8877
+
+tunnel: glam-homes
+credentials-file: /Users/dryehoshuapython/.cloudflared/glam-homes.json
+
+ingress:
+  - hostname: glamhomes.aipeople.app
+    path: /twilio/media*
+    service: http://127.0.0.1:8877
+  - hostname: glamhomes.aipeople.app
+    service: http://127.0.0.1:3000
+  - service: http_status:404

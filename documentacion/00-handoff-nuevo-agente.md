@@ -19,7 +19,8 @@ http://127.0.0.1:3000
 ```
 
 El frontend usa identidad Glam Homes, tonos dorados, avatar ejecutivo y voz
-masculina `ash`.
+masculina `ash`. El idioma por defecto del producto es ingles; cambia a espanol
+solo si el cliente lo pide o inicia claramente en espanol.
 
 Guesty esta conectado por OAuth en la maquina local. Las credenciales viven en
 `.env` y el token vive en `.cache/guesty_token.json`; ambos estan fuera de Git
@@ -52,14 +53,26 @@ antes de activarse.
 
 ## Links publicos de propiedades
 
-La API interna de Guesty tiene 157 listings, pero el booking site publico muestra
-55 propiedades. Para SMS/chat se deben usar las 55 publicas.
+La API interna de Guesty tiene mas listings que el booking site publico. El
+export publico actual muestra 54 propiedades activas. Para SMS/chat se deben
+usar solo esas propiedades publicas activas.
 
 Exports actuales:
 
 - `data/guesty-property-links.csv`
 - `data/guesty-property-links.json`
 - `data/guesty-property-links.md`
+- `data/glam_homes_property_links.sqlite`
+
+Herramientas Realtime activas:
+
+- `glam_search_public_property_links`: busca links activos; por defecto devuelve
+  link directo de Glam Homes, y puede devolver Airbnb/Booking/VRBO si se pide.
+- `twilio_send_property_link_sms`: envia un link activo por SMS con Twilio. En
+  llamadas reales usa el numero caller si el modelo no manda `phone_number`.
+
+Los links directos de Glam Homes pueden precargarse con fechas usando
+`checkIn`, `checkOut` y `minOccupancy`.
 
 Actualizar:
 
@@ -92,8 +105,11 @@ python3 apps/voice-agent/guesty_client.py reservations --limit 5
 
 ## Siguiente etapa recomendada
 
-1. Conectar Twilio al backend local con Cloudflare Tunnel o URL publica temporal.
-2. Activar inbound voice con el numero `+17864813013`.
-3. Agregar SMS saliente controlado para enviar links de propiedades.
-4. Crear tabla/log local de llamadas, clasificacion de buyer persona y handoff.
-5. Definir aprobaciones antes de habilitar cualquier escritura en Guesty.
+1. Levantar Cloudflare named tunnel para `glamhomes.aipeople.app` usando
+   `documentacion/11-twilio-cloudflare-runbook.md`.
+2. Conectar Twilio solo al numero `+17864813013`. No tocar Kim Live ni el numero
+   terminado en `7532`.
+3. Activar inbound voice con el numero `+17864813013`.
+4. Probar llamada real al numero de Glam y confirmar audio + SMS outbound.
+5. Crear tabla/log local de llamadas, clasificacion de buyer persona y handoff.
+6. Definir aprobaciones antes de habilitar cualquier escritura en Guesty.

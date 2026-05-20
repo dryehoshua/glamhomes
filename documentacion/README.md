@@ -8,7 +8,10 @@ perder contexto.
 - Carpeta principal: `/Users/dryehoshuapython/Desktop/GLAM HOMES`.
 - App local: `http://127.0.0.1:3000`.
 - Voz por defecto: `ash`.
-- Numero Twilio previsto: `+17864813013`.
+- Numero Twilio de GLAM HOMES: `+17864813013`.
+- No tocar Kim Live ni ningun numero terminado en `7532`.
+- Hostname publico previsto: `https://glamhomes.aipeople.app`.
+- Transcripciones locales: `transcripts/YYYY-MM-DD/`.
 - Guesty Open API ya esta configurado localmente con OAuth y funciona en modo
   lectura.
 - El agente puede consultar reservas, listings, disponibilidad y calendario
@@ -28,6 +31,7 @@ perder contexto.
 ## Archivos clave
 
 - `documentacion/00-handoff-nuevo-agente.md`
+- `documentacion/11-twilio-cloudflare-runbook.md`
 - `docs/09-guesty-api-capabilities-map.md`
 - `docs/06-prompt-maestro-concierge-voz.md`
 - `data/guesty-property-links.csv`

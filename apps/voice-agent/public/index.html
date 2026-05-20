@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GLAM HOMES Concierge</title>
+  <link rel="icon" type="image/png" href="/assets/glam-homes-logo.png">
   <style>
     :root {
       color-scheme: light;
@@ -153,18 +154,38 @@
       height: 124px;
       border-radius: 8px;
       background:
-        radial-gradient(circle at 52% 30%, #fff8e6 0 22%, transparent 23%),
-        linear-gradient(150deg, #1d1710, #3c2d14 48%, #9d7624);
+        linear-gradient(180deg, rgba(255, 248, 230, 0.1), rgba(200, 155, 60, 0.18)),
+        linear-gradient(150deg, #17130c, #2c2112 54%, #8a641a);
       border: 1px solid #d5b66d;
       display: grid;
       place-items: center;
       overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
 
-    .portrait svg {
-      width: 116px;
-      height: 116px;
+    .brand-avatar {
+      width: 96px;
+      max-height: 58px;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.28));
       display: block;
+    }
+
+    .avatar-mark {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      min-width: 40px;
+      min-height: 23px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #17130c;
+      background: linear-gradient(180deg, #f0cf7a, #b88420);
+      border: 1px solid #fff0b9;
+      font-size: 11px;
+      font-weight: 900;
     }
 
     .agent-meta {
@@ -569,58 +590,20 @@
       <p class="eyebrow">Private booking desk</p>
       <h1>GLAM HOMES CONCIERGE</h1>
     </div>
-    <span class="pill" id="serverState">Local preparando</span>
+    <span class="pill" id="serverState">Local starting</span>
   </header>
 
   <main>
-    <section class="panel control-panel" aria-label="Controles de voz">
+    <section class="panel control-panel" aria-label="Voice controls">
       <div class="stage">
         <div class="portrait-wrap">
-          <div class="portrait" aria-label="Asistente ejecutivo de Glam Homes">
-            <svg viewBox="0 0 124 124" role="img" aria-label="Concierge ejecutivo">
-              <defs>
-                <linearGradient id="suitGold" x1="31" x2="94" y1="77" y2="118" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#14100b"/>
-                  <stop offset="0.58" stop-color="#241a0f"/>
-                  <stop offset="1" stop-color="#664816"/>
-                </linearGradient>
-                <linearGradient id="faceLight" x1="43" x2="82" y1="25" y2="70" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#f0c990"/>
-                  <stop offset="1" stop-color="#c78345"/>
-                </linearGradient>
-                <linearGradient id="badgeGold" x1="76" x2="92" y1="84" y2="101" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#f3d27d"/>
-                  <stop offset="1" stop-color="#b88420"/>
-                </linearGradient>
-              </defs>
-              <rect x="14" y="14" width="96" height="98" rx="16" fill="#0f0c08" opacity="0.2"/>
-              <path d="M30 112c2-25 17-39 32-39s30 14 32 39H30Z" fill="url(#suitGold)"/>
-              <path d="M47 75l15 11 15-11 7 37H40l7-37Z" fill="#fbf3df"/>
-              <path d="M53 80l9 8 9-8-9 26-9-26Z" fill="#15110b"/>
-              <path d="M58 91h8l4 21H54l4-21Z" fill="#c89b3c"/>
-              <path d="M41 83l14 29H31c2-15 6-24 10-29Z" fill="#15110b"/>
-              <path d="M83 83c4 5 8 14 10 29H69l14-29Z" fill="#20170d"/>
-              <circle cx="83" cy="93" r="7" fill="url(#badgeGold)"/>
-              <text x="83" y="96" text-anchor="middle" font-size="6.5" font-weight="800" fill="#17130c">GH</text>
-              <circle cx="62" cy="45" r="23" fill="url(#faceLight)"/>
-              <path d="M40 42c1-15 11-25 25-25 12 0 21 8 22 22-10-5-20-6-30-4-6 1-11 3-17 7Z" fill="#17130c"/>
-              <path d="M43 41c7-8 17-13 31-12 5 3 10 7 13 14-13-5-30-5-44-2Z" fill="#2b2114"/>
-              <path d="M47 53c3-2 7-2 10 0M68 53c3-2 7-2 10 0" stroke="#17130c" stroke-width="2.4" stroke-linecap="round"/>
-              <circle cx="53" cy="58" r="2.2" fill="#17130c"/>
-              <circle cx="73" cy="58" r="2.2" fill="#17130c"/>
-              <path d="M60 58l-2 7h6" stroke="#8b5e32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              <path d="M57 68c3 2 8 2 11 0" stroke="#17130c" stroke-width="2.4" stroke-linecap="round" fill="none"/>
-              <path d="M38 53c-7 1-10 11-5 18" stroke="#15110b" stroke-width="4" stroke-linecap="round" fill="none"/>
-              <path d="M86 53c7 1 10 11 5 18" stroke="#15110b" stroke-width="4" stroke-linecap="round" fill="none"/>
-              <rect x="32" y="55" width="8" height="18" rx="4" fill="#d8ad4b"/>
-              <rect x="84" y="55" width="8" height="18" rx="4" fill="#d8ad4b"/>
-              <path d="M90 70c1 9-5 16-17 17" stroke="#d8ad4b" stroke-width="4" stroke-linecap="round" fill="none"/>
-              <rect x="68" y="83" width="13" height="7" rx="3.5" fill="#d8ad4b"/>
-            </svg>
+          <div class="portrait" aria-label="Glam Homes executive assistant">
+            <img class="brand-avatar" src="/assets/glam-homes-logo.png" alt="GLAM HOMES">
+            <span class="avatar-mark">LIVE</span>
           </div>
           <div class="agent-meta">
-            <p class="agent-name">Concierge masculino</p>
-            <p class="status" id="statusText">Listo para prueba local. Selecciona una voz y pulsa Probar voz o Iniciar voz.</p>
+            <p class="agent-name">Male concierge</p>
+            <p class="status" id="statusText">Ready for local testing. Select a voice, then test voice or start voice.</p>
           </div>
         </div>
         <div class="voice-meter" aria-hidden="true">
@@ -638,21 +621,21 @@
 
       <div class="actions">
         <div class="button-row">
-          <button class="primary" id="startVoice">Iniciar voz</button>
-          <button class="secondary" id="testVoice">Probar voz</button>
+          <button class="primary" id="startVoice">Start voice</button>
+          <button class="secondary" id="testVoice">Test voice</button>
         </div>
-        <button class="danger" id="stopVoice" disabled>Terminar sesion</button>
+        <button class="danger" id="stopVoice" disabled>End session</button>
       </div>
 
       <div class="voice-panel">
         <label>
-          Voz GPT Calls
+          GPT Calls voice
           <select id="voiceSelect">
-            <option value="ash" selected>Ash - masculina recomendada</option>
-            <option value="echo">Echo - masculina clara</option>
-            <option value="cedar">Cedar - masculina profunda</option>
-            <option value="verse">Verse - neutra energica</option>
-            <option value="marin">Marin - premium recomendada</option>
+            <option value="ash" selected>Ash - recommended male</option>
+            <option value="echo">Echo - clear male</option>
+            <option value="cedar">Cedar - deep male</option>
+            <option value="verse">Verse - energetic neutral</option>
+            <option value="marin">Marin - premium recommended</option>
           </select>
         </label>
         <div class="voice-list" id="voiceButtons">
@@ -661,59 +644,59 @@
           <button class="voice-option" data-voice="cedar">Cedar</button>
           <button class="voice-option" data-voice="verse">Verse</button>
         </div>
-        <p class="hint">Para cambiar la voz despues de que hable, termina la sesion y abre otra.</p>
+        <p class="hint">To change voices after the concierge speaks, end the session and open a new one.</p>
       </div>
 
       <div class="device-panel">
         <label>
-          Microfono
+          Microphone
           <select id="micSelect">
-            <option value="">Sistema</option>
+            <option value="">System</option>
           </select>
         </label>
-        <button class="secondary compact" id="testMic">Probar microfono</button>
+        <button class="secondary compact" id="testMic">Test microphone</button>
         <div class="level-meter" aria-hidden="true"><span id="micLevel"></span></div>
-        <span class="device-state" id="micState">El navegador pedira permiso cuando inicies voz.</span>
+        <span class="device-state" id="micState">The browser will ask for permission when you start voice.</span>
       </div>
 
       <div class="side-notes">
         <div class="note">
-          <strong>Modo local</strong>
-          <span>Corre en esta Mac para preparar el tunel de Cloudflare despues.</span>
+          <strong>Local mode</strong>
+          <span>Runs on this Mac for the Cloudflare tunnel and Twilio webhooks.</span>
         </div>
         <div class="note">
-          <strong>Alcance</strong>
-          <span>Frontend Concierge + voz instantanea. Guesty queda en modo lectura para reservas y propiedades.</span>
+          <strong>Scope</strong>
+          <span>Concierge frontend plus instant voice. Guesty remains read-only for reservations and properties.</span>
         </div>
         <div class="note" id="guestyNote">
           <strong>Guesty</strong>
-          <span id="guestyState">Revisando conexion local...</span>
+          <span id="guestyState">Checking local connection...</span>
         </div>
         <div class="note">
-          <strong>Marca</strong>
-          <span>Paleta dorada, tono premium y asistente masculino para llamadas de booking.</span>
+          <strong>Brand</strong>
+          <span>Gold palette, premium tone, and male assistant for booking calls.</span>
         </div>
       </div>
     </section>
 
-    <section class="panel chat-panel" aria-label="Conversacion">
+    <section class="panel chat-panel" aria-label="Conversation">
       <div class="chat-header">
         <div>
           <p class="eyebrow">Realtime console</p>
-          <h2 id="threadTitle">Sesion GLAM HOMES</h2>
+          <h2 id="threadTitle">GLAM HOMES Session</h2>
         </div>
-        <span class="pill" id="sessionLabel">Sin llamada</span>
+        <span class="pill" id="sessionLabel">No call</span>
       </div>
 
       <div class="chat-feed" id="chatFeed">
         <div class="message system">
-          <div class="bubble-text">Listo. La voz usa WebRTC local; si falta OPENAI_API_KEY, el servidor te lo dira antes de conectar.</div>
+          <div class="bubble-text">Ready. Voice uses local WebRTC; if OPENAI_API_KEY is missing, the server will stop before connecting.</div>
         </div>
       </div>
 
       <div class="composer">
-        <textarea id="manualInput" placeholder="Escribe una instruccion para el Concierge..."></textarea>
-        <button class="primary" id="sendText">Enviar</button>
+        <textarea id="manualInput" placeholder="Type an instruction for the Concierge..."></textarea>
+        <button class="primary" id="sendText">Send</button>
       </div>
     </section>
   </main>
@@ -727,6 +710,7 @@
     let micTestStream = null;
     let assistantDraft = "";
     let assistantBubble = null;
+    let assistantFinalLogged = false;
     let selectedMicDeviceId = "";
     let activeMode = "";
     const sessionId = "GH-" + new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
@@ -738,7 +722,24 @@
       document.body.dataset.voiceState = state;
     }
 
-    function appendMessage(speaker, text, kind = "assistant") {
+    function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
+      const clean = String(text || "").trim();
+      if (!clean) return;
+      fetch("/api/transcripts/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel: "web",
+          speaker,
+          text: clean,
+          kind,
+          metadata
+        })
+      }).catch(() => {});
+    }
+
+    function appendMessage(speaker, text, kind = "assistant", shouldLog = true) {
       const feed = $("chatFeed");
       const message = document.createElement("div");
       message.className = "message " + (kind === "user" ? "user" : kind === "system" ? "system" : "assistant");
@@ -754,6 +755,7 @@
       message.appendChild(body);
       feed.appendChild(message);
       feed.scrollTop = feed.scrollHeight;
+      if (shouldLog) logTranscript(speaker, text, kind, { source: "screen" });
       return body;
     }
 
@@ -794,21 +796,21 @@
         const devices = await navigator.mediaDevices.enumerateDevices();
         const inputs = devices.filter((device) => device.kind === "audioinput");
         const select = $("micSelect");
-        select.innerHTML = '<option value="">Sistema</option>' + inputs.map((device, index) => {
-          const label = device.label || "Microfono " + (index + 1);
+        select.innerHTML = '<option value="">System</option>' + inputs.map((device, index) => {
+          const label = device.label || "Microphone " + (index + 1);
           return '<option value="' + device.deviceId + '">' + label.replace(/[<>&"]/g, "") + '</option>';
         }).join("");
       } catch (error) {
-        $("micState").textContent = "No pude listar microfonos: " + error.message;
+        $("micState").textContent = "Could not list microphones: " + error.message;
       }
     }
 
     async function testMicrophone() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        $("micState").textContent = "Este navegador no permite probar microfono.";
+        $("micState").textContent = "This browser does not allow microphone testing.";
         return;
       }
-      $("micState").textContent = "Probando microfono: habla ahora...";
+      $("micState").textContent = "Testing microphone: speak now...";
       try {
         if (micTestStream) micTestStream.getTracks().forEach((track) => track.stop());
         micTestStream = await navigator.mediaDevices.getUserMedia(audioConstraints());
@@ -838,11 +840,11 @@
             micTestStream = null;
             audioContext.close();
             $("micLevel").style.width = "0%";
-            $("micState").textContent = peak > 0.035 ? "Microfono detectado correctamente." : "Senal baja. Prueba otro microfono.";
+            $("micState").textContent = peak > 0.035 ? "Microphone detected correctly." : "Low signal. Try another microphone.";
           }
         }, 100);
       } catch (error) {
-        $("micState").textContent = "No pude abrir el microfono: " + error.message;
+        $("micState").textContent = "Could not open the microphone: " + error.message;
       }
     }
 
@@ -880,7 +882,7 @@
       } catch {
         args = {};
       }
-      setStatus("Consultando Guesty...", "working");
+      setStatus("Checking tool bridge...", "working");
       let result;
       try {
         const response = await fetch("/api/guesty/tool", {
@@ -892,6 +894,7 @@
       } catch (error) {
         result = { ok: false, error: error.message };
       }
+      logTranscript("Tool Bridge", call.name + " -> " + JSON.stringify({ ok: result.ok, arguments: args }), "tool", { tool: call.name });
       sendEvent({
         type: "conversation.item.create",
         item: {
@@ -900,7 +903,7 @@
           output: JSON.stringify(result)
         }
       });
-      sendEvent(createResponse("Usa el resultado de Guesty para responder por voz. Si no hay credenciales o no hay datos, dilo claro y pide escalar o validar informacion. No reveles datos sensibles sin validacion."));
+      sendEvent(createResponse("Use the tool result to answer by voice. If credentials or data are unavailable, say so clearly and offer team follow-up. Do not reveal sensitive data without validation."));
     }
 
     function functionCallsFromResponse(event) {
@@ -915,44 +918,53 @@
         return;
       }
       if (event.type === "session.created" || event.type === "session.updated") {
-        setStatus("Sesion Realtime conectada con voz " + currentVoice() + ".", activeMode === "test" ? "speaking" : "listening");
+        setStatus("Realtime session connected with voice " + currentVoice() + ".", activeMode === "test" ? "speaking" : "listening");
       }
       if (event.type === "conversation.item.input_audio_transcription.completed") {
         const text = (event.transcript || "").trim();
-        if (text) appendMessage("Huesped", text, "user");
+        if (text) appendMessage("Guest", text, "user");
       }
       if (event.type === "response.output_audio_transcript.delta" || event.type === "response.output_text.delta") {
         assistantDraft += event.delta || "";
-        if (!assistantBubble) assistantBubble = appendMessage("Concierge", "", "assistant");
+        if (!assistantBubble) assistantBubble = appendMessage("Concierge", "", "assistant", false);
         assistantBubble.textContent = assistantDraft || "Hablando...";
-        setStatus("Concierge hablando...", "speaking");
+        setStatus("Concierge speaking...", "speaking");
       }
       if (event.type === "response.output_audio_transcript.done" || event.type === "response.output_text.done") {
         if (event.transcript && !assistantDraft) assistantDraft = event.transcript;
         if (event.text && !assistantDraft) assistantDraft = event.text;
         if (assistantBubble) assistantBubble.textContent = assistantDraft || assistantBubble.textContent;
+        if (assistantDraft.trim() && !assistantFinalLogged) {
+          logTranscript("Concierge", assistantDraft, "assistant", { event_type: event.type });
+          assistantFinalLogged = true;
+        }
       }
       if (event.type === "response.done") {
         const functionCalls = functionCallsFromResponse(event);
         if (functionCalls.length) {
           assistantDraft = "";
           assistantBubble = null;
-          setStatus("Consultando Guesty...", "working");
+          assistantFinalLogged = false;
+          setStatus("Checking tool bridge...", "working");
           for (const call of functionCalls) runFunctionCall(call);
           return;
         }
+        if (assistantDraft.trim() && !assistantFinalLogged) {
+          logTranscript("Concierge", assistantDraft, "assistant", { event_type: event.type });
+        }
         assistantDraft = "";
         assistantBubble = null;
+        assistantFinalLogged = false;
         if (activeMode === "test") {
-          setStatus("Prueba de voz terminada. Cambia voz o inicia una sesion.", "idle");
-          window.setTimeout(() => stopSession("Prueba de voz terminada. Cambia voz o inicia una sesion."), 450);
+          setStatus("Voice test finished. Change voice or start a session.", "idle");
+          window.setTimeout(() => stopSession("Voice test finished. Change voice or start a session."), 450);
         } else {
-          setStatus("Escuchando...", "listening");
+          setStatus("Listening...", "listening");
         }
       }
       if (event.type === "error") {
         const detail = event.error?.message || event.error?.code || "Error Realtime";
-        appendMessage("Sistema", detail, "system");
+        appendMessage("System", detail, "system");
         setStatus(detail, "idle");
       }
     }
@@ -961,9 +973,10 @@
       if (peer) return;
       activeMode = mode;
       setControls(true);
-      setStatus(mode === "test" ? "Preparando prueba de voz..." : "Pidiendo permiso de microfono...", "working");
+      setStatus(mode === "test" ? "Preparing voice test..." : "Requesting microphone permission...", "working");
       assistantDraft = "";
       assistantBubble = null;
+      assistantFinalLogged = false;
 
       try {
         peer = new RTCPeerConnection();
@@ -976,8 +989,8 @@
         if (mode === "call") {
           micStream = await navigator.mediaDevices.getUserMedia(audioConstraints());
           await loadDevices();
-          const label = micStream.getAudioTracks()[0]?.label || "Sistema";
-          $("micState").textContent = "Escuchando por: " + label;
+          const label = micStream.getAudioTracks()[0]?.label || "System";
+          $("micState").textContent = "Listening through: " + label;
           peer.addTrack(micStream.getAudioTracks()[0], micStream);
         } else {
           peer.addTransceiver("audio", { direction: "recvonly" });
@@ -987,14 +1000,14 @@
         channel.addEventListener("message", handleRealtimeEvent);
         channel.addEventListener("open", () => {
           if (mode === "test") {
-            const text = "Haz una prueba de voz breve en espanol: 'Hola, soy el concierge de Glam Homes. Estoy listo para atender llamadas de booking con un tono premium y claro.'";
-            appendMessage("Sistema", "Prueba de voz " + currentVoice() + " enviada.", "system");
+            const text = "Run a brief English voice test: 'Hello, this is the Glam Homes concierge. I am ready to handle booking calls with a premium and clear tone.'";
+            appendMessage("System", "Voice test " + currentVoice() + " sent.", "system");
             sendEvent(createUserText(text));
-            sendEvent(createResponse("Responde solo con la frase de prueba. Voz masculina, segura, calida y profesional."));
+            sendEvent(createResponse("Respond only with the test phrase. Male, confident, warm, and professional voice."));
           } else {
-            appendMessage("Sistema", "Voz instantanea abierta. Habla cuando quieras.", "system");
-            sendEvent(createUserText("Saluda en una frase corta como GLAM HOMES CONCIERGE y confirma que puedes atender booking y soporte."));
-            sendEvent(createResponse("Saluda en espanol primero, con voz masculina, premium y natural. Se breve."));
+            appendMessage("System", "Instant voice is open. Speak whenever you are ready.", "system");
+            sendEvent(createUserText("Greet in one short sentence as GLAM HOMES CONCIERGE and confirm that you can handle booking and support."));
+            sendEvent(createResponse("Greet in English by default, with a male, premium, natural voice. Keep it brief."));
           }
         });
 
@@ -1010,9 +1023,9 @@
           throw new Error(answerSdp.slice(0, 600));
         }
         await peer.setRemoteDescription({ type: "answer", sdp: answerSdp });
-        setStatus(mode === "test" ? "Reproduciendo prueba..." : "Escuchando...", mode === "test" ? "speaking" : "listening");
+        setStatus(mode === "test" ? "Playing test..." : "Listening...", mode === "test" ? "speaking" : "listening");
       } catch (error) {
-        appendMessage("Sistema", "No pude abrir Realtime: " + error.message, "system");
+        appendMessage("System", "Could not open Realtime: " + error.message, "system");
         await stopSession();
       }
     }
@@ -1033,37 +1046,42 @@
       activeMode = "";
       assistantDraft = "";
       assistantBubble = null;
+      assistantFinalLogged = false;
       setControls(false);
-      setStatus(finalStatus || "Sesion terminada. Puedes probar otra voz o iniciar de nuevo.", "idle");
+      setStatus(finalStatus || "Session ended. You can test another voice or start again.", "idle");
+      logTranscript("System", finalStatus || "Session ended.", "system", { source: "stopSession" });
     }
 
     function sendManualText() {
       const text = $("manualInput").value.trim();
       if (!text) return;
       $("manualInput").value = "";
-      appendMessage("Operacion", text, "user");
+      appendMessage("Operator", text, "user");
       if (!sendEvent(createUserText(text))) {
-        appendMessage("Sistema", "Texto guardado en pantalla. Inicia voz para enviarlo al modelo.", "system");
+        appendMessage("System", "Text saved on screen. Start voice to send it to the model.", "system");
         return;
       }
-      sendEvent(createResponse("Responde al mensaje como concierge masculino de Glam Homes. Se breve, claro y orientado a booking."));
-      setStatus("Texto enviado al Concierge.", "working");
+      sendEvent(createResponse("Answer the message as the male Glam Homes concierge. Be brief, clear, and booking-oriented."));
+      setStatus("Text sent to the Concierge.", "working");
     }
 
     async function loadStatus() {
       try {
         const response = await fetch("/api/status");
         const data = await response.json();
-        $("serverState").textContent = data.openai_configured ? "Local + Realtime listo" : "Falta OPENAI_API_KEY";
+        $("serverState").textContent = data.openai_configured ? "Local + Realtime ready" : "Missing OPENAI_API_KEY";
         if (!data.openai_configured) {
-          appendMessage("Sistema", "Configura OPENAI_API_KEY en .env o Keychain para activar voz real.", "system");
+          appendMessage("System", "Configure OPENAI_API_KEY in .env or Keychain to activate real voice.", "system");
         }
         $("guestyState").textContent = data.guesty_configured
-          ? "Credenciales detectadas. El agente puede consultar Guesty en modo lectura."
-          : "Faltan Client ID y Client Secret. Usa setup_guesty_env.py.";
+          ? "Credentials detected. The agent can query Guesty in read-only mode."
+          : "Missing Client ID and Client Secret. Use setup_guesty_env.py.";
+        if (data.twilio_configured) {
+          appendMessage("System", "Twilio is prepared for " + data.twilio_phone_number + ". Point the public webhook after the Cloudflare tunnel is up.", "system");
+        }
       } catch (error) {
-        $("serverState").textContent = "Servidor no disponible";
-        $("guestyState").textContent = "No pude revisar Guesty.";
+        $("serverState").textContent = "Server unavailable";
+        $("guestyState").textContent = "Could not check Guesty.";
       }
     }
 
@@ -1078,7 +1096,7 @@
     $("voiceSelect").addEventListener("change", () => setVoice($("voiceSelect").value));
     $("micSelect").addEventListener("change", () => {
       selectedMicDeviceId = $("micSelect").value;
-      $("micState").textContent = selectedMicDeviceId ? "Microfono seleccionado." : "Usando microfono del sistema.";
+      $("micState").textContent = selectedMicDeviceId ? "Microphone selected." : "Using the system microphone.";
     });
     for (const button of document.querySelectorAll(".voice-option")) {
       button.addEventListener("click", () => setVoice(button.dataset.voice));

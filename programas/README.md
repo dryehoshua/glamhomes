@@ -41,3 +41,15 @@ Probar Guesty:
 ```bash
 python3 apps/voice-agent/guesty_client.py auth-check
 ```
+
+Levantar bridge de llamadas Twilio:
+
+```bash
+apps/voice-agent/run_twilio_bridge.sh
+```
+
+Validar webhooks de Twilio sin aplicar cambios:
+
+```bash
+python3 apps/voice-agent/configure_twilio_number.py
+```

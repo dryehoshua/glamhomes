@@ -39,6 +39,18 @@ El plan es reutilizar patrones y piezas tecnicas, no copiar todo BIFROST:
 - Bridge Twilio Media Streams <-> OpenAI Realtime.
 - Endpoints `/twilio/voice`, `/twilio/status`, `/twilio/sms` y `/twilio/health`.
 - Registro de llamadas y transcripts.
+
+## Twilio + Cloudflare
+
+El numero de Glam Homes configurado localmente es `+17864813013`. No tocar los
+webhooks ni numeros de Kim Live, especialmente el numero que termina en `7532`.
+
+El runbook actualizado para levantar `glamhomes.aipeople.app`, abrir el bridge de
+Twilio Media Streams y aplicar los webhooks cuando el tunel este listo esta en
+`documentacion/11-twilio-cloudflare-runbook.md`.
+
+Las transcripciones se guardan localmente en `transcripts/` y esa carpeta esta
+ignorada por Git porque puede contener datos personales.
 - Confirmacion antes de acciones externas.
 - Politica de privacidad para llamadas entrantes.
 

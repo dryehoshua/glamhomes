@@ -15,7 +15,10 @@ URL local:
 http://127.0.0.1:3000
 ```
 
-La interfaz `GLAM HOMES CONCIERGE` usa WebRTC con OpenAI Realtime y deja `Ash` como voz masculina por defecto. Para activar voz real, define `OPENAI_API_KEY` en `.env` o usa el API key guardado en Keychain por Codex/Kim Live.
+La interfaz `GLAM HOMES CONCIERGE` usa WebRTC con OpenAI Realtime y deja `Ash`
+como voz masculina por defecto. El idioma de producto es ingles por default.
+Para activar voz real, define `OPENAI_API_KEY` en `.env` o usa el API key
+guardado en Keychain por Codex/Kim Live.
 
 El agente de voz ya tiene herramientas Guesty de solo lectura:
 
@@ -25,8 +28,38 @@ El agente de voz ya tiene herramientas Guesty de solo lectura:
 - `guesty_list_listings`
 - `guesty_available_listings`
 - `guesty_listing_calendar`
+- `glam_search_public_property_links`
+- `twilio_send_property_link_sms`
 
 Mientras falten credenciales, el agente respondera que Guesty no esta configurado. Cuando existan `GUESTY_CLIENT_ID` y `GUESTY_CLIENT_SECRET`, las mismas herramientas empezaran a consultar Open API.
+
+## Twilio Media Streams
+
+Para llamadas reales se levantan dos procesos:
+
+```bash
+python3 apps/voice-agent/server.py
+apps/voice-agent/run_twilio_bridge.sh
+```
+
+El endpoint TwiML queda en `/twilio/voice` y el WebSocket del audio queda en
+`/twilio/media` por medio del tunel Cloudflare `glamhomes.aipeople.app`.
+
+Antes de aplicar webhooks:
+
+```bash
+python3 apps/voice-agent/configure_twilio_number.py
+```
+
+Cuando el tunel responda:
+
+```bash
+python3 apps/voice-agent/configure_twilio_number.py --apply
+```
+
+No tocar numeros de Kim Live; el script bloquea numeros terminados en `7532`.
+
+Las transcripciones se guardan en `transcripts/YYYY-MM-DD/`.
 
 ## Endpoints Guesty locales
 
@@ -39,6 +72,7 @@ GET /api/guesty/reservations?limit=5
 GET /api/guesty/reservation-by-code?code=GY-XXXX
 GET /api/guesty/reservation?id=<reservation_id>
 POST /api/guesty/tool
+GET /api/properties/search?query=Amazing&platform=direct&check_in=2026-06-10&check_out=2026-06-14&guests=4
 ```
 
 ## Guesty CLI de prueba
@@ -89,3 +123,9 @@ Genera:
 - `data/guesty-property-links.json`
 - `data/guesty-property-links.csv`
 - `data/guesty-property-links.md`
+- `data/glam_homes_property_links.sqlite`
+
+Por defecto el concierge comparte links directos de Glam Homes. Si el cliente
+pide Airbnb, Booking o VRBO, el bridge devuelve ese link si existe para la
+propiedad activa. Los links directos de Glam Homes aceptan prefill con
+`checkIn`, `checkOut` y `minOccupancy`.

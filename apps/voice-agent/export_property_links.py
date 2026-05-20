@@ -13,6 +13,7 @@ import csv
 import hashlib
 import hmac
 import json
+import sqlite3
 import sys
 import time
 import urllib.parse
@@ -21,9 +22,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import guesty_client
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
+SQLITE_PATH = DATA_DIR / "glam_homes_property_links.sqlite"
 BOOKING_BASE_URL = "https://theglamhomes.guestybookings.com"
 API_URL = "https://app.guesty.com/api/pm-websites-backend/listings"
 USER_AGENT = (
@@ -39,6 +43,15 @@ PUBLIC_FIELDS = (
     "accommodates bedrooms bathrooms propertyType prices reviews nightlyRates "
     "totalPrice isRecommended"
 )
+
+CHANNEL_COLUMNS = {
+    "airbnb2": "airbnb_url",
+    "bookingCom": "booking_url",
+    "homeaway2": "vrbo_url",
+    "expedia": "expedia_url",
+    "homesVillasByMarriott": "marriott_url",
+    "googleVacationRentals": "google_vacation_rentals_url",
+}
 
 
 def request_context(user_agent: str) -> str:
@@ -136,8 +149,64 @@ def normalize(listing: dict[str, Any]) -> dict[str, Any]:
         "image_url": first_picture(listing),
         "public_url_en": public_url_en,
         "public_url_es": public_url_es,
+        "airbnb_url": "",
+        "booking_url": "",
+        "vrbo_url": "",
+        "expedia_url": "",
+        "marriott_url": "",
+        "google_vacation_rentals_url": "",
+        "channel_links_json": "{}",
+        "channel_status_json": "{}",
+        "active_public": 1,
         "sms_text_es": f"Glam Homes: te comparto la propiedad {title}: {public_url_en}",
     }
+
+
+def channel_status(integration: dict[str, Any], platform: str) -> str:
+    platform_payload = integration.get(platform)
+    if isinstance(platform_payload, dict):
+        return str(platform_payload.get("status") or "")
+    return str(integration.get("status") or "")
+
+
+def enrich_channel_links(rows: list[dict[str, Any]]) -> None:
+    """Add OTA links from Guesty listing integrations when available."""
+
+    guesty_client.load_dotenv()
+    if not guesty_client.required_env("GUESTY_CLIENT_ID") or not guesty_client.required_env("GUESTY_CLIENT_SECRET"):
+        return
+
+    for index, row in enumerate(rows, start=1):
+        listing_id = row["listing_id"]
+        try:
+            listing = guesty_client.guesty_get(f"/listings/{urllib.parse.quote(listing_id)}")
+        except Exception as exc:
+            row["channel_status_json"] = json.dumps({"guesty_detail_error": str(exc)}, ensure_ascii=False)
+            continue
+
+        links: dict[str, str] = {}
+        statuses: dict[str, str] = {}
+        integrations = listing.get("integrations") if isinstance(listing.get("integrations"), list) else []
+        for integration in integrations:
+            if not isinstance(integration, dict):
+                continue
+            platform = str(integration.get("platform") or "")
+            if not platform:
+                continue
+            status = channel_status(integration, platform)
+            if status:
+                statuses[platform] = status
+            external_url = str(integration.get("externalUrl") or "").strip()
+            column = CHANNEL_COLUMNS.get(platform)
+            if external_url and column:
+                row[column] = external_url
+                links[platform] = external_url
+            elif external_url:
+                links[platform] = external_url
+
+        row["channel_links_json"] = json.dumps(links, ensure_ascii=False, sort_keys=True)
+        row["channel_status_json"] = json.dumps(statuses, ensure_ascii=False, sort_keys=True)
+        print(f"enriched {index}/{len(rows)} {listing_id}", file=sys.stderr)
 
 
 def export_rows(rows: list[dict[str, Any]], generated_at: str) -> None:
@@ -177,6 +246,89 @@ def export_rows(rows: list[dict[str, Any]], generated_at: str) -> None:
         lines.append(f"| {index} | {title} | {city} | {guests} | {row['public_url_en']} |")
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    export_sqlite(rows, generated_at, payload["source"])
+
+
+def export_sqlite(rows: list[dict[str, Any]], generated_at: str, source: str) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(SQLITE_PATH) as conn:
+        conn.execute("DROP TABLE IF EXISTS public_properties")
+        conn.execute("DROP TABLE IF EXISTS property_channel_links")
+        conn.execute(
+            """
+            CREATE TABLE public_properties (
+                listing_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                city TEXT,
+                state TEXT,
+                country TEXT,
+                accommodates INTEGER,
+                bedrooms TEXT,
+                bathrooms TEXT,
+                beds TEXT,
+                property_type TEXT,
+                starting_price TEXT,
+                rating TEXT,
+                review_count TEXT,
+                image_url TEXT,
+                public_url_en TEXT NOT NULL,
+                public_url_es TEXT,
+                airbnb_url TEXT,
+                booking_url TEXT,
+                vrbo_url TEXT,
+                expedia_url TEXT,
+                marriott_url TEXT,
+                google_vacation_rentals_url TEXT,
+                channel_links_json TEXT,
+                channel_status_json TEXT,
+                sms_text_es TEXT,
+                active_public INTEGER NOT NULL,
+                generated_at TEXT NOT NULL,
+                source TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE property_channel_links (
+                listing_id TEXT NOT NULL,
+                platform TEXT NOT NULL,
+                url TEXT NOT NULL,
+                status TEXT,
+                generated_at TEXT NOT NULL,
+                PRIMARY KEY (listing_id, platform),
+                FOREIGN KEY (listing_id) REFERENCES public_properties(listing_id)
+            )
+            """
+        )
+        for row in rows:
+            conn.execute(
+                """
+                INSERT INTO public_properties VALUES (
+                    :listing_id, :title, :city, :state, :country, :accommodates,
+                    :bedrooms, :bathrooms, :beds, :property_type, :starting_price,
+                    :rating, :review_count, :image_url, :public_url_en, :public_url_es,
+                    :airbnb_url, :booking_url, :vrbo_url, :expedia_url, :marriott_url,
+                    :google_vacation_rentals_url, :channel_links_json,
+                    :channel_status_json, :sms_text_es, :active_public,
+                    :generated_at, :source
+                )
+                """,
+                {**row, "generated_at": generated_at, "source": source},
+            )
+            links = json.loads(row.get("channel_links_json") or "{}")
+            statuses = json.loads(row.get("channel_status_json") or "{}")
+            for platform, url in links.items():
+                conn.execute(
+                    """
+                    INSERT INTO property_channel_links VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (row["listing_id"], platform, url, statuses.get(platform, ""), generated_at),
+                )
+        conn.execute("CREATE INDEX idx_public_properties_title ON public_properties(title)")
+        conn.execute("CREATE INDEX idx_public_properties_city ON public_properties(city)")
+        conn.execute("CREATE INDEX idx_channel_links_platform ON property_channel_links(platform)")
+
 
 def main() -> int:
     cursor: str | None = None
@@ -198,6 +350,10 @@ def main() -> int:
             break
 
     rows.sort(key=lambda item: item["title"].lower())
+    try:
+        enrich_channel_links(rows)
+    except Exception as exc:
+        print(f"warning: channel link enrichment skipped: {exc}", file=sys.stderr)
     generated_at = datetime.now(timezone.utc).isoformat()
     export_rows(rows, generated_at)
 
@@ -210,6 +366,7 @@ def main() -> int:
                     str(DATA_DIR / "guesty-property-links.json"),
                     str(DATA_DIR / "guesty-property-links.csv"),
                     str(DATA_DIR / "guesty-property-links.md"),
+                    str(SQLITE_PATH),
                 ],
             },
             indent=2,

@@ -1,8 +1,8 @@
 # Glam Homes public property links
 
-- Generated at: `2026-05-19T17:33:51.778063+00:00`
+- Generated at: `2026-05-20T00:09:06.901865+00:00`
 - Source: https://theglamhomes.guestybookings.com/en/properties?minOccupancy=1
-- Public listings: 55
+- Public listings: 54
 
 | # | Property | City | Guests | Link |
 |---:|---|---|---:|---|
@@ -27,8 +27,8 @@
 | 19 | Miami Bliss Luxe Retreat \| Pool • Spa • Pickleball | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/699dd9b78a4bfa0034f0fbf1?minOccupancy=1 |
 | 20 | Miami Ultra Villa w Pool Movie Theater Pickle Ball | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/69160d3498fc5b0013d3dc5f?minOccupancy=1 |
 | 21 | Moroccan Style Villa with Resort Pool & Cabana | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/631cce7992d5e30035582e8e?minOccupancy=1 |
-| 22 | New Vibrant Villa~Heat Pool~Jacuzzi~BBQ~Pickleball | Miami | 14 | https://theglamhomes.guestybookings.com/en/properties/695fd0a644cc2c003ca8fbb7?minOccupancy=1 |
-| 23 | One & Only~Treehouse Villa Pool~Jacuzzi~Pickleball | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/697269d8a060460014ae5450?minOccupancy=1 |
+| 22 | New Signature Waterfront Villa by The Glamhomes | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/669b2010220d1c0010ff919a?minOccupancy=1 |
+| 23 | New Vibrant Villa~Heat Pool~Jacuzzi~BBQ~Pickleball | Miami | 14 | https://theglamhomes.guestybookings.com/en/properties/695fd0a644cc2c003ca8fbb7?minOccupancy=1 |
 | 24 | One and Only Lazy River Pool Villa | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/672f9a95e72ed600124714a5?minOccupancy=1 |
 | 25 | Peaceful Villa/ Jacuzzi/ Pickleball Ct / Ping-Pong | Hollywood | 10 | https://theglamhomes.guestybookings.com/en/properties/6940cdd2fd2e0c0035ef1fb4?minOccupancy=1 |
 | 26 | Peak Villa \| Pompano Beach Retreat \| Pool \| Jacuzzi | Pompano Beach | 10 | https://theglamhomes.guestybookings.com/en/properties/68727ede146e6b0013ca04f2?minOccupancy=1 |
@@ -54,10 +54,9 @@
 | 46 | Villa Congo \| 5 BR \| Pool \| Terrace TV \| Fire Pit | Miami | 15 | https://theglamhomes.guestybookings.com/en/properties/6143bc7c27b3810031e5a24d?minOccupancy=1 |
 | 47 | Villa Dubai \| 6 BR \|Tennis \| BKB \| Soccer \| Pool | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/604bca36c32e8f0030f18fa0?minOccupancy=1 |
 | 48 | Villa Il Palazzo \| Two-Story \| Cabana TV \| BBQ | Biscayne Park | 16 | https://theglamhomes.guestybookings.com/en/properties/633c771c4d03a60032371c69?minOccupancy=1 |
-| 49 | Villa Juani \| New Waterfront Luxury Property | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/669b2010220d1c0010ff919a?minOccupancy=1 |
-| 50 | Villa Luxe ꨄ︎Modern/Heated Pool ꨄ︎Covered Terrace | Miami | 15 | https://theglamhomes.guestybookings.com/en/properties/69a5d7f4e995f40014c9e2bf?minOccupancy=1 |
-| 51 | Villa Oahu \| Basketball \| Fire Pit \| Mini Golf | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/62a292ab79003200355a8ea7?minOccupancy=1 |
-| 52 | Villa Santorini \| Lakefront \| Kayak \| Private Deck | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/60492ba5947e4c002f480556?minOccupancy=1 |
-| 53 | Villa Solara \| Pool · Cinema · Basketball Court | Miami | 14 | https://theglamhomes.guestybookings.com/en/properties/693718a50a69760015bee6ba?minOccupancy=1 |
-| 54 | Villa Spectacular \| Waterslide \| Multi Court & Cinema | Plantation | 8 | https://theglamhomes.guestybookings.com/en/properties/66d934e7ae952100135e1610?minOccupancy=1 |
-| 55 | Villa Venecia \| Sand Terrace \| Heated Pool \| Waterfront | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/68727f062192b8000f72b9e4?minOccupancy=1 |
+| 49 | Villa Luxe ꨄ︎Modern/Heated Pool ꨄ︎Covered Terrace | Miami | 15 | https://theglamhomes.guestybookings.com/en/properties/69a5d7f4e995f40014c9e2bf?minOccupancy=1 |
+| 50 | Villa Oahu \| Basketball \| Fire Pit \| Mini Golf | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/62a292ab79003200355a8ea7?minOccupancy=1 |
+| 51 | Villa Santorini \| Lakefront \| Kayak \| Private Deck | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/60492ba5947e4c002f480556?minOccupancy=1 |
+| 52 | Villa Solara \| Pool · Cinema · Basketball Court | Miami | 14 | https://theglamhomes.guestybookings.com/en/properties/693718a50a69760015bee6ba?minOccupancy=1 |
+| 53 | Villa Venecia \| Sand Terrace \| Heated Pool \| Waterfront | Miami | 16 | https://theglamhomes.guestybookings.com/en/properties/68727f062192b8000f72b9e4?minOccupancy=1 |
+| 54 | Waterfall Villa \| Multi Court •Watersilde •Cinema | Plantation | 8 | https://theglamhomes.guestybookings.com/en/properties/66d934e7ae952100135e1610?minOccupancy=1 |

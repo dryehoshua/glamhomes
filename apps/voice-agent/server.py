@@ -9,11 +9,14 @@ exposing the standard API key to the browser.
 from __future__ import annotations
 
 import base64
-from datetime import date
+from datetime import date, datetime, timezone
 import hashlib
+from html import escape as html_escape
 import json
 import os
 from pathlib import Path
+import re
+import sqlite3
 import subprocess
 import sys
 import time
@@ -22,92 +25,113 @@ from typing import Optional
 from urllib import error, parse, request
 
 import guesty_client
+import tool_bridge
 
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parents[1]
 PUBLIC_DIR = APP_DIR / "public"
 ENV_PATH = PROJECT_ROOT / ".env"
+TRANSCRIPTS_DIR = PROJECT_ROOT / "transcripts"
+DATA_DIR = PROJECT_ROOT / "data"
+PROPERTY_LINKS_DB = DATA_DIR / "glam_homes_property_links.sqlite"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PORT", "3000"))
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime-2")
 DEFAULT_VOICE = os.environ.get("OPENAI_REALTIME_VOICE", "ash")
 ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
+TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+17864813013")
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://glamhomes.aipeople.app").rstrip("/")
 
 
 AGENT_INSTRUCTIONS = """
-Eres GLAM HOMES CONCIERGE, un agente masculino de voz para llamadas de booking,
-reservas y soporte de huespedes. Hablas primero en espanol con tono premium,
-calido, directo y profesional; cambias a ingles si el cliente lo pide. Suenas
-como un concierge de lujo por telefono: respuestas breves, naturales, sin
-parrafos largos y con una pregunta clara por turno.
+You are GLAM HOMES CONCIERGE, a male voice agent for booking calls, reservation
+questions, and guest support. English is your default language. Switch to Spanish
+only when the guest asks for Spanish or clearly speaks Spanish first. You sound
+like a luxury hospitality concierge on the phone: brief, warm, polished, and
+clear, with one useful question per turn.
 
-Identidad y voz:
-- Di con transparencia que eres el concierge virtual de Glam Homes.
-- Puedes abrir con: "Hola, soy el concierge virtual de Glam Homes. Puedo ayudarte
-  con reservas, propiedades o dudas sobre tu estancia. Como puedo ayudarte hoy?"
-- Usa frases sobrias: "Perfecto", "Entiendo", "Gracias por compartirlo",
-  "Permiteme revisar". Evita "awesome", "amazing", emojis, exageraciones y
-  promesas que no puedas comprobar.
-- Tu mision es vender como concierge: calificar, recomendar, resolver friccion,
-  capturar datos y escalar limpio al equipo humano cuando haga falta.
+Identity and voice:
+- Be transparent that you are Glam Homes' virtual concierge.
+- You may open with: "Hello, this is the Glam Homes virtual concierge. I can help
+  with bookings, properties, or questions about your stay. How may I help you
+  today?"
+- Use calm phrases such as "Absolutely", "I understand", "Thank you for sharing
+  that", and "Let me check that for you." Avoid hype, emojis, slang, and promises
+  you cannot verify.
+- Your mission is to qualify the guest, recommend well, remove friction, capture
+  clean details, and escalate to the human team when needed.
 
-Clasificacion operativa:
-- Etapa del cliente: dreaming, considering, planning, booked, in_stay,
-  checkout o post_stay.
-- Buyer persona probable: celebrators, family, business o lifestyle.
-- Temperatura: cold, warm, hot, current_guest o urgent_support.
-- Mantienes esa clasificacion mentalmente y la usas para decidir la siguiente
-  pregunta, pero no la anuncias al cliente.
+Operational classification:
+- Customer stage: dreaming, considering, planning, booked, in_stay, checkout, or
+  post_stay.
+- Likely buyer persona: celebrators, family, business, or lifestyle.
+- Temperature: cold, warm, hot, current_guest, or urgent_support.
+- Keep this classification internally to choose your next question; do not
+  announce it to the guest.
 
-Booking y preventa:
-- Si el cliente no tiene propiedad y fechas, pide lo minimo: fechas, cantidad de
-  huespedes, area, motivo del viaje, presupuesto aproximado y must-haves.
-- Si pide disponibilidad, precio o total, no inventes. Usa Guesty si hay datos y
-  credenciales; si no, dilo claro y ofrece que el equipo confirme.
-- Recomienda 1 a 3 opciones cuando tengas senales suficientes. No mandes solo
-  "ve al sitio web" como primera respuesta.
-- Si pregunta por direccion exacta antes de reservar, comparte zona general y
-  puntos cercanos, no la calle exacta.
-- Direct booking puede presentarse como mejor tarifa sin atacar Airbnb/VRBO.
-  Si pide saltarse una plataforma donde ya inicio reserva, escala.
+Booking and presales:
+- If the guest does not yet have a property and dates, ask for the essentials:
+  dates, guest count, area, trip purpose, approximate budget, and must-haves.
+- If the guest asks for availability, pricing, or totals, do not invent. Use
+  Guesty when available; otherwise say the team can confirm it.
+- Recommend 1 to 3 options once you have enough signals. Do not default to "go to
+  the website" as the first response.
+- If the guest asks for an exact address before booking, share only the general
+  area and nearby landmarks, not the street address.
+- You may present direct booking as the best-rate path without attacking Airbnb,
+  Booking, or VRBO. If the guest asks to bypass a platform where they already
+  started a booking, escalate.
 
 Personas:
-- Celebrators: detecta cumpleanos, bachelor/bachelorette, aniversario, amigos,
-  musica, DJ, visitantes, cena o setup. Pregunta por huespedes overnight,
-  visitantes totales, autos, horario, tipo de reunion y nivel de musica.
-- Family: detecta ninos, seguridad, cocina, comodidad, barrio tranquilo,
-  piscina, crib/high chair. Prioriza claridad, instrucciones y tranquilidad.
-- Business: detecta equipo, produccion, retreat, trabajo, WiFi, camas exactas,
-  factura o logistica. Prioriza configuracion, horarios y riesgo operativo.
-- Lifestyle: detecta pareja, relax, playa, restaurantes, nightlife, ubicacion,
-  recomendaciones locales. Prioriza experiencia, zona y estilo de viaje.
+- Celebrators: detect birthdays, bachelor/bachelorette trips, anniversaries,
+  friends, music, DJs, visitors, dinner, or setup. Ask about overnight guests,
+  total visitors, cars, timing, type of gathering, and music level.
+- Family: detect children, safety, kitchen needs, comfort, quiet neighborhood,
+  pool, crib, or high chair. Prioritize clarity and reassurance.
+- Business: detect teams, productions, retreats, work, Wi-Fi, exact beds,
+  invoice needs, or logistics. Prioritize configuration, timing, and operational
+  risk.
+- Lifestyle: detect couples, relaxation, beach, restaurants, nightlife, location,
+  and local recommendations. Prioritize experience, area, and travel style.
 
-Reglas de seguridad y escalacion:
-- Nunca apruebes fiestas, eventos, DJs, visitantes grandes, descuentos,
-  reembolsos, cancelaciones, cambios de fecha, pagos, late checkout, early
-  check-in, mascotas o excepciones de politica sin confirmacion humana o dato
-  oficial.
-- Si el cliente pide "humano", "representante", "agent" o "someone", confirma
-  y pide el mejor telefono. Frase recomendada: "Estoy trayendo a alguien del
-  equipo; para que puedan contactarte, cual es el mejor numero?"
-- Si hay emergencia, mantenimiento serio, acceso bloqueado, seguridad, agua,
-  electricidad, cerradura, AC critico o huesped molesto durante estancia, toma
-  datos basicos y escala de inmediato.
-- Para problemas tecnicos simples durante estancia, diagnostica 1 o 2 pasos
-  seguros; si no se resuelve, escala sin prometer tiempos exactos.
+Safety and escalation:
+- Never approve parties, events, DJs, large visitor groups, discounts, refunds,
+  cancellations, date changes, payments, late checkout, early check-in, pets, or
+  policy exceptions without human confirmation or official data.
+- If the guest asks for a human, representative, or agent, confirm and ask for
+  the best phone number. Suggested phrase: "I am bringing someone from our team
+  in. What is the best number for them to contact you?"
+- If there is an emergency, serious maintenance issue, blocked access, safety
+  issue, water, electricity, lock, critical AC problem, or upset in-stay guest,
+  capture the basics and escalate immediately.
+- For simple technical issues during a stay, try 1 or 2 safe troubleshooting
+  steps; if unresolved, escalate without promising exact timing.
 
-Guesty:
-- Tienes herramientas Guesty de solo lectura. Usalas cuando el huesped de codigo
-  de confirmacion, nombre, correo, telefono o pida consultar propiedad/reserva.
-- Antes de revelar datos concretos de una reserva, valida al menos dos datos
-  razonables del huesped. Nunca reveles codigos de acceso, pagos sensibles,
-  datos de terceros ni cambios confirmados.
-- Si faltan credenciales de Guesty o la consulta falla, dilo con calma: "En este
-  momento no tengo la conexion de Guesty disponible aqui. Puedo tomar los datos
-  y escalarlo para confirmacion." Luego pide nombre, telefono, correo y codigo
-  de reserva si existe.
+Guesty and property links:
+- You have read-only Guesty tools. Use them when the guest gives a confirmation
+  code, name, email, phone number, or asks about a property or reservation.
+- For recommendations or shareable links, use the public Glam Homes property
+  links bridge first. Only recommend records with active_public=1. Never use
+  internal Guesty listings that do not appear on the public booking site.
+- When a caller asks to see a property, use the property links bridge and then
+  send the link by SMS if the caller number is available. In web chat, paste the
+  direct link in your response so the messaging app/browser can generate the
+  preview.
+- If you have dates and guests, check availability/pricing in Guesty before
+  selling a property as available. Direct Glam Homes links can include checkIn,
+  checkOut, and minOccupancy so the booking page opens prefilled.
+- If the guest asks for Airbnb, Booking, or VRBO, share that link only if the
+  public database has that platform URL. If it is missing, offer the direct Glam
+  Homes link and escalate if they insist.
+- Before revealing concrete reservation data, validate at least two reasonable
+  guest details. Never reveal access codes, sensitive payment details, third-party
+  data, or unconfirmed changes.
+- If Guesty credentials are unavailable or a lookup fails, say calmly: "I do not
+  have the live Guesty connection available in this moment. I can take the details
+  and have the team confirm." Then ask for name, phone, email, and confirmation
+  code if available.
 """.strip()
 
 
@@ -205,6 +229,43 @@ REALTIME_TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "type": "function",
+        "name": "glam_search_public_property_links",
+        "description": "Search the local active public Glam Homes property-link database and return direct, Airbnb, Booking, or VRBO links when available.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Property title keyword, feature, or listing ID."},
+                "city": {"type": "string", "description": "Optional city filter."},
+                "min_guests": {"type": "integer", "description": "Minimum guest capacity."},
+                "platform": {"type": "string", "description": "direct, airbnb, booking, vrbo, google, or any."},
+                "check_in": {"type": "string", "description": "Optional date YYYY-MM-DD to prefill direct Glam Homes links."},
+                "check_out": {"type": "string", "description": "Optional date YYYY-MM-DD to prefill direct Glam Homes links."},
+                "guests": {"type": "integer", "description": "Optional guest count to prefill minOccupancy on direct Glam Homes links."},
+                "limit": {"type": "integer", "description": "Maximum results to return, up to 10."},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "twilio_send_property_link_sms",
+        "description": "Send one active public Glam Homes property link by SMS through Twilio. Only sends links from the local public-property database.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "listing_id": {"type": "string", "description": "Public Glam Homes listing ID from glam_search_public_property_links."},
+                "platform": {"type": "string", "description": "direct, airbnb, booking, or vrbo. Defaults to direct."},
+                "phone_number": {"type": "string", "description": "E.164 phone number. In Twilio calls this can be omitted to use the caller number."},
+                "check_in": {"type": "string", "description": "Optional date YYYY-MM-DD to prefill direct Glam Homes links."},
+                "check_out": {"type": "string", "description": "Optional date YYYY-MM-DD to prefill direct Glam Homes links."},
+                "guests": {"type": "integer", "description": "Optional guest count to prefill minOccupancy on direct Glam Homes links."},
+            },
+            "required": ["listing_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -250,11 +311,81 @@ def guesty_configured() -> bool:
     return bool(os.environ.get("GUESTY_CLIENT_ID", "").strip() and os.environ.get("GUESTY_CLIENT_SECRET", "").strip())
 
 
+def twilio_configured() -> bool:
+    return bool(os.environ.get("TWILIO_ACCOUNT_SID", "").strip() and os.environ.get("TWILIO_AUTH_TOKEN", "").strip())
+
+
+def property_links_configured() -> bool:
+    return PROPERTY_LINKS_DB.exists()
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def safe_filename_part(value: object, fallback: str = "session") -> str:
+    clean = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(value or "").strip()).strip(".-")
+    return clean[:90] or fallback
+
+
+def transcript_file_paths(session_id: str) -> tuple[Path, Path]:
+    day = datetime.now().strftime("%Y-%m-%d")
+    day_dir = TRANSCRIPTS_DIR / day
+    day_dir.mkdir(parents=True, exist_ok=True)
+    safe_session = safe_filename_part(session_id, fallback=f"session-{int(time.time())}")
+    return day_dir / f"{safe_session}.jsonl", day_dir / f"{safe_session}.md"
+
+
+def append_transcript_event(
+    session_id: object,
+    speaker: str,
+    text: object,
+    *,
+    channel: str = "web",
+    kind: str = "message",
+    metadata: Optional[dict] = None,
+) -> dict:
+    safe_session = safe_filename_part(session_id, fallback=f"{channel}-{int(time.time())}")
+    message = str(text or "").strip()
+    if not message:
+        return {"ok": False, "session_id": safe_session, "skipped": True, "reason": "empty_text"}
+
+    event = {
+        "timestamp": now_iso(),
+        "session_id": safe_session,
+        "channel": channel,
+        "kind": kind,
+        "speaker": str(speaker or "System"),
+        "text": message,
+        "metadata": metadata or {},
+    }
+    jsonl_path, markdown_path = transcript_file_paths(safe_session)
+    with jsonl_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+    if not markdown_path.exists():
+        markdown_path.write_text(
+            f"# Transcript {safe_session}\n\n"
+            f"- Channel: {channel}\n"
+            f"- Local start: {datetime.now().isoformat(timespec='seconds')}\n\n",
+            encoding="utf-8",
+        )
+    with markdown_path.open("a", encoding="utf-8") as handle:
+        handle.write(f"## {event['speaker']} · {event['timestamp']}\n\n{message}\n\n")
+
+    return {
+        "ok": True,
+        "session_id": safe_session,
+        "jsonl": str(jsonl_path),
+        "markdown": str(markdown_path),
+    }
+
+
 def guesty_error_payload(exc: Exception) -> dict:
     return {
         "ok": False,
         "error": str(exc),
-        "hint": "Configura GUESTY_CLIENT_ID y GUESTY_CLIENT_SECRET con apps/voice-agent/setup_guesty_env.py.",
+        "hint": "Configure GUESTY_CLIENT_ID and GUESTY_CLIENT_SECRET with apps/voice-agent/setup_guesty_env.py.",
     }
 
 
@@ -286,7 +417,7 @@ def iso_date(value: object, name: str) -> str:
     try:
         date.fromisoformat(clean)
     except ValueError as exc:
-        raise ValueError(f"{name} debe tener formato YYYY-MM-DD.") from exc
+        raise ValueError(f"{name} must use YYYY-MM-DD format.") from exc
     return clean
 
 
@@ -306,13 +437,13 @@ def guesty_available_listings(check_in: object, check_out: object, guests: objec
     arrival = iso_date(check_in, "check_in")
     departure = iso_date(check_out, "check_out")
     if date.fromisoformat(departure) <= date.fromisoformat(arrival):
-        raise ValueError("check_out debe ser posterior a check_in.")
+        raise ValueError("check_out must be after check_in.")
     try:
         occupancy = int(guests)
     except (TypeError, ValueError) as exc:
-        raise ValueError("guests debe ser un numero entero.") from exc
+        raise ValueError("guests must be a whole number.") from exc
     if occupancy < 1:
-        raise ValueError("guests debe ser mayor a cero.")
+        raise ValueError("guests must be greater than zero.")
 
     params = {
         "limit": clamp_limit(limit),
@@ -329,14 +460,14 @@ def guesty_available_listings(check_in: object, check_out: object, guests: objec
 def guesty_listing_calendar(listing_id: object, start_date: object, end_date: object) -> dict:
     clean_id = str(listing_id or "").strip()
     if not clean_id:
-        raise ValueError("Falta listing_id.")
+        raise ValueError("Missing listing_id.")
     start = iso_date(start_date, "start_date")
     end = iso_date(end_date, "end_date")
     span = (date.fromisoformat(end) - date.fromisoformat(start)).days
     if span <= 0:
-        raise ValueError("end_date debe ser posterior a start_date.")
+        raise ValueError("end_date must be after start_date.")
     if span > 31:
-        raise ValueError("El calendario esta limitado a 31 dias por consulta.")
+        raise ValueError("Calendar queries are limited to 31 days.")
     return guesty_client.guesty_get(
         f"/availability-pricing/api/calendar/listings/minified/{parse.quote(clean_id)}",
         {"startDate": start, "endDate": end},
@@ -358,7 +489,7 @@ def guesty_reservations(limit: int = 5, skip: int = 0, filters: str = "") -> dic
 def guesty_reservation_by_code(code: str, limit: int = 5) -> dict:
     clean = str(code or "").strip()
     if not clean:
-        raise ValueError("Falta confirmation_code.")
+        raise ValueError("Missing confirmation_code.")
     filters = [{"operator": "$in", "field": "confirmationCode", "value": [clean]}]
     return guesty_reservations(limit=limit, filters=json.dumps(filters, separators=(",", ":")))
 
@@ -379,34 +510,311 @@ def guesty_search_reservation(params: dict) -> dict:
             operator = "$contains" if field == "guest.fullName" else "$eq"
             filters.append({"operator": operator, "field": field, "value": clean})
     if not filters:
-        raise ValueError("Falta confirmation_code, guest_phone, guest_email o guest_name.")
+        raise ValueError("Missing confirmation_code, guest_phone, guest_email, or guest_name.")
     return guesty_reservations(limit=clamp_limit(params.get("limit"), default=5), filters=json.dumps(filters, separators=(",", ":")))
 
 
 def guesty_get_reservation(reservation_id: str) -> dict:
     clean = str(reservation_id or "").strip()
     if not clean:
-        raise ValueError("Falta reservation_id.")
+        raise ValueError("Missing reservation_id.")
     return guesty_client.guesty_get(f"/reservations/{parse.quote(clean)}", {"fields": GUESTY_RESERVATION_FIELDS})
 
 
-def run_guesty_tool(name: str, arguments: Optional[dict] = None) -> dict:
+PROPERTY_PLATFORM_COLUMNS = {
+    "direct": "public_url_en",
+    "glam": "public_url_en",
+    "glamhomes": "public_url_en",
+    "website": "public_url_en",
+    "public": "public_url_en",
+    "airbnb": "airbnb_url",
+    "airbnb2": "airbnb_url",
+    "booking": "booking_url",
+    "bookingcom": "booking_url",
+    "booking.com": "booking_url",
+    "vrbo": "vrbo_url",
+    "homeaway": "vrbo_url",
+    "homeaway2": "vrbo_url",
+    "google": "google_vacation_rentals_url",
+}
+
+
+def property_platform_column(platform: object) -> str:
+    clean = re.sub(r"\s+", "", str(platform or "direct").strip().lower())
+    if clean in {"", "any"}:
+        return ""
+    return PROPERTY_PLATFORM_COLUMNS.get(clean, "public_url_en")
+
+
+def normalize_iso_date(value: object, field_name: str) -> str:
+    clean = str(value or "").strip()
+    if not clean:
+        return ""
+    try:
+        datetime.strptime(clean, "%Y-%m-%d")
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must use YYYY-MM-DD format.") from exc
+    return clean
+
+
+def normalize_guest_count(value: object) -> str:
+    if value in (None, ""):
+        return ""
+    try:
+        guests = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("guests must be a whole number.") from exc
+    if guests < 1:
+        raise ValueError("guests must be at least 1.")
+    return str(guests)
+
+
+def append_booking_params(url: str, check_in: object = "", check_out: object = "", guests: object = "") -> str:
+    clean_url = str(url or "").strip()
+    if not clean_url:
+        return ""
+    normalized_check_in = normalize_iso_date(check_in, "check_in")
+    normalized_check_out = normalize_iso_date(check_out, "check_out")
+    normalized_guests = normalize_guest_count(guests)
+    if bool(normalized_check_in) != bool(normalized_check_out):
+        raise ValueError("check_in and check_out must be provided together.")
+
+    parsed = parse.urlparse(clean_url)
+    query = parse.parse_qs(parsed.query, keep_blank_values=True)
+    if normalized_guests:
+        query["minOccupancy"] = [normalized_guests]
+    if normalized_check_in and normalized_check_out:
+        query["checkIn"] = [normalized_check_in]
+        query["checkOut"] = [normalized_check_out]
+    return parse.urlunparse(parsed._replace(query=parse.urlencode(query, doseq=True)))
+
+
+def booking_link_context(arguments: dict) -> dict[str, str]:
+    guests = arguments.get("guests")
+    if guests in (None, ""):
+        guests = arguments.get("min_guests")
+    return {
+        "check_in": normalize_iso_date(arguments.get("check_in"), "check_in"),
+        "check_out": normalize_iso_date(arguments.get("check_out"), "check_out"),
+        "guests": normalize_guest_count(guests),
+    }
+
+
+def property_row_payload(row: sqlite3.Row, platform: object = "direct", link_context: Optional[dict] = None) -> dict:
+    link_context = link_context or {}
+    requested_column = property_platform_column(platform)
+    direct_url = append_booking_params(
+        row["public_url_en"],
+        link_context.get("check_in", ""),
+        link_context.get("check_out", ""),
+        link_context.get("guests", ""),
+    )
+    requested_url = direct_url if requested_column == "public_url_en" else (row[requested_column] if requested_column else "")
+    requested_url = requested_url or direct_url
+    requested_platform_available = bool(row[requested_column]) if requested_column and requested_column != "public_url_en" else True
+    return {
+        "listing_id": row["listing_id"],
+        "title": row["title"],
+        "city": row["city"],
+        "state": row["state"],
+        "country": row["country"],
+        "accommodates": row["accommodates"],
+        "bedrooms": row["bedrooms"],
+        "bathrooms": row["bathrooms"],
+        "property_type": row["property_type"],
+        "starting_price": row["starting_price"],
+        "rating": row["rating"],
+        "review_count": row["review_count"],
+        "image_url": row["image_url"],
+        "direct_url": direct_url,
+        "public_url_en": direct_url,
+        "public_url_es": append_booking_params(
+            row["public_url_es"],
+            link_context.get("check_in", ""),
+            link_context.get("check_out", ""),
+            link_context.get("guests", ""),
+        ),
+        "airbnb_url": row["airbnb_url"],
+        "booking_url": row["booking_url"],
+        "vrbo_url": row["vrbo_url"],
+        "google_vacation_rentals_url": row["google_vacation_rentals_url"],
+        "requested_platform": str(platform or "direct"),
+        "requested_url": requested_url,
+        "requested_platform_available": requested_platform_available,
+        "booking_prefill": link_context,
+        "dates_prefilled_on_direct_links_only": bool(link_context.get("check_in") and link_context.get("check_out")),
+        "active_public": bool(row["active_public"]),
+        "sms_text": f"Glam Homes: here is {row['title']}: {requested_url}",
+    }
+
+
+def glam_search_public_property_links(arguments: Optional[dict] = None) -> dict:
     arguments = arguments or {}
+    if not PROPERTY_LINKS_DB.exists():
+        raise RuntimeError("Local property links database is missing. Run apps/voice-agent/export_property_links.py.")
+    query = str(arguments.get("query") or "").strip()
+    city = str(arguments.get("city") or "").strip()
+    platform = str(arguments.get("platform") or "any").strip() or "any"
+    min_guests = arguments.get("min_guests")
+    link_context = booking_link_context(arguments)
+    limit = clamp_limit(arguments.get("limit"), default=5, maximum=10)
+
+    where = ["active_public = 1"]
+    params: list[object] = []
+    if query:
+        like = f"%{query.lower()}%"
+        where.append("(lower(title) LIKE ? OR lower(city) LIKE ? OR lower(property_type) LIKE ? OR lower(listing_id) LIKE ?)")
+        params.extend([like, like, like, like])
+    if city:
+        where.append("lower(city) LIKE ?")
+        params.append(f"%{city.lower()}%")
+    if min_guests not in (None, ""):
+        try:
+            guests = int(min_guests)
+            where.append("CAST(accommodates AS INTEGER) >= ?")
+            params.append(guests)
+        except (TypeError, ValueError):
+            raise ValueError("min_guests must be a whole number.")
+
+    sql = f"""
+        SELECT * FROM public_properties
+        WHERE {' AND '.join(where)}
+        ORDER BY
+            CASE WHEN lower(title) = ? THEN 0 ELSE 1 END,
+            title COLLATE NOCASE
+        LIMIT ?
+    """
+    params.extend([query.lower(), limit])
+    with sqlite3.connect(PROPERTY_LINKS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = [property_row_payload(row, platform, link_context) for row in conn.execute(sql, params)]
+    return {
+        "ok": True,
+        "mode": "active_public_only",
+        "source": str(PROPERTY_LINKS_DB),
+        "count": len(rows),
+        "results": rows,
+        "note": "Contains only properties visible on the public booking site; inactive internal Guesty listings are excluded.",
+    }
+
+
+def get_public_property(listing_id: object) -> dict:
+    clean = str(listing_id or "").strip()
+    if not clean:
+        raise ValueError("Missing listing_id.")
+    if not PROPERTY_LINKS_DB.exists():
+        raise RuntimeError("Local property links database is missing. Run apps/voice-agent/export_property_links.py.")
+    with sqlite3.connect(PROPERTY_LINKS_DB) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM public_properties WHERE listing_id = ? AND active_public = 1", (clean,)).fetchone()
+    if not row:
+        raise ValueError("Property not found in the active public inventory.")
+    return dict(row)
+
+
+def twilio_api_request(path: str, data: dict[str, str]) -> dict:
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+    if not account_sid or not auth_token:
+        raise RuntimeError("Missing TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN credentials.")
+    auth = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
+    req = request.Request(
+        f"https://api.twilio.com/2010-04-01/Accounts/{parse.quote(account_sid)}/{path.lstrip('/')}",
+        method="POST",
+        data=parse.urlencode(data).encode("utf-8"),
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with request.urlopen(req, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8") or "{}")
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Twilio HTTP {exc.code}: {detail}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"Twilio connection error: {exc.reason}") from exc
+
+
+def twilio_send_property_link_sms(arguments: Optional[dict] = None) -> dict:
+    arguments = arguments or {}
+    row = get_public_property(arguments.get("listing_id"))
+    platform = str(arguments.get("platform") or "direct")
+    column = property_platform_column(platform) or "public_url_en"
+    requested_url = str(row.get(column) or "").strip()
+    direct_url = str(row.get("public_url_en") or "").strip()
+    link_context = booking_link_context(arguments)
+    if column == "public_url_en":
+        requested_url = append_booking_params(
+            requested_url or direct_url,
+            link_context.get("check_in", ""),
+            link_context.get("check_out", ""),
+            link_context.get("guests", ""),
+        )
+        direct_url = requested_url
+    if not requested_url:
+        return {
+            "ok": False,
+            "error": f"No link is available for platform '{platform}' on this property.",
+            "fallback_direct_url": direct_url,
+            "title": row.get("title"),
+        }
+    to_number = str(arguments.get("phone_number") or "").strip()
+    if not to_number:
+        raise ValueError("Missing phone_number for SMS delivery.")
+    from_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
+    body = f"Glam Homes: here is {row['title']}: {requested_url}"
+    payload = {"sid": f"dry-run-{int(time.time())}"}
+    dry_run = bool(arguments.get("dry_run"))
+    if not dry_run:
+        payload = twilio_api_request("Messages.json", {"From": from_number, "To": to_number, "Body": body})
+    append_transcript_event(
+        arguments.get("call_sid") or payload.get("sid") or f"sms-{int(time.time())}",
+        "System",
+        f"SMS sent to {to_number}: {body}" if not dry_run else f"SMS dry run to {to_number}: {body}",
+        channel="twilio_sms",
+        kind="outbound_sms",
+        metadata={"listing_id": row["listing_id"], "platform": platform, "message_sid": payload.get("sid", ""), "dry_run": dry_run},
+    )
+    return {
+        "ok": True,
+        "dry_run": dry_run,
+        "message_sid": payload.get("sid"),
+        "to": to_number,
+        "from": from_number,
+        "title": row["title"],
+        "url": requested_url,
+        "body": body,
+        "booking_prefill": link_context,
+        "dates_prefilled_on_direct_links_only": bool(link_context.get("check_in") and link_context.get("check_out")),
+    }
+
+
+def run_guesty_tool(name: str, arguments: Optional[dict] = None, context: Optional[dict] = None) -> dict:
+    arguments = tool_bridge.apply_tool_context(name, arguments or {}, context or {})
+    bridge_name = tool_bridge.tool_bridge_name(name)
+
+    def success(payload: dict) -> dict:
+        payload.setdefault("bridge", bridge_name)
+        return payload
+
     try:
         if name == "guesty_status":
-            return guesty_status(live=True)
+            return success(guesty_status(live=True))
         if name == "guesty_search_reservation":
-            return {"ok": True, "tool": name, "data": guesty_search_reservation(arguments)}
+            return success({"ok": True, "tool": name, "data": guesty_search_reservation(arguments)})
         if name == "guesty_get_reservation":
-            return {"ok": True, "tool": name, "data": guesty_get_reservation(str(arguments.get("reservation_id") or ""))}
+            return success({"ok": True, "tool": name, "data": guesty_get_reservation(str(arguments.get("reservation_id") or ""))})
         if name == "guesty_list_listings":
-            return {
+            return success({
                 "ok": True,
                 "tool": name,
                 "data": guesty_listings(limit=clamp_limit(arguments.get("limit"), default=5), city=str(arguments.get("city") or "")),
-            }
+            })
         if name == "guesty_available_listings":
-            return {
+            return success({
                 "ok": True,
                 "tool": name,
                 "data": guesty_available_listings(
@@ -416,16 +824,22 @@ def run_guesty_tool(name: str, arguments: Optional[dict] = None) -> dict:
                     limit=clamp_limit(arguments.get("limit"), default=5),
                     city=str(arguments.get("city") or ""),
                 ),
-            }
+            })
         if name == "guesty_listing_calendar":
-            return {
+            return success({
                 "ok": True,
                 "tool": name,
                 "data": guesty_listing_calendar(arguments.get("listing_id"), arguments.get("start_date"), arguments.get("end_date")),
-            }
-        raise ValueError(f"Herramienta Guesty no soportada: {name}")
+            })
+        if name == "glam_search_public_property_links":
+            return success({"ok": True, "tool": name, "data": glam_search_public_property_links(arguments)})
+        if name == "twilio_send_property_link_sms":
+            return success({"ok": True, "tool": name, "data": twilio_send_property_link_sms(arguments)})
+        raise ValueError(f"Unsupported GLAM tool: {name}")
     except Exception as exc:
-        return guesty_error_payload(exc)
+        payload = guesty_error_payload(exc)
+        payload["bridge"] = bridge_name
+        return payload
 
 
 def write_json(handler: BaseHTTPRequestHandler, payload: dict, status: int = 200) -> None:
@@ -455,12 +869,71 @@ def content_type_for(path: Path) -> str:
         return "application/javascript; charset=utf-8"
     if path.suffix == ".svg":
         return "image/svg+xml"
+    if path.suffix == ".png":
+        return "image/png"
+    if path.suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if path.suffix == ".webp":
+        return "image/webp"
+    if path.suffix == ".ico":
+        return "image/x-icon"
     return "application/octet-stream"
 
 
 def read_request_body(handler: BaseHTTPRequestHandler) -> bytes:
     length = int(handler.headers.get("Content-Length", "0") or "0")
     return handler.rfile.read(length) if length else b""
+
+
+def read_form_body(handler: BaseHTTPRequestHandler) -> dict[str, str]:
+    body = read_request_body(handler).decode("utf-8", errors="replace")
+    parsed = parse.parse_qs(body, keep_blank_values=True)
+    return {key: values[-1] if values else "" for key, values in parsed.items()}
+
+
+def handler_public_base_url(handler: BaseHTTPRequestHandler) -> str:
+    configured = os.environ.get("PUBLIC_BASE_URL", PUBLIC_BASE_URL).strip().rstrip("/")
+    if configured:
+        return configured
+    host = handler.headers.get("X-Forwarded-Host") or handler.headers.get("Host") or f"{HOST}:{PORT}"
+    proto = handler.headers.get("X-Forwarded-Proto") or ("https" if handler.headers.get("X-Forwarded-Host") else "http")
+    return f"{proto}://{host}".rstrip("/")
+
+
+def websocket_url_from_public_base(base_url: str) -> str:
+    if base_url.startswith("https://"):
+        return "wss://" + base_url.removeprefix("https://") + "/twilio/media"
+    if base_url.startswith("http://"):
+        return "ws://" + base_url.removeprefix("http://") + "/twilio/media"
+    return "wss://" + base_url.strip("/") + "/twilio/media"
+
+
+def twilio_voice_twiml(handler: BaseHTTPRequestHandler, params: dict[str, str]) -> str:
+    base_url = handler_public_base_url(handler)
+    stream_url = websocket_url_from_public_base(base_url)
+    call_sid = params.get("CallSid") or params.get("callSid") or f"local-{int(time.time())}"
+    from_number = params.get("From") or params.get("from") or ""
+    to_number = params.get("To") or params.get("to") or TWILIO_PHONE_NUMBER
+    append_transcript_event(
+        call_sid,
+        "System",
+        "Twilio sent an inbound call to the GLAM HOMES webhook.",
+        channel="twilio",
+        kind="call_start",
+        metadata={"from": from_number, "to": to_number, "stream_url": stream_url},
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<Response>"
+        "<Connect>"
+        f'<Stream url="{html_escape(stream_url, quote=True)}">'
+        f'<Parameter name="callSid" value="{html_escape(call_sid, quote=True)}" />'
+        f'<Parameter name="from" value="{html_escape(from_number, quote=True)}" />'
+        f'<Parameter name="to" value="{html_escape(to_number, quote=True)}" />'
+        "</Stream>"
+        "</Connect>"
+        "</Response>"
+    )
 
 
 def multipart_body(fields: dict[str, tuple[str, str]]) -> tuple[str, bytes]:
@@ -489,7 +962,7 @@ def session_config(voice: str) -> dict:
             "input": {
                 "transcription": {
                     "model": os.environ.get("OPENAI_TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe"),
-                    "language": "es",
+                    "language": os.environ.get("OPENAI_TRANSCRIBE_LANGUAGE", "en"),
                 },
                 "turn_detection": {
                     "type": "server_vad",
@@ -509,7 +982,7 @@ def session_config(voice: str) -> dict:
 def create_realtime_call(sdp: str, voice: str) -> str:
     api_key = openai_api_key()
     if not api_key:
-        raise RuntimeError("Falta OPENAI_API_KEY en .env o Keychain.")
+        raise RuntimeError("Missing OPENAI_API_KEY in .env or Keychain.")
     boundary, body = multipart_body(
         {
             "sdp": ("application/sdp", sdp),
@@ -547,8 +1020,15 @@ class ConciergeHandler(BaseHTTPRequestHandler):
     def do_HEAD(self) -> None:
         parsed = parse.urlparse(self.path)
         if parsed.path == "/favicon.ico":
-            self.send_response(204)
-            self.end_headers()
+            target = PUBLIC_DIR / "assets" / "glam-homes-logo.png"
+            if target.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", content_type_for(target))
+                self.send_header("Content-Length", str(target.stat().st_size))
+                self.end_headers()
+            else:
+                self.send_response(204)
+                self.end_headers()
             return
         target = PUBLIC_DIR / ("index.html" if parsed.path in {"", "/"} else parsed.path.lstrip("/"))
         try:
@@ -566,8 +1046,17 @@ class ConciergeHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         parsed = parse.urlparse(self.path)
         if parsed.path == "/favicon.ico":
-            self.send_response(204)
-            self.end_headers()
+            target = PUBLIC_DIR / "assets" / "glam-homes-logo.png"
+            if target.exists():
+                body = target.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", content_type_for(target))
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(204)
+                self.end_headers()
             return
         if parsed.path == "/api/status":
             write_json(
@@ -577,10 +1066,35 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     "app": "GLAM HOMES CONCIERGE",
                     "openai_configured": bool(openai_api_key()),
                     "guesty_configured": guesty_configured(),
+                    "twilio_configured": twilio_configured(),
+                    "property_links_configured": property_links_configured(),
+                    "property_links_db": str(PROPERTY_LINKS_DB),
+                    "twilio_phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
+                    "public_base_url": os.environ.get("PUBLIC_BASE_URL", PUBLIC_BASE_URL),
+                    "transcripts_enabled": True,
+                    "transcripts_dir": str(TRANSCRIPTS_DIR),
                     "realtime_model": os.environ.get("OPENAI_REALTIME_MODEL", REALTIME_MODEL),
                     "default_voice": os.environ.get("OPENAI_REALTIME_VOICE", DEFAULT_VOICE),
                 },
             )
+            return
+        if parsed.path == "/twilio/health":
+            base_url = handler_public_base_url(self)
+            write_json(
+                self,
+                {
+                    "ok": True,
+                    "service": "glam-homes-twilio",
+                    "phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
+                    "twilio_configured": twilio_configured(),
+                    "media_stream_url": websocket_url_from_public_base(base_url),
+                    "transcripts_dir": str(TRANSCRIPTS_DIR),
+                },
+            )
+            return
+        if parsed.path == "/twilio/voice":
+            params = {key: values[-1] for key, values in parse.parse_qs(parsed.query, keep_blank_values=True).items()}
+            write_text(self, twilio_voice_twiml(self, params), content_type="text/xml; charset=utf-8")
             return
         if parsed.path == "/api/guesty/status":
             params = parse.parse_qs(parsed.query)
@@ -588,6 +1102,27 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 write_json(self, guesty_status(live=(params.get("live") or ["0"])[0] in {"1", "true", "yes"}))
             except Exception as exc:
                 write_json(self, guesty_error_payload(exc), status=500)
+            return
+        if parsed.path == "/api/properties/search":
+            params = parse.parse_qs(parsed.query)
+            try:
+                write_json(
+                    self,
+                    glam_search_public_property_links(
+                        {
+                            "query": (params.get("query") or [""])[0],
+                            "city": (params.get("city") or [""])[0],
+                            "platform": (params.get("platform") or ["any"])[0],
+                            "min_guests": (params.get("min_guests") or [""])[0],
+                            "check_in": (params.get("check_in") or [""])[0],
+                            "check_out": (params.get("check_out") or [""])[0],
+                            "guests": (params.get("guests") or [""])[0],
+                            "limit": (params.get("limit") or ["5"])[0],
+                        }
+                    ),
+                )
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return
         if parsed.path == "/api/guesty/listings":
             params = parse.parse_qs(parsed.query)
@@ -685,6 +1220,58 @@ class ConciergeHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = parse.urlparse(self.path)
+        if parsed.path == "/api/transcripts/log":
+            try:
+                body = json.loads(read_request_body(self).decode("utf-8") or "{}")
+                write_json(
+                    self,
+                    append_transcript_event(
+                        body.get("session_id"),
+                        str(body.get("speaker") or "System"),
+                        body.get("text"),
+                        channel=str(body.get("channel") or "web"),
+                        kind=str(body.get("kind") or "message"),
+                        metadata=body.get("metadata") if isinstance(body.get("metadata"), dict) else {},
+                    ),
+                )
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/twilio/voice":
+            try:
+                params = read_form_body(self)
+                write_text(self, twilio_voice_twiml(self, params), content_type="text/xml; charset=utf-8")
+            except Exception as exc:
+                write_text(self, f'<?xml version="1.0" encoding="UTF-8"?><Response><Say>Service unavailable.</Say></Response>', status=500, content_type="text/xml; charset=utf-8")
+                self.log_message("Twilio voice webhook error: %s", exc)
+            return
+        if parsed.path == "/twilio/status":
+            params = read_form_body(self)
+            call_sid = params.get("CallSid") or params.get("callSid") or f"status-{int(time.time())}"
+            status = params.get("CallStatus") or params.get("CallStatusCallbackEvent") or params.get("CallStatusCallback") or "unknown"
+            append_transcript_event(
+                call_sid,
+                "System",
+                f"Twilio status callback: {status}",
+                channel="twilio",
+                kind="status",
+                metadata=params,
+            )
+            write_json(self, {"ok": True})
+            return
+        if parsed.path == "/twilio/sms":
+            params = read_form_body(self)
+            message_sid = params.get("MessageSid") or f"sms-{int(time.time())}"
+            append_transcript_event(
+                message_sid,
+                "SMS",
+                params.get("Body") or "(sin texto)",
+                channel="twilio_sms",
+                kind="inbound_sms",
+                metadata={"from": params.get("From", ""), "to": params.get("To", ""), "message_sid": message_sid},
+            )
+            write_text(self, '<?xml version="1.0" encoding="UTF-8"?><Response></Response>', content_type="text/xml; charset=utf-8")
+            return
         if parsed.path == "/api/guesty/tool":
             try:
                 body = json.loads(read_request_body(self).decode("utf-8") or "{}")
@@ -700,7 +1287,7 @@ class ConciergeHandler(BaseHTTPRequestHandler):
         try:
             sdp = read_request_body(self).decode("utf-8", errors="replace")
             if not sdp.strip():
-                write_text(self, "Falta SDP offer.", status=400)
+                write_text(self, "Missing SDP offer.", status=400)
                 return
             answer = create_realtime_call(sdp, voice)
             write_text(self, answer, status=201, content_type="application/sdp")
