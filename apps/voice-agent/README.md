@@ -40,10 +40,20 @@ Para llamadas reales se levantan dos procesos:
 ```bash
 python3 apps/voice-agent/server.py
 apps/voice-agent/run_twilio_bridge.sh
+apps/voice-agent/run_public_proxy.sh
 ```
 
 El endpoint TwiML queda en `/twilio/voice` y el WebSocket del audio queda en
 `/twilio/media` por medio del tunel Cloudflare `glamhomes.aipeople.app`.
+El proxy publico local escucha en `127.0.0.1:8890` y enruta HTTP al frontend/API
+en `3000`, mientras que `/twilio/media` se envia al bridge de Twilio en `8877`.
+
+Si el tunel tokenizado existe en `~/.cloudflared/glam-homes-token`, arranca el
+tunel contra ese proxy:
+
+```bash
+apps/voice-agent/run_cloudflare_tunnel.sh
+```
 
 Antes de aplicar webhooks:
 
