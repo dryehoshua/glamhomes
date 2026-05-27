@@ -16,7 +16,7 @@ fi
 TOKEN_FILE="${CLOUDFLARE_TUNNEL_TOKEN_FILE:-$HOME/.cloudflared/glam-homes-token}"
 if [[ -f "$TOKEN_FILE" ]]; then
   PROXY_URL="${GLAM_PUBLIC_PROXY_URL:-http://127.0.0.1:8890}"
-  exec "$CLOUDFLARED_BIN" tunnel run --token-file "$TOKEN_FILE" --url "$PROXY_URL"
+  exec "$CLOUDFLARED_BIN" tunnel --no-autoupdate run --token-file "$TOKEN_FILE" --url "$PROXY_URL"
 fi
 
 CONFIG_PATH="${CLOUDFLARE_TUNNEL_CONFIG:-apps/voice-agent/cloudflare-tunnel.example.yml}"
@@ -26,4 +26,4 @@ if [[ ! -f "$CONFIG_PATH" ]]; then
   exit 1
 fi
 
-exec "$CLOUDFLARED_BIN" tunnel --config "$CONFIG_PATH" run glam-homes
+exec "$CLOUDFLARED_BIN" tunnel --no-autoupdate --config "$CONFIG_PATH" run glam-homes
