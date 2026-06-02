@@ -32,7 +32,11 @@ function proxyHttp(req, res) {
     return;
   }
 
-  const headers = { ...req.headers, host: `${HTTP_TARGET_HOST}:${HTTP_TARGET_PORT}` };
+  const headers = {
+    ...req.headers,
+    host: `${HTTP_TARGET_HOST}:${HTTP_TARGET_PORT}`,
+    "x-glam-public-proxy": "1",
+  };
   const upstream = http.request(
     {
       host: HTTP_TARGET_HOST,

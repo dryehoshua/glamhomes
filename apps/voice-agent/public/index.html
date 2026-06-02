@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -433,7 +433,7 @@
 
     .chat-panel {
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
     }
 
     .chat-header {
@@ -445,6 +445,194 @@
       gap: 12px;
       border-bottom: 1px solid var(--line);
       background: #fffaf0;
+    }
+
+    .ops-monitor {
+      padding: 14px 18px;
+      display: grid;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, #191409, #2c2112);
+      color: #fff8e8;
+    }
+
+    .ops-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .ops-monitor .eyebrow {
+      color: #f0cf7a;
+    }
+
+    .monitor-refresh {
+      min-height: 34px;
+      border: 1px solid rgba(240, 207, 122, 0.64);
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: #fff8e8;
+      background: rgba(255, 250, 240, 0.08);
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .monitor-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .service-readout {
+      min-height: 74px;
+      border: 1px solid rgba(240, 207, 122, 0.35);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      background: rgba(255, 250, 240, 0.07);
+    }
+
+    .service-readout strong {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      color: #e8d7a8;
+    }
+
+    .service-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 850;
+      line-height: 1.1;
+    }
+
+    .service-state::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: #9a8f78;
+      box-shadow: 0 0 0 4px rgba(154, 143, 120, 0.13);
+    }
+
+    .monitor-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: #9a8f78;
+      box-shadow: 0 0 0 4px rgba(154, 143, 120, 0.13);
+    }
+
+    .service-state.state-ok::before,
+    .state-ok .monitor-dot {
+      background: #3cc47c;
+      box-shadow: 0 0 0 4px rgba(60, 196, 124, 0.16), 0 0 16px rgba(60, 196, 124, 0.48);
+    }
+
+    .service-state.state-warn::before,
+    .state-warn .monitor-dot {
+      background: #f0bf49;
+      box-shadow: 0 0 0 4px rgba(240, 191, 73, 0.15), 0 0 16px rgba(240, 191, 73, 0.44);
+    }
+
+    .service-state.state-down::before,
+    .state-down .monitor-dot {
+      background: #ec6a5e;
+      box-shadow: 0 0 0 4px rgba(236, 106, 94, 0.15), 0 0 16px rgba(236, 106, 94, 0.44);
+    }
+
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .monitor-indicator {
+      min-height: 58px;
+      border: 1px solid rgba(240, 207, 122, 0.26);
+      border-radius: 8px;
+      padding: 9px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .monitor-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 820;
+      line-height: 1.2;
+    }
+
+    .monitor-detail {
+      display: block;
+      margin-top: 3px;
+      color: #d7c8a9;
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .monitor-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      color: #d7c8a9;
+      font-size: 12px;
+    }
+
+    .monitor-events {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .event-column {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .event-column h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #e8d7a8;
+      letter-spacing: 0;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 6px;
+      max-height: 116px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .event-row {
+      min-height: 38px;
+      border: 1px solid rgba(240, 207, 122, 0.22);
+      border-radius: 8px;
+      padding: 7px 8px;
+      display: grid;
+      gap: 3px;
+      background: rgba(255, 250, 240, 0.055);
+      color: #fff8e8;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .event-row span {
+      color: #d7c8a9;
+      overflow-wrap: anywhere;
     }
 
     .chat-feed {
@@ -545,6 +733,10 @@
         min-height: 620px;
         overflow: hidden;
       }
+
+      .monitor-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 560px) {
@@ -570,6 +762,12 @@
 
       .button-row,
       .voice-list {
+        grid-template-columns: 1fr;
+      }
+
+      .monitor-summary,
+      .monitor-grid,
+      .monitor-events {
         grid-template-columns: 1fr;
       }
 
@@ -688,6 +886,44 @@
         <span class="pill" id="sessionLabel">No call</span>
       </div>
 
+      <div class="ops-monitor" aria-label="Twilio operations monitor">
+        <div class="ops-header">
+          <div>
+            <p class="eyebrow">Twilio operations</p>
+            <h2>Call & SMS Monitor</h2>
+          </div>
+          <button class="monitor-refresh" id="monitorRefresh" type="button">Refresh</button>
+        </div>
+        <div class="monitor-summary">
+          <div class="service-readout">
+            <strong>Voice service</strong>
+            <span class="service-state state-warn" id="voiceServiceState">Checking</span>
+          </div>
+          <div class="service-readout">
+            <strong>SMS service</strong>
+            <span class="service-state state-warn" id="smsServiceState">Checking</span>
+          </div>
+        </div>
+        <div class="monitor-grid" id="monitorGrid">
+          <div class="monitor-indicator state-warn"><span class="monitor-dot"></span><span><strong class="monitor-label">Loading monitor</strong><span class="monitor-detail">Waiting for local server response.</span></span></div>
+        </div>
+        <div class="monitor-meta">
+          <span id="monitorLastChecked">Last check: pending</span>
+          <span id="monitorPhone">Line: pending</span>
+          <span id="monitorPublicUrl">Tunnel: pending</span>
+        </div>
+        <div class="monitor-events">
+          <div class="event-column">
+            <h3>Recent calls</h3>
+            <div class="event-list" id="recentCalls"><div class="event-row">Waiting for Twilio data...</div></div>
+          </div>
+          <div class="event-column">
+            <h3>Recent SMS</h3>
+            <div class="event-list" id="recentMessages"><div class="event-row">Waiting for Twilio data...</div></div>
+          </div>
+        </div>
+      </div>
+
       <div class="chat-feed" id="chatFeed">
         <div class="message system">
           <div class="bubble-text">Ready. Voice uses local WebRTC; if OPENAI_API_KEY is missing, the server will stop before connecting.</div>
@@ -720,6 +956,134 @@
     function setStatus(text, state = "idle") {
       $("statusText").textContent = text;
       document.body.dataset.voiceState = state;
+    }
+
+    function monitorState(item) {
+      const state = String(item?.state || "").toLowerCase();
+      if (["ok", "warn", "down"].includes(state)) return state;
+      return item?.ok ? "ok" : "warn";
+    }
+
+    function monitorStateText(state) {
+      if (state === "ok") return "Active";
+      if (state === "down") return "Down";
+      return "Warning";
+    }
+
+    function setServiceReadout(id, active) {
+      const node = $(id);
+      const state = active ? "ok" : "down";
+      node.className = "service-state state-" + state;
+      node.textContent = active ? "Active" : "Down";
+    }
+
+    function compactDate(value) {
+      if (!value) return "No timestamp";
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return String(value);
+      return parsed.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function compactSid(value) {
+      const clean = String(value || "");
+      return clean.length > 10 ? clean.slice(0, 8) + "..." : clean;
+    }
+
+    function renderMonitorGrid(indicators) {
+      const grid = $("monitorGrid");
+      grid.innerHTML = "";
+      for (const item of indicators || []) {
+        const state = monitorState(item);
+        const row = document.createElement("div");
+        row.className = "monitor-indicator state-" + state;
+
+        const dot = document.createElement("span");
+        dot.className = "monitor-dot";
+        row.appendChild(dot);
+
+        const body = document.createElement("span");
+        const label = document.createElement("strong");
+        label.className = "monitor-label";
+        label.textContent = item.label || "Service";
+        const detail = document.createElement("span");
+        detail.className = "monitor-detail";
+        const extra = [];
+        if (item.detail) extra.push(item.detail);
+        if (item.status) extra.push("HTTP " + item.status);
+        if (typeof item.latency_ms === "number") extra.push(item.latency_ms + " ms");
+        detail.textContent = extra.join(" · ") || monitorStateText(state);
+        body.appendChild(label);
+        body.appendChild(detail);
+        row.appendChild(body);
+        grid.appendChild(row);
+      }
+      if (!grid.children.length) {
+        const row = document.createElement("div");
+        row.className = "monitor-indicator state-warn";
+        row.innerHTML = '<span class="monitor-dot"></span><span><strong class="monitor-label">No monitor data</strong><span class="monitor-detail">Refresh the panel.</span></span>';
+        grid.appendChild(row);
+      }
+    }
+
+    function renderEventList(id, rows, emptyText, type) {
+      const list = $(id);
+      list.innerHTML = "";
+      const records = Array.isArray(rows) ? rows : [];
+      if (!records.length) {
+        const empty = document.createElement("div");
+        empty.className = "event-row";
+        empty.textContent = emptyText;
+        list.appendChild(empty);
+        return;
+      }
+      for (const row of records.slice(0, 5)) {
+        const event = document.createElement("div");
+        event.className = "event-row";
+        const headline = document.createElement("strong");
+        const status = row.status || "unknown";
+        headline.textContent = (type === "sms" ? "SMS" : "Call") + " " + status;
+        const detail = document.createElement("span");
+        const when = compactDate(row.start_time || row.date_sent);
+        const direction = row.direction || "unknown";
+        const fromTo = (row.from || "?") + " -> " + (row.to || "?");
+        const error = row.error_code ? " · Error " + row.error_code : "";
+        detail.textContent = when + " · " + direction + " · " + fromTo + " · " + compactSid(row.sid) + error;
+        event.appendChild(headline);
+        event.appendChild(detail);
+        list.appendChild(event);
+      }
+    }
+
+    function renderTwilioMonitor(data) {
+      setServiceReadout("voiceServiceState", Boolean(data.voice_active));
+      setServiceReadout("smsServiceState", Boolean(data.sms_active));
+      $("monitorLastChecked").textContent = "Last check: " + compactDate(data.generated_at);
+      $("monitorPhone").textContent = "Line: " + (data.phone_number || "not configured");
+      $("monitorPublicUrl").textContent = "Tunnel: " + (data.public_base_url || "not configured");
+      renderMonitorGrid(data.indicators || []);
+      renderEventList("recentCalls", data.recent_calls, "No recent calls found on this Glam line.", "call");
+      renderEventList("recentMessages", data.recent_messages, "No recent SMS found on this Glam line.", "sms");
+      $("serverState").textContent = data.ok ? "Voice + SMS active" : "Monitor warning";
+    }
+
+    async function refreshTwilioMonitor(manual = false) {
+      if (manual) $("monitorRefresh").textContent = "Checking...";
+      try {
+        const response = await fetch("/api/twilio/monitor?deep=1");
+        const data = await response.json();
+        if (!response.ok || data.ok === false && data.error) throw new Error(data.error || "Monitor check failed");
+        renderTwilioMonitor(data);
+      } catch (error) {
+        setServiceReadout("voiceServiceState", false);
+        setServiceReadout("smsServiceState", false);
+        renderMonitorGrid([{ label: "Monitor endpoint", state: "down", detail: error.message }]);
+        renderEventList("recentCalls", [], "Monitor unavailable.", "call");
+        renderEventList("recentMessages", [], "Monitor unavailable.", "sms");
+        $("monitorLastChecked").textContent = "Last check: failed";
+        $("serverState").textContent = "Monitor unavailable";
+      } finally {
+        $("monitorRefresh").textContent = "Refresh";
+      }
     }
 
     function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
@@ -927,7 +1291,7 @@
       if (event.type === "response.output_audio_transcript.delta" || event.type === "response.output_text.delta") {
         assistantDraft += event.delta || "";
         if (!assistantBubble) assistantBubble = appendMessage("Concierge", "", "assistant", false);
-        assistantBubble.textContent = assistantDraft || "Hablando...";
+        assistantBubble.textContent = assistantDraft || "Speaking...";
         setStatus("Concierge speaking...", "speaking");
       }
       if (event.type === "response.output_audio_transcript.done" || event.type === "response.output_text.done") {
@@ -1090,6 +1454,7 @@
     $("stopVoice").onclick = stopSession;
     $("testMic").onclick = testMicrophone;
     $("sendText").onclick = sendManualText;
+    $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
     $("manualInput").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
     });
@@ -1108,6 +1473,8 @@
     });
 
     loadStatus();
+    refreshTwilioMonitor();
+    window.setInterval(refreshTwilioMonitor, 45000);
     loadDevices();
   </script>
 </body>

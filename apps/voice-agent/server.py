@@ -16,6 +16,7 @@ import json
 import os
 from pathlib import Path
 import re
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -738,6 +739,253 @@ def twilio_api_request(path: str, data: dict[str, str]) -> dict:
         raise RuntimeError(f"Twilio connection error: {exc.reason}") from exc
 
 
+def twilio_api_get(path: str, params: Optional[dict[str, str]] = None, timeout: int = 12) -> dict:
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+    if not account_sid or not auth_token:
+        raise RuntimeError("Missing TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN credentials.")
+    query = f"?{parse.urlencode(params or {})}" if params else ""
+    auth = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
+    req = request.Request(
+        f"https://api.twilio.com/2010-04-01/Accounts/{parse.quote(account_sid)}/{path.lstrip('/')}{query}",
+        method="GET",
+        headers={"Authorization": f"Basic {auth}", "Accept": "application/json"},
+    )
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8") or "{}")
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Twilio HTTP {exc.code}: {detail}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"Twilio connection error: {exc.reason}") from exc
+
+
+def monitor_expected_urls() -> dict[str, str]:
+    base_url = os.environ.get("PUBLIC_BASE_URL", PUBLIC_BASE_URL).strip().rstrip("/")
+    return {
+        "public_base_url": base_url,
+        "voice_webhook_url": f"{base_url}/twilio/voice",
+        "status_callback_url": f"{base_url}/twilio/status",
+        "sms_webhook_url": f"{base_url}/twilio/sms",
+        "media_stream_url": websocket_url_from_public_base(base_url),
+    }
+
+
+def monitor_port_check(label: str, port: int) -> dict:
+    started = time.monotonic()
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.45):
+            latency_ms = int((time.monotonic() - started) * 1000)
+            return {"label": label, "ok": True, "state": "ok", "detail": f"127.0.0.1:{port}", "latency_ms": latency_ms}
+    except OSError as exc:
+        return {"label": label, "ok": False, "state": "down", "detail": f"127.0.0.1:{port} unreachable: {exc}"}
+
+
+def monitor_http_probe(label: str, url: str, timeout: float = 2.5) -> dict:
+    started = time.monotonic()
+    req = request.Request(url, method="GET", headers={"Accept": "application/json", "User-Agent": "GlamHomesMonitor/1.0"})
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            body = response.read(2048)
+            latency_ms = int((time.monotonic() - started) * 1000)
+            status = response.getcode()
+            payload = {}
+            try:
+                payload = json.loads(body.decode("utf-8") or "{}")
+            except Exception:
+                payload = {}
+            ok = 200 <= status < 400 and payload.get("ok", True) is not False
+            return {"label": label, "ok": ok, "state": "ok" if ok else "warn", "status": status, "url": url, "latency_ms": latency_ms}
+    except Exception as exc:
+        return {"label": label, "ok": False, "state": "down", "url": url, "detail": str(exc)}
+
+
+def normalize_monitor_url(value: object) -> str:
+    return str(value or "").strip().rstrip("/")
+
+
+def monitor_twilio_number(expected: dict[str, str]) -> dict:
+    phone_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
+    payload = twilio_api_get("IncomingPhoneNumbers.json", {"PhoneNumber": phone_number, "PageSize": "1"})
+    records = payload.get("incoming_phone_numbers") or []
+    if not records:
+        return {"ok": False, "state": "down", "phone_number": phone_number, "detail": "Number was not found in this Twilio account."}
+    record = records[0]
+    actual = {
+        "voice_url": record.get("voice_url") or "",
+        "voice_method": record.get("voice_method") or "",
+        "sms_url": record.get("sms_url") or "",
+        "sms_method": record.get("sms_method") or "",
+        "status_callback": record.get("status_callback") or "",
+        "status_callback_method": record.get("status_callback_method") or "",
+    }
+    checks = {
+        "voice": normalize_monitor_url(actual["voice_url"]) == normalize_monitor_url(expected["voice_webhook_url"]),
+        "sms": normalize_monitor_url(actual["sms_url"]) == normalize_monitor_url(expected["sms_webhook_url"]),
+        "status": normalize_monitor_url(actual["status_callback"]) == normalize_monitor_url(expected["status_callback_url"]),
+    }
+    ok = all(checks.values())
+    return {
+        "ok": ok,
+        "state": "ok" if ok else "warn",
+        "sid": record.get("sid", ""),
+        "phone_number": record.get("phone_number") or phone_number,
+        "friendly_name": record.get("friendly_name") or "",
+        "actual": actual,
+        "checks": checks,
+    }
+
+
+def monitor_recent_calls(limit: int = 5) -> list[dict]:
+    phone_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
+    payload = twilio_api_get("Calls.json", {"To": phone_number, "PageSize": str(limit)})
+    rows = []
+    for call in payload.get("calls") or []:
+        rows.append(
+            {
+                "sid": call.get("sid", ""),
+                "status": call.get("status", ""),
+                "direction": call.get("direction", ""),
+                "from": call.get("from", ""),
+                "to": call.get("to", ""),
+                "start_time": call.get("start_time", ""),
+                "duration": call.get("duration", ""),
+                "error_code": call.get("error_code"),
+            }
+        )
+    return rows
+
+
+def monitor_recent_messages(limit: int = 5) -> list[dict]:
+    phone_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
+    messages: dict[str, dict] = {}
+    for field in ("To", "From"):
+        payload = twilio_api_get("Messages.json", {field: phone_number, "PageSize": str(limit)})
+        for message in payload.get("messages") or []:
+            sid = str(message.get("sid") or "")
+            messages[sid] = {
+                "sid": sid,
+                "status": message.get("status", ""),
+                "direction": message.get("direction", ""),
+                "from": message.get("from", ""),
+                "to": message.get("to", ""),
+                "date_sent": message.get("date_sent", "") or message.get("date_created", ""),
+                "error_code": message.get("error_code"),
+            }
+    return list(messages.values())[:limit]
+
+
+def build_twilio_monitor(deep: bool = True) -> dict:
+    expected = monitor_expected_urls()
+    app_port = int(os.environ.get("PORT", str(PORT)))
+    media_port = int(os.environ.get("TWILIO_MEDIA_PORT", "8877"))
+    proxy_port = int(os.environ.get("GLAM_PROXY_PORT", "8890"))
+    openai_ready = bool(openai_api_key())
+    guesty_ready = guesty_configured()
+    twilio_ready = twilio_configured()
+    local_services = {
+        "backend": monitor_port_check("Backend API", app_port),
+        "media_bridge": monitor_port_check("Media bridge", media_port),
+        "public_proxy": monitor_port_check("Public proxy", proxy_port),
+    }
+    public_health = monitor_http_probe("Public Twilio health", f"{expected['public_base_url']}/twilio/health")
+    twilio_number = {"ok": False, "state": "warn", "detail": "Twilio credentials are not configured."}
+    recent_calls: list[dict] = []
+    recent_messages: list[dict] = []
+    twilio_api_ok = False
+    twilio_error = ""
+
+    if twilio_ready and deep:
+        try:
+            twilio_number = monitor_twilio_number(expected)
+            recent_calls = monitor_recent_calls()
+            recent_messages = monitor_recent_messages()
+            twilio_api_ok = True
+        except Exception as exc:
+            twilio_error = str(exc)
+            twilio_number = {"ok": False, "state": "down", "detail": twilio_error}
+    elif twilio_ready:
+        twilio_number = {"ok": True, "state": "warn", "detail": "Twilio credentials detected. Deep check skipped."}
+
+    indicators = [
+        local_services["backend"],
+        local_services["media_bridge"],
+        local_services["public_proxy"],
+        public_health,
+        {
+            "label": "Twilio number",
+            "ok": bool(twilio_number.get("ok")),
+            "state": twilio_number.get("state", "warn"),
+            "detail": twilio_number.get("phone_number") or twilio_number.get("detail") or os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
+        },
+        {
+            "label": "Voice webhook",
+            "ok": bool((twilio_number.get("checks") or {}).get("voice")),
+            "state": "ok" if (twilio_number.get("checks") or {}).get("voice") else "warn",
+            "detail": expected["voice_webhook_url"],
+        },
+        {
+            "label": "SMS webhook",
+            "ok": bool((twilio_number.get("checks") or {}).get("sms")),
+            "state": "ok" if (twilio_number.get("checks") or {}).get("sms") else "warn",
+            "detail": expected["sms_webhook_url"],
+        },
+        {
+            "label": "OpenAI Realtime",
+            "ok": openai_ready,
+            "state": "ok" if openai_ready else "down",
+            "detail": os.environ.get("OPENAI_REALTIME_MODEL", REALTIME_MODEL),
+        },
+        {
+            "label": "Guesty bridge",
+            "ok": guesty_ready,
+            "state": "ok" if guesty_ready else "warn",
+            "detail": "Read-only API credentials" if guesty_ready else "Credentials missing",
+        },
+    ]
+    alerts = [item["label"] + ": " + str(item.get("detail", "")) for item in indicators if item.get("state") == "down"]
+    if twilio_error:
+        alerts.append(f"Twilio API: {twilio_error}")
+    voice_active = all(
+        [
+            local_services["backend"]["ok"],
+            local_services["media_bridge"]["ok"],
+            local_services["public_proxy"]["ok"],
+            public_health["ok"],
+            bool((twilio_number.get("checks") or {}).get("voice")),
+            openai_ready,
+        ]
+    )
+    sms_active = all(
+        [
+            local_services["backend"]["ok"],
+            public_health["ok"],
+            bool((twilio_number.get("checks") or {}).get("sms")),
+            twilio_api_ok,
+        ]
+    )
+    return {
+        "ok": voice_active and sms_active,
+        "generated_at": now_iso(),
+        "deep_check": deep,
+        "public_base_url": expected["public_base_url"],
+        "phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
+        "expected": expected,
+        "local_services": local_services,
+        "public_health": public_health,
+        "twilio_configured": twilio_ready,
+        "twilio_api_ok": twilio_api_ok,
+        "twilio_number": twilio_number,
+        "voice_active": voice_active,
+        "sms_active": sms_active,
+        "indicators": indicators,
+        "recent_calls": recent_calls,
+        "recent_messages": recent_messages,
+        "alerts": alerts,
+    }
+
+
 def twilio_send_property_link_sms(arguments: Optional[dict] = None) -> dict:
     arguments = arguments or {}
     row = get_public_property(arguments.get("listing_id"))
@@ -906,6 +1154,40 @@ def websocket_url_from_public_base(base_url: str) -> str:
     if base_url.startswith("http://"):
         return "ws://" + base_url.removeprefix("http://") + "/twilio/media"
     return "wss://" + base_url.strip("/") + "/twilio/media"
+
+
+def is_local_dashboard_request(handler: BaseHTTPRequestHandler) -> bool:
+    client_host = (handler.client_address[0] if handler.client_address else "").strip()
+    host_header = (handler.headers.get("Host") or "").split(":", 1)[0].strip().lower()
+    public_proxy = (handler.headers.get("X-Glam-Public-Proxy") or "").strip() == "1"
+    forwarded = any(
+        handler.headers.get(name)
+        for name in ("CF-Connecting-IP", "X-Forwarded-For", "X-Forwarded-Host", "Cf-Connecting-Ip")
+    )
+    return client_host in {"127.0.0.1", "::1"} and host_header in {"127.0.0.1", "localhost"} and not public_proxy and not forwarded
+
+
+def local_only_monitor_payload() -> dict:
+    return {
+        "ok": False,
+        "generated_at": now_iso(),
+        "local_only": True,
+        "voice_active": False,
+        "sms_active": False,
+        "phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
+        "public_base_url": os.environ.get("PUBLIC_BASE_URL", PUBLIC_BASE_URL),
+        "indicators": [
+            {
+                "label": "Monitor access",
+                "ok": False,
+                "state": "warn",
+                "detail": "Open http://127.0.0.1:3000 on this Mac to view Twilio operations.",
+            }
+        ],
+        "recent_calls": [],
+        "recent_messages": [],
+        "alerts": ["Twilio monitor is local-only to protect call and SMS metadata."],
+    }
 
 
 def twilio_voice_twiml(handler: BaseHTTPRequestHandler, params: dict[str, str]) -> str:
@@ -1077,6 +1359,17 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     "default_voice": os.environ.get("OPENAI_REALTIME_VOICE", DEFAULT_VOICE),
                 },
             )
+            return
+        if parsed.path == "/api/twilio/monitor":
+            if not is_local_dashboard_request(self):
+                write_json(self, local_only_monitor_payload(), status=403)
+                return
+            params = parse.parse_qs(parsed.query)
+            deep = (params.get("deep") or ["1"])[0].lower() not in {"0", "false", "no"}
+            try:
+                write_json(self, build_twilio_monitor(deep=deep))
+            except Exception as exc:
+                write_json(self, {"ok": False, "generated_at": now_iso(), "error": str(exc)}, status=500)
             return
         if parsed.path == "/twilio/health":
             base_url = handler_public_base_url(self)

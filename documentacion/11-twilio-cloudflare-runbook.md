@@ -1,6 +1,7 @@
 # Twilio + Cloudflare Runbook
 
 Fecha: 2026-05-19
+Actualizado: 2026-06-01 America/Mexico_City / 2026-06-02 UTC
 
 ## Regla de seguridad
 
@@ -112,6 +113,35 @@ Webhooks esperados:
 - Status callback: `https://glamhomes.aipeople.app/twilio/status`
 - SMS URL: `https://glamhomes.aipeople.app/twilio/sms`
 
+## Panel de monitoreo Twilio
+
+El dashboard local de GLAM HOMES muestra un panel "Call & SMS Monitor" encima
+de la consola Realtime. Abrirlo desde esta Mac:
+
+```text
+http://127.0.0.1:3000/
+```
+
+El panel consulta `GET /api/twilio/monitor?deep=1`. Este endpoint es local-only:
+si alguien intenta abrirlo por `https://glamhomes.aipeople.app`, devuelve 403
+para no exponer metadata de llamadas ni SMS.
+
+Checks incluidos:
+
+- Backend local: `127.0.0.1:3000`
+- Media bridge Twilio/OpenAI: `127.0.0.1:8877`
+- Proxy publico local: `127.0.0.1:8890`
+- Salud publica: `https://glamhomes.aipeople.app/twilio/health`
+- Numero Twilio de GLAM: `+17864813013`
+- Voice webhook: `https://glamhomes.aipeople.app/twilio/voice`
+- SMS webhook: `https://glamhomes.aipeople.app/twilio/sms`
+- OpenAI Realtime configurado
+- Guesty bridge configurado
+
+El panel tambien muestra las ultimas llamadas y SMS vistos por Twilio. No
+expone tokens ni secretos. El frontend refresca automaticamente cada 45
+segundos y tiene boton manual `Refresh`.
+
 ## Transcripciones
 
 Las llamadas y demos web se guardan localmente en:
@@ -126,9 +156,14 @@ personales de huespedes.
 
 ## Estado actual
 
-- Twilio esta validado en modo dry-run para `+17864813013`.
-- No se aplicaron webhooks todavia.
-- `cloudflared` no estaba instalado al preparar este runbook.
+- Twilio esta validado para `+17864813013`.
+- Webhooks aplicados y verificados para llamadas, status callback y SMS.
+- `http://127.0.0.1:3000/api/twilio/monitor?deep=1` responde con
+  `voice_active=true` y `sms_active=true` desde la maquina local.
+- GLAM HOMES usa `3000` para app HTTP, `8877` para Media Streams y `8890` para
+  proxy publico local.
+- Hay supervisor local en ejecucion para reactivar los procesos GLAM si se caen
+  mientras la maquina no se reinicie.
 - Guesty se mantiene en modo lectura: reservas, propiedades, disponibilidad y
   calendario minificado.
 - Escritura en Guesty, pagos, links de pago y cambios de reserva siguen
