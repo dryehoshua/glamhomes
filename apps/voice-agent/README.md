@@ -43,6 +43,16 @@ apps/voice-agent/run_twilio_bridge.sh
 apps/voice-agent/run_public_proxy.sh
 ```
 
+Para mantener todo el stack de Glam vivo en una sola supervision local:
+
+```bash
+apps/voice-agent/run_glam_stack.sh
+```
+
+Ese supervisor revisa periodicamente el backend `3000`, el media bridge `8877`,
+el proxy publico `8890` y el tunnel Cloudflare de Glam. Si alguno se cae, lo
+vuelve a levantar sin tocar procesos de Kim Live.
+
 El endpoint TwiML queda en `/twilio/voice` y el WebSocket del audio queda en
 `/twilio/media` por medio del tunel Cloudflare `glamhomes.aipeople.app`.
 El proxy publico local escucha en `127.0.0.1:8890` y enruta HTTP al frontend/API
