@@ -7,6 +7,20 @@ mkdir -p "$LOG_DIR"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$PATH"
 
+load_openai_keychain_key() {
+  if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+    return 0
+  fi
+  local account="${KEYCHAIN_ACCOUNT:-dryehoshuapython}"
+  local key
+  key="$(security find-generic-password -s codex.openai.api_key -a "$account" -w 2>/dev/null || true)"
+  if [[ -n "$key" ]]; then
+    export OPENAI_API_KEY="$key"
+    return 0
+  fi
+  return 1
+}
+
 log() {
   printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >> "$LOG_DIR/glam-stack.log"
 }
@@ -57,6 +71,11 @@ ensure_cloudflared() {
 }
 
 log "GLAM HOMES stack supervisor started"
+if load_openai_keychain_key; then
+  log "OpenAI API key loaded for GLAM runtime"
+else
+  log "OpenAI API key not available for GLAM runtime"
+fi
 
 while true; do
   ensure_port_process "server" 3000 "python3" "apps/voice-agent/server.py"
