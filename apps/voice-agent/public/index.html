@@ -520,7 +520,7 @@
 
     .chat-panel {
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
     }
 
     .chat-header {
@@ -722,6 +722,166 @@
       overflow-wrap: anywhere;
     }
 
+    .call-inbox {
+      min-height: 248px;
+      border-bottom: 1px solid var(--line);
+      background: #fffdf8;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .call-inbox-header {
+      padding: 13px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf0;
+    }
+
+    .call-inbox-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .call-inbox-layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    }
+
+    .call-list {
+      min-height: 0;
+      max-height: 280px;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      border-right: 1px solid var(--line);
+      background: #fbf3df;
+    }
+
+    .call-item {
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-bottom: 1px solid rgba(223, 212, 189, 0.84);
+      border-radius: 0;
+      background: transparent;
+      padding: 10px 12px;
+      display: grid;
+      gap: 4px;
+      text-align: left;
+      color: var(--ink);
+    }
+
+    .call-item.active {
+      background: #fffdf8;
+      box-shadow: inset 3px 0 0 var(--gold);
+    }
+
+    .call-item strong {
+      font-size: 13px;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .call-item span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: linear-gradient(180deg, #fffdf8, #fff8eb);
+    }
+
+    .transcript-header {
+      min-height: 52px;
+      padding: 11px 14px;
+      display: grid;
+      gap: 4px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .transcript-header strong {
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-header span {
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-messages {
+      min-height: 0;
+      max-height: 228px;
+      overflow: auto;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .transcript-bubble {
+      max-width: 78%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: grid;
+      gap: 4px;
+      background: #ffffff;
+      font-size: 13px;
+      line-height: 1.38;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-bubble.guest {
+      justify-self: end;
+      background: #f8ead0;
+      border-color: #d5b66d;
+    }
+
+    .transcript-bubble.concierge {
+      justify-self: start;
+      background: #ffffff;
+    }
+
+    .transcript-bubble.system,
+    .transcript-bubble.tool {
+      justify-self: center;
+      max-width: 94%;
+      background: #f4efe5;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .transcript-bubble.tool {
+      border-color: #d5b66d;
+      background: #fff4d7;
+    }
+
+    .transcript-speaker {
+      color: var(--gold-deep);
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .transcript-time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
     .chat-feed {
       min-height: 0;
       padding: 18px;
@@ -824,6 +984,16 @@
       .monitor-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+
+      .call-inbox-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .call-list {
+        max-height: 190px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
     }
 
     @media (max-width: 560px) {
@@ -856,6 +1026,24 @@
       .monitor-grid,
       .monitor-events {
         grid-template-columns: 1fr;
+      }
+
+      .call-inbox-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .call-inbox-actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      .call-inbox-actions .secondary {
+        width: 100%;
+      }
+
+      .transcript-bubble {
+        max-width: 94%;
       }
 
       .message {
@@ -1013,6 +1201,36 @@
         </div>
       </div>
 
+      <div class="call-inbox" aria-label="Call inbox">
+        <div class="call-inbox-header">
+          <div>
+            <p class="eyebrow">Call center memory</p>
+            <h2>Call Inbox</h2>
+          </div>
+          <div class="call-inbox-actions">
+            <span class="pill" id="callInboxState">Local transcripts</span>
+            <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
+          </div>
+        </div>
+        <div class="call-inbox-layout">
+          <div class="call-list" id="callList">
+            <button class="call-item" type="button"><strong>Loading calls...</strong><span>Checking local transcripts.</span></button>
+          </div>
+          <div class="transcript-panel">
+            <div class="transcript-header" id="transcriptHeader">
+              <strong>Select a call</strong>
+              <span>Conversation transcripts are stored locally on this Mac.</span>
+            </div>
+            <div class="transcript-messages" id="transcriptMessages">
+              <div class="transcript-bubble system">
+                <span class="transcript-speaker">System</span>
+                <span>Choose a recent call to open the messenger transcript.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="chat-feed" id="chatFeed">
         <div class="message system">
           <div class="bubble-text">Ready. Voice uses local WebRTC; if OPENAI_API_KEY is missing, the server will stop before connecting.</div>
@@ -1038,6 +1256,8 @@
     let assistantFinalLogged = false;
     let selectedMicDeviceId = "";
     let activeMode = "";
+    let selectedCallSid = "";
+    const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
     const sessionId = "GH-" + new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
 
     $("sessionLabel").textContent = sessionId;
@@ -1076,6 +1296,17 @@
     function compactSid(value) {
       const clean = String(value || "");
       return clean.length > 10 ? clean.slice(0, 8) + "..." : clean;
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url);
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+      return { response, data };
     }
 
     function renderMonitorGrid(indicators) {
@@ -1150,17 +1381,25 @@
       $("monitorPhone").textContent = "Line: " + (data.phone_number || "not configured");
       $("monitorPublicUrl").textContent = "Tunnel: " + (data.public_base_url || "not configured");
       renderMonitorGrid(data.indicators || []);
-      renderEventList("recentCalls", data.recent_calls, "No recent calls found on this Glam line.", "call");
-      renderEventList("recentMessages", data.recent_messages, "No recent SMS found on this Glam line.", "sms");
+      if (data.protected_details || data.local_only) {
+        renderEventList("recentCalls", [], "Detailed call metadata is protected. Open http://127.0.0.1:3000 on this Mac for the full monitor.", "call");
+        renderEventList("recentMessages", [], "Detailed SMS metadata is protected. Open the local dashboard for full details.", "sms");
+      } else {
+        renderEventList("recentCalls", data.recent_calls, "No recent calls found on this Glam line.", "call");
+        renderEventList("recentMessages", data.recent_messages, "No recent SMS found on this Glam line.", "sms");
+      }
       $("serverState").textContent = data.ok ? "Voice + SMS active" : "Monitor warning";
     }
 
     async function refreshTwilioMonitor(manual = false) {
       if (manual) $("monitorRefresh").textContent = "Checking...";
       try {
-        const response = await fetch("/api/twilio/monitor?deep=1");
-        const data = await response.json();
-        if (!response.ok || data.ok === false && data.error) throw new Error(data.error || "Monitor check failed");
+        const primaryUrl = isLocalDashboard ? "/api/twilio/monitor?deep=1" : "/api/twilio/public-health";
+        let { response, data } = await fetchJson(primaryUrl);
+        if (response.status === 403 || data.local_only) {
+          ({ response, data } = await fetchJson("/api/twilio/public-health"));
+        }
+        if (!response.ok || (data.ok === false && data.error)) throw new Error(data.error || "Monitor check failed");
         renderTwilioMonitor(data);
       } catch (error) {
         setServiceReadout("voiceServiceState", false);
@@ -1172,6 +1411,149 @@
         $("serverState").textContent = "Monitor unavailable";
       } finally {
         $("monitorRefresh").textContent = "Refresh";
+      }
+    }
+
+    function clearTranscript(title, detail) {
+      $("transcriptHeader").innerHTML = "";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const sub = document.createElement("span");
+      sub.textContent = detail;
+      $("transcriptHeader").appendChild(heading);
+      $("transcriptHeader").appendChild(sub);
+      $("transcriptMessages").innerHTML = "";
+      const bubble = document.createElement("div");
+      bubble.className = "transcript-bubble system";
+      const speaker = document.createElement("span");
+      speaker.className = "transcript-speaker";
+      speaker.textContent = "System";
+      const body = document.createElement("span");
+      body.textContent = detail;
+      bubble.appendChild(speaker);
+      bubble.appendChild(body);
+      $("transcriptMessages").appendChild(bubble);
+    }
+
+    function callTitle(call) {
+      return call.from ? call.from + " -> " + (call.to || "GLAM") : call.call_sid || "Unknown call";
+    }
+
+    function renderCallList(calls) {
+      const list = $("callList");
+      list.innerHTML = "";
+      if (!calls.length) {
+        const empty = document.createElement("button");
+        empty.className = "call-item";
+        empty.type = "button";
+        const title = document.createElement("strong");
+        title.textContent = "No calls yet";
+        const detail = document.createElement("span");
+        detail.textContent = "New Twilio calls will appear here once a transcript is saved.";
+        empty.appendChild(title);
+        empty.appendChild(detail);
+        list.appendChild(empty);
+        return;
+      }
+      for (const call of calls) {
+        const button = document.createElement("button");
+        button.className = "call-item" + (call.call_sid === selectedCallSid ? " active" : "");
+        button.type = "button";
+        button.dataset.callSid = call.call_sid || "";
+
+        const title = document.createElement("strong");
+        title.textContent = callTitle(call);
+        const detail = document.createElement("span");
+        const status = call.status || "local";
+        const duration = call.duration ? " · " + call.duration + "s" : "";
+        const transcript = call.has_transcript ? " · transcript" : " · no transcript yet";
+        detail.textContent = compactDate(call.started_at || call.last_at) + " · " + status + duration + transcript;
+        const preview = document.createElement("span");
+        preview.textContent = call.preview || compactSid(call.call_sid);
+
+        button.appendChild(title);
+        button.appendChild(detail);
+        button.appendChild(preview);
+        button.addEventListener("click", () => openCallTranscript(call.call_sid));
+        list.appendChild(button);
+      }
+    }
+
+    function renderTranscript(summary, events) {
+      $("transcriptHeader").innerHTML = "";
+      const heading = document.createElement("strong");
+      heading.textContent = callTitle(summary || {});
+      const sub = document.createElement("span");
+      sub.textContent = (summary?.status || "local") + " · " + compactDate(summary?.started_at || summary?.last_at) + " · " + compactSid(summary?.call_sid);
+      $("transcriptHeader").appendChild(heading);
+      $("transcriptHeader").appendChild(sub);
+
+      const feed = $("transcriptMessages");
+      feed.innerHTML = "";
+      const rows = Array.isArray(events) ? events : [];
+      if (!rows.length) {
+        clearTranscript("No transcript yet", "This call has Twilio metadata, but no local conversation transcript has been saved yet.");
+        return;
+      }
+      for (const event of rows) {
+        const role = ["guest", "concierge", "tool", "system"].includes(event.role) ? event.role : "system";
+        const bubble = document.createElement("div");
+        bubble.className = "transcript-bubble " + role;
+        const speaker = document.createElement("span");
+        speaker.className = "transcript-speaker";
+        speaker.textContent = event.speaker || role;
+        const body = document.createElement("span");
+        body.textContent = event.text || "(no text)";
+        const time = document.createElement("span");
+        time.className = "transcript-time";
+        time.textContent = compactDate(event.timestamp) + " · " + (event.kind || "message");
+        bubble.appendChild(speaker);
+        bubble.appendChild(body);
+        bubble.appendChild(time);
+        feed.appendChild(bubble);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    async function openCallTranscript(callSid) {
+      if (!callSid) return;
+      selectedCallSid = callSid;
+      for (const item of document.querySelectorAll(".call-item")) {
+        item.classList.toggle("active", item.dataset.callSid === callSid);
+      }
+      clearTranscript("Loading transcript", "Opening " + compactSid(callSid) + "...");
+      try {
+        const { response, data } = await fetchJson("/api/calls/transcript?call_sid=" + encodeURIComponent(callSid));
+        if (!response.ok) throw new Error(data.error || "Transcript unavailable");
+        renderTranscript(data.summary || {}, data.events || []);
+      } catch (error) {
+        clearTranscript("Transcript unavailable", error.message);
+      }
+    }
+
+    async function refreshCallInbox(manual = false) {
+      if (manual) $("refreshCalls").textContent = "Checking...";
+      try {
+        const { response, data } = await fetchJson("/api/calls/inbox?limit=50");
+        if (response.status === 403 || data.local_only) {
+          $("callInboxState").textContent = "Local only";
+          renderCallList([]);
+          clearTranscript("Call Inbox is protected", "Open http://127.0.0.1:3000 on this Mac to view phone numbers and transcripts.");
+          return;
+        }
+        if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
+        const calls = data.calls || [];
+        $("callInboxState").textContent = calls.length + " calls";
+        renderCallList(calls);
+        if (!selectedCallSid && calls.length) {
+          await openCallTranscript(calls[0].call_sid);
+        }
+      } catch (error) {
+        $("callInboxState").textContent = "Unavailable";
+        renderCallList([]);
+        clearTranscript("Call Inbox unavailable", error.message);
+      } finally {
+        $("refreshCalls").textContent = "Refresh calls";
       }
     }
 
@@ -1544,6 +1926,7 @@
     $("testMic").onclick = testMicrophone;
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
+    $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("manualInput").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
     });
@@ -1563,7 +1946,9 @@
 
     loadStatus();
     refreshTwilioMonitor();
+    refreshCallInbox();
     window.setInterval(refreshTwilioMonitor, 45000);
+    window.setInterval(refreshCallInbox, 60000);
     loadDevices();
   </script>
 </body>

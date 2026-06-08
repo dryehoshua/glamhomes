@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 from datetime import date, datetime, timezone
+from email.utils import parsedate_to_datetime
 import hashlib
 from html import escape as html_escape
 import json
@@ -986,6 +987,265 @@ def build_twilio_monitor(deep: bool = True) -> dict:
     }
 
 
+def build_twilio_public_health() -> dict:
+    expected = monitor_expected_urls()
+    app_port = int(os.environ.get("PORT", str(PORT)))
+    media_port = int(os.environ.get("TWILIO_MEDIA_PORT", "8877"))
+    proxy_port = int(os.environ.get("GLAM_PROXY_PORT", "8890"))
+    openai_ready = bool(openai_api_key())
+    twilio_ready = twilio_configured()
+    local_services = {
+        "backend": monitor_port_check("Backend API", app_port),
+        "media_bridge": monitor_port_check("Media bridge", media_port),
+        "public_proxy": monitor_port_check("Public proxy", proxy_port),
+    }
+    public_health = monitor_http_probe("Public Twilio health", f"{expected['public_base_url']}/twilio/health")
+    twilio_number = {"ok": False, "state": "warn", "checks": {}, "detail": "Twilio credentials unavailable."}
+    twilio_api_ok = False
+    if twilio_ready:
+        try:
+            twilio_number = monitor_twilio_number(expected)
+            twilio_api_ok = True
+        except Exception:
+            twilio_number = {"ok": False, "state": "warn", "checks": {}, "detail": "Twilio API check unavailable."}
+
+    voice_webhook_ok = bool((twilio_number.get("checks") or {}).get("voice"))
+    sms_webhook_ok = bool((twilio_number.get("checks") or {}).get("sms"))
+    voice_active = all(
+        [
+            local_services["backend"]["ok"],
+            local_services["media_bridge"]["ok"],
+            local_services["public_proxy"]["ok"],
+            public_health["ok"],
+            twilio_ready,
+            voice_webhook_ok,
+            openai_ready,
+        ]
+    )
+    sms_active = all(
+        [
+            local_services["backend"]["ok"],
+            public_health["ok"],
+            twilio_ready,
+            sms_webhook_ok,
+            twilio_api_ok,
+        ]
+    )
+    indicators = [
+        {"label": "Backend API", "ok": local_services["backend"]["ok"], "state": local_services["backend"]["state"], "detail": "Ready" if local_services["backend"]["ok"] else "Unavailable"},
+        {"label": "Media bridge", "ok": local_services["media_bridge"]["ok"], "state": local_services["media_bridge"]["state"], "detail": "Ready" if local_services["media_bridge"]["ok"] else "Unavailable"},
+        {"label": "Public proxy", "ok": local_services["public_proxy"]["ok"], "state": local_services["public_proxy"]["state"], "detail": "Ready" if local_services["public_proxy"]["ok"] else "Unavailable"},
+        {"label": "Public Twilio health", "ok": public_health["ok"], "state": public_health["state"], "detail": f"HTTP {public_health.get('status', 'unavailable')}"},
+        {"label": "Twilio number", "ok": bool(twilio_number.get("ok")), "state": twilio_number.get("state", "warn"), "detail": "Configured" if twilio_number.get("ok") else "Check unavailable"},
+        {"label": "Voice webhook", "ok": voice_webhook_ok, "state": "ok" if voice_webhook_ok else "warn", "detail": "Configured"},
+        {"label": "SMS webhook", "ok": sms_webhook_ok, "state": "ok" if sms_webhook_ok else "warn", "detail": "Configured"},
+        {"label": "OpenAI Realtime", "ok": openai_ready, "state": "ok" if openai_ready else "down", "detail": os.environ.get("OPENAI_REALTIME_MODEL", REALTIME_MODEL)},
+    ]
+    return {
+        "ok": voice_active and sms_active,
+        "generated_at": now_iso(),
+        "public": True,
+        "protected_details": True,
+        "public_base_url": expected["public_base_url"],
+        "phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
+        "voice_active": voice_active,
+        "sms_active": sms_active,
+        "twilio_configured": twilio_ready,
+        "twilio_api_ok": twilio_api_ok,
+        "indicators": indicators,
+        "recent_calls": [],
+        "recent_messages": [],
+        "alerts": [] if voice_active and sms_active else [item["label"] for item in indicators if item.get("state") == "down"],
+    }
+
+
+def parse_any_datetime(value: object) -> Optional[datetime]:
+    clean = str(value or "").strip()
+    if not clean:
+        return None
+    try:
+        return datetime.fromisoformat(clean.replace("Z", "+00:00"))
+    except ValueError:
+        pass
+    try:
+        parsed = parsedate_to_datetime(clean)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except Exception:
+        return None
+
+
+def transcript_sort_key(value: object) -> float:
+    parsed = parse_any_datetime(value)
+    return parsed.timestamp() if parsed else 0.0
+
+
+def transcript_jsonl_files() -> list[Path]:
+    if not TRANSCRIPTS_DIR.exists():
+        return []
+    return sorted(TRANSCRIPTS_DIR.glob("*/*.jsonl"), key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def read_transcript_events(path: Path, maximum: int = 500) -> list[dict]:
+    events: list[dict] = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if len(events) >= maximum:
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(event, dict):
+                    events.append(event)
+    except OSError:
+        return []
+    return events
+
+
+def transcript_event_role(event: dict) -> str:
+    speaker = str(event.get("speaker") or "").strip().lower()
+    kind = str(event.get("kind") or "").strip().lower()
+    if speaker in {"guest", "caller", "sms"}:
+        return "guest"
+    if speaker in {"concierge", "assistant", "glam homes concierge"}:
+        return "concierge"
+    if "tool" in speaker or kind == "tool":
+        return "tool"
+    return "system"
+
+
+def call_metadata_from_events(events: list[dict]) -> dict:
+    payload = {"from": "", "to": ""}
+    for event in events:
+        metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+        if not payload["from"] and metadata.get("from"):
+            payload["from"] = str(metadata.get("from") or "")
+        if not payload["to"] and metadata.get("to"):
+            payload["to"] = str(metadata.get("to") or "")
+    return payload
+
+
+def transcript_call_summary(path: Path) -> Optional[dict]:
+    events = read_transcript_events(path, maximum=250)
+    if not events:
+        return None
+    if not any(str(event.get("channel") or "").startswith("twilio") for event in events):
+        return None
+    if any(str(event.get("channel") or "") == "twilio_sms" for event in events) and not any(str(event.get("channel") or "") == "twilio" for event in events):
+        return None
+    call_sid = str(events[0].get("session_id") or path.stem)
+    timestamps = [event.get("timestamp") for event in events if event.get("timestamp")]
+    timestamps_sorted = sorted(timestamps, key=transcript_sort_key)
+    roles = [transcript_event_role(event) for event in events]
+    message_events = [event for event, role in zip(events, roles) if role in {"guest", "concierge"} and str(event.get("text") or "").strip()]
+    preview_source = message_events[-1] if message_events else events[-1]
+    metadata = call_metadata_from_events(events)
+    return {
+        "call_sid": call_sid,
+        "from": metadata.get("from", ""),
+        "to": metadata.get("to", ""),
+        "started_at": timestamps_sorted[0] if timestamps_sorted else "",
+        "last_at": timestamps_sorted[-1] if timestamps_sorted else "",
+        "status": "transcript",
+        "duration": "",
+        "event_count": len(events),
+        "message_count": len(message_events),
+        "has_transcript": bool(message_events),
+        "preview": str(preview_source.get("text") or "")[:180],
+        "source": "local_transcript",
+        "path": str(path),
+    }
+
+
+def build_call_inbox(limit: int = 50) -> dict:
+    summaries: dict[str, dict] = {}
+    for path in transcript_jsonl_files():
+        summary = transcript_call_summary(path)
+        if not summary:
+            continue
+        summaries[summary["call_sid"]] = summary
+
+    twilio_error = ""
+    if twilio_configured():
+        try:
+            for row in monitor_recent_calls(limit=min(max(limit, 5), 50)):
+                call_sid = str(row.get("sid") or "")
+                if not call_sid:
+                    continue
+                summary = summaries.get(call_sid) or {
+                    "call_sid": call_sid,
+                    "from": "",
+                    "to": "",
+                    "started_at": "",
+                    "last_at": "",
+                    "event_count": 0,
+                    "message_count": 0,
+                    "has_transcript": False,
+                    "preview": "",
+                    "source": "twilio",
+                }
+                summary.update(
+                    {
+                        "from": summary.get("from") or row.get("from", ""),
+                        "to": summary.get("to") or row.get("to", ""),
+                        "started_at": summary.get("started_at") or row.get("start_time", ""),
+                        "last_at": summary.get("last_at") or row.get("start_time", ""),
+                        "status": row.get("status", summary.get("status", "")),
+                        "duration": row.get("duration", summary.get("duration", "")),
+                        "error_code": row.get("error_code"),
+                    }
+                )
+                summaries[call_sid] = summary
+        except Exception as exc:
+            twilio_error = str(exc)
+
+    calls = sorted(summaries.values(), key=lambda item: transcript_sort_key(item.get("last_at") or item.get("started_at")), reverse=True)
+    return {
+        "ok": True,
+        "count": len(calls[:limit]),
+        "calls": calls[:limit],
+        "twilio_error": twilio_error,
+        "generated_at": now_iso(),
+    }
+
+
+def find_transcript_file(call_sid: object) -> Optional[Path]:
+    clean = safe_filename_part(call_sid, fallback="")
+    if not clean:
+        return None
+    for path in transcript_jsonl_files():
+        if path.stem == clean:
+            return path
+    return None
+
+
+def build_call_transcript(call_sid: object) -> dict:
+    path = find_transcript_file(call_sid)
+    if not path:
+        raise FileNotFoundError("Transcript not found for this call SID.")
+    raw_events = read_transcript_events(path, maximum=1000)
+    summary = transcript_call_summary(path) or {"call_sid": path.stem}
+    normalized = []
+    for event in raw_events:
+        normalized.append(
+            {
+                "timestamp": event.get("timestamp", ""),
+                "role": transcript_event_role(event),
+                "speaker": event.get("speaker", "System"),
+                "kind": event.get("kind", "message"),
+                "text": str(event.get("text") or ""),
+                "metadata": event.get("metadata") if isinstance(event.get("metadata"), dict) else {},
+            }
+        )
+    return {"ok": True, "summary": summary, "events": normalized, "generated_at": now_iso()}
+
+
 def twilio_send_property_link_sms(arguments: Optional[dict] = None) -> dict:
     arguments = arguments or {}
     row = get_public_property(arguments.get("listing_id"))
@@ -1370,6 +1630,51 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 write_json(self, build_twilio_monitor(deep=deep))
             except Exception as exc:
                 write_json(self, {"ok": False, "generated_at": now_iso(), "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/twilio/public-health":
+            try:
+                write_json(self, build_twilio_public_health())
+            except Exception as exc:
+                write_json(self, {"ok": False, "generated_at": now_iso(), "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/calls/inbox":
+            if not is_local_dashboard_request(self):
+                write_json(
+                    self,
+                    {
+                        "ok": False,
+                        "local_only": True,
+                        "error": "Call Inbox is local-only to protect phone numbers and transcripts.",
+                    },
+                    status=403,
+                )
+                return
+            params = parse.parse_qs(parsed.query)
+            try:
+                write_json(self, build_call_inbox(limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100)))
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/calls/transcript":
+            if not is_local_dashboard_request(self):
+                write_json(
+                    self,
+                    {
+                        "ok": False,
+                        "local_only": True,
+                        "error": "Call transcripts are local-only to protect guest conversations.",
+                    },
+                    status=403,
+                )
+                return
+            params = parse.parse_qs(parsed.query)
+            call_sid = (params.get("call_sid") or params.get("sid") or [""])[0]
+            try:
+                write_json(self, build_call_transcript(call_sid))
+            except FileNotFoundError as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=404)
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return
         if parsed.path == "/twilio/health":
             base_url = handler_public_base_url(self)
