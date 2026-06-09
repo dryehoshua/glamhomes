@@ -51,6 +51,7 @@ def session_update(call_sid: str, caller: str, called: str) -> dict[str, Any]:
         + f"\nCallSid: {call_sid}. Caller: {caller or 'unknown'}. To: {called or os.environ.get('TWILIO_PHONE_NUMBER', glam.TWILIO_PHONE_NUMBER)}."
         + "\nUse Guesty tools when you need live reservation, property, or availability data."
         + "\nUse the public property links bridge for shareable links. If the caller asks for a link, send it by SMS with twilio_send_property_link_sms when appropriate."
+        + "\nIf the caller asks for a person or does not want to continue with the AI, use twilio_send_human_handoff_sms with the reason and a concise call summary."
     )
     return {
         "type": "session.update",

@@ -45,6 +45,7 @@ DEFAULT_VOICE = os.environ.get("OPENAI_REALTIME_VOICE", "ash")
 ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
 TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+17864813013")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://glamhomes.aipeople.app").rstrip("/")
+HUMAN_SUPPORT_PHONE_NUMBER = os.environ.get("GLAM_HUMAN_SUPPORT_PHONE", "")
 
 
 AGENT_INSTRUCTIONS = """
@@ -105,6 +106,10 @@ Safety and escalation:
 - If the guest asks for a human, representative, or agent, confirm and ask for
   the best phone number. Suggested phrase: "I am bringing someone from our team
   in. What is the best number for them to contact you?"
+- When the guest wants a human or no longer wants the AI, use
+  twilio_send_human_handoff_sms with the reason and a concise call summary. If
+  the caller number is available, ask whether they would like a confirmation by
+  SMS as well.
 - If there is an emergency, serious maintenance issue, blocked access, safety
   issue, water, electricity, lock, critical AC problem, or upset in-stay guest,
   capture the basics and escalate immediately.
@@ -121,6 +126,7 @@ Guesty and property links:
   send the link by SMS if the caller number is available. In web chat, paste the
   direct link in your response so the messaging app/browser can generate the
   preview.
+- After confirming useful information, always offer to send it by SMS.
 - If you have dates and guests, check availability/pricing in Guesty before
   selling a property as available. Direct Glam Homes links can include checkIn,
   checkOut, and minOccupancy so the booking page opens prefilled.
@@ -130,6 +136,10 @@ Guesty and property links:
 - Before revealing concrete reservation data, validate at least two reasonable
   guest details. Never reveal access codes, sensitive payment details, third-party
   data, or unconfirmed changes.
+- For reservation confirmation, prefer guesty_confirm_reservation. A confirmation
+  code plus a matching phone, email, or name is enough to confirm basic booking
+  details. If only the code is provided, say you found a matching reservation but
+  need one more detail before sharing dates, property, or status.
 - If Guesty credentials are unavailable or a lookup fails, say calmly: "I do not
   have the live Guesty connection available in this moment. I can take the details
   and have the team confirm." Then ask for name, phone, email, and confirmation
@@ -170,6 +180,22 @@ REALTIME_TOOLS = [
                 "guest_name": {"type": "string", "description": "Guest full or partial name if available."},
                 "limit": {"type": "integer", "description": "Maximum results to return, up to 10."},
             },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "guesty_confirm_reservation",
+        "description": "Safely confirm whether a Guesty reservation exists and only return basic booking details after one guest detail matches the confirmation code.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "confirmation_code": {"type": "string", "description": "Guesty reservation confirmation code."},
+                "guest_phone": {"type": "string", "description": "Guest phone number for validation."},
+                "guest_email": {"type": "string", "description": "Guest email for validation."},
+                "guest_name": {"type": "string", "description": "Guest first/last/full name for validation."},
+            },
+            "required": ["confirmation_code"],
             "additionalProperties": False,
         },
     },
@@ -265,6 +291,25 @@ REALTIME_TOOLS = [
                 "guests": {"type": "integer", "description": "Optional guest count to prefill minOccupancy on direct Glam Homes links."},
             },
             "required": ["listing_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "type": "function",
+        "name": "twilio_send_human_handoff_sms",
+        "description": "Send a concise SMS alert to the Glam Homes human support contact when a caller requests a person or no longer wants the AI.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "reason": {"type": "string", "description": "Short reason for human handoff."},
+                "summary": {"type": "string", "description": "Concise call summary for the human agent."},
+                "guest_name": {"type": "string", "description": "Guest name if known."},
+                "reservation_code": {"type": "string", "description": "Reservation confirmation code if known."},
+                "phone_number": {"type": "string", "description": "Caller phone number. In Twilio calls this can be omitted to use the caller number."},
+                "urgency": {"type": "string", "description": "normal, urgent, or emergency."},
+                "send_confirmation_to_caller": {"type": "boolean", "description": "Whether to send a short confirmation SMS to the caller too."},
+            },
+            "required": ["reason"],
             "additionalProperties": False,
         },
     },
@@ -514,6 +559,141 @@ def guesty_search_reservation(params: dict) -> dict:
     if not filters:
         raise ValueError("Missing confirmation_code, guest_phone, guest_email, or guest_name.")
     return guesty_reservations(limit=clamp_limit(params.get("limit"), default=5), filters=json.dumps(filters, separators=(",", ":")))
+
+
+def guesty_result_items(payload: object) -> list[dict]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("results", "items", "reservations"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+    data = payload.get("data")
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        return guesty_result_items(data)
+    return []
+
+
+def compact_text(value: object) -> str:
+    return re.sub(r"\s+", " ", str(value or "").strip())
+
+
+def normalize_match_text(value: object) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
+
+
+def digits_only(value: object) -> str:
+    return re.sub(r"\D+", "", str(value or ""))
+
+
+def phone_matches(provided: object, actual: object) -> bool:
+    left = digits_only(provided)
+    right = digits_only(actual)
+    if len(left) < 7 or len(right) < 7:
+        return False
+    compare_len = min(len(left), len(right), 10)
+    return left[-compare_len:] == right[-compare_len:]
+
+
+def email_matches(provided: object, actual: object) -> bool:
+    left = str(provided or "").strip().lower()
+    right = str(actual or "").strip().lower()
+    return bool(left and right and left == right)
+
+
+def name_matches(provided: object, actual: object) -> bool:
+    left = normalize_match_text(provided)
+    right = normalize_match_text(actual)
+    if not left or not right:
+        return False
+    tokens = [token for token in left.split() if len(token) >= 2]
+    if not tokens:
+        return False
+    return all(token in right.split() or token in right for token in tokens)
+
+
+def guesty_validation_result(reservation: dict, arguments: dict) -> dict:
+    guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
+    checks = [
+        ("guest_phone", arguments.get("guest_phone"), guest.get("phone")),
+        ("guest_email", arguments.get("guest_email"), guest.get("email")),
+        ("guest_name", arguments.get("guest_name"), guest.get("fullName")),
+    ]
+    provided = [name for name, value, _actual in checks if compact_text(value)]
+    matches = []
+    for name, value, actual in checks:
+        if not compact_text(value):
+            continue
+        if name == "guest_phone" and phone_matches(value, actual):
+            matches.append(name)
+        elif name == "guest_email" and email_matches(value, actual):
+            matches.append(name)
+        elif name == "guest_name" and name_matches(value, actual):
+            matches.append(name)
+    return {
+        "confirmation_code_match": True,
+        "provided_guest_detail_count": len(provided),
+        "matched_guest_detail_count": len(matches),
+        "matched_fields": matches,
+        "safe_to_share_basic_details": bool(matches),
+        "requires_additional_validation": not bool(matches),
+    }
+
+
+def guesty_reservation_safe_summary(reservation: dict) -> dict:
+    listing = reservation.get("listing") if isinstance(reservation.get("listing"), dict) else {}
+    return {
+        "reservation_id": reservation.get("_id", ""),
+        "confirmation_code": reservation.get("confirmationCode", ""),
+        "status": reservation.get("status", ""),
+        "check_in": reservation.get("checkInDateLocalized") or reservation.get("checkIn") or "",
+        "check_out": reservation.get("checkOutDateLocalized") or reservation.get("checkOut") or "",
+        "listing_id": reservation.get("listingId") or listing.get("_id") or "",
+        "listing_title": listing.get("title") or "",
+        "source": reservation.get("source", ""),
+    }
+
+
+def guesty_confirm_reservation(arguments: dict) -> dict:
+    code = str(arguments.get("confirmation_code") or arguments.get("code") or "").strip()
+    if not code:
+        raise ValueError("Missing confirmation_code.")
+    payload = guesty_reservation_by_code(code, limit=3)
+    reservations = guesty_result_items(payload)
+    if not reservations:
+        return {
+            "ok": True,
+            "tool": "guesty_confirm_reservation",
+            "found": False,
+            "confirmation_code": code,
+            "message": "No matching reservation was found for this confirmation code.",
+        }
+
+    reservation = reservations[0]
+    validation = guesty_validation_result(reservation, arguments)
+    if not validation["safe_to_share_basic_details"]:
+        return {
+            "ok": True,
+            "tool": "guesty_confirm_reservation",
+            "found": True,
+            "confirmation_code": code,
+            "matches_found": len(reservations),
+            "validation": validation,
+            "message": "A reservation exists for this code, but one matching guest detail is required before sharing dates, property, or status.",
+        }
+
+    return {
+        "ok": True,
+        "tool": "guesty_confirm_reservation",
+        "found": True,
+        "matches_found": len(reservations),
+        "validation": validation,
+        "reservation": guesty_reservation_safe_summary(reservation),
+    }
 
 
 def guesty_get_reservation(reservation_id: str) -> dict:
@@ -1300,6 +1480,100 @@ def twilio_send_property_link_sms(arguments: Optional[dict] = None) -> dict:
     }
 
 
+def truncate_sms_part(value: object, limit: int = 220) -> str:
+    text = compact_text(value)
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
+    arguments = arguments or {}
+    reason = truncate_sms_part(arguments.get("reason"), 180)
+    if not reason:
+        raise ValueError("Missing handoff reason.")
+    summary = truncate_sms_part(arguments.get("summary"), 260)
+    guest_name = truncate_sms_part(arguments.get("guest_name"), 80)
+    reservation_code = truncate_sms_part(arguments.get("reservation_code"), 80)
+    caller_number = str(arguments.get("phone_number") or arguments.get("caller_phone") or "").strip()
+    called_number = str(arguments.get("called_number") or TWILIO_PHONE_NUMBER).strip()
+    support_number = os.environ.get("GLAM_HUMAN_SUPPORT_PHONE", HUMAN_SUPPORT_PHONE_NUMBER).strip()
+    from_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
+    call_sid = str(arguments.get("call_sid") or f"handoff-{int(time.time())}").strip()
+    urgency = truncate_sms_part(arguments.get("urgency") or "normal", 40)
+    dry_run = bool(arguments.get("dry_run"))
+
+    if not support_number:
+        raise ValueError("Missing GLAM_HUMAN_SUPPORT_PHONE support number.")
+
+    parts = [
+        "GLAM Concierge handoff requested.",
+        f"Urgency: {urgency}",
+        f"Reason: {reason}",
+    ]
+    if summary:
+        parts.append(f"Summary: {summary}")
+    if guest_name:
+        parts.append(f"Guest: {guest_name}")
+    if reservation_code:
+        parts.append(f"Reservation: {reservation_code}")
+    if caller_number:
+        parts.append(f"Caller: {caller_number}")
+    if called_number:
+        parts.append(f"GLAM line: {called_number}")
+    if call_sid:
+        parts.append(f"CallSid: {call_sid}")
+    body = "\n".join(parts)
+
+    payload = {"sid": f"dry-run-{int(time.time())}"}
+    if not dry_run:
+        payload = twilio_api_request("Messages.json", {"From": from_number, "To": support_number, "Body": body})
+
+    append_transcript_event(
+        call_sid,
+        "Tool Bridge",
+        f"Human handoff SMS sent to {support_number}: {reason}" if not dry_run else f"Human handoff SMS dry run to {support_number}: {reason}",
+        channel="twilio_sms",
+        kind="human_handoff_sms",
+        metadata={
+            "message_sid": payload.get("sid", ""),
+            "support_number": support_number,
+            "caller_number": caller_number,
+            "urgency": urgency,
+            "dry_run": dry_run,
+        },
+    )
+
+    caller_message_sid = ""
+    caller_confirmation_body = ""
+    if caller_number and bool(arguments.get("send_confirmation_to_caller")):
+        caller_confirmation_body = "Glam Homes: our team has been notified and will follow up with you as soon as possible."
+        caller_payload = {"sid": f"dry-run-caller-{int(time.time())}"}
+        if not dry_run:
+            caller_payload = twilio_api_request("Messages.json", {"From": from_number, "To": caller_number, "Body": caller_confirmation_body})
+        caller_message_sid = str(caller_payload.get("sid") or "")
+        append_transcript_event(
+            call_sid,
+            "Tool Bridge",
+            f"Caller handoff confirmation SMS sent to {caller_number}" if not dry_run else f"Caller handoff confirmation SMS dry run to {caller_number}",
+            channel="twilio_sms",
+            kind="human_handoff_confirmation_sms",
+            metadata={"message_sid": caller_message_sid, "caller_number": caller_number, "dry_run": dry_run},
+        )
+
+    return {
+        "ok": True,
+        "dry_run": dry_run,
+        "message_sid": payload.get("sid"),
+        "support_number": support_number,
+        "from": from_number,
+        "caller_number": caller_number,
+        "caller_confirmation_message_sid": caller_message_sid,
+        "caller_confirmation_body": caller_confirmation_body,
+        "body": body,
+    }
+
+
 def run_guesty_tool(name: str, arguments: Optional[dict] = None, context: Optional[dict] = None) -> dict:
     arguments = tool_bridge.apply_tool_context(name, arguments or {}, context or {})
     bridge_name = tool_bridge.tool_bridge_name(name)
@@ -1313,6 +1587,8 @@ def run_guesty_tool(name: str, arguments: Optional[dict] = None, context: Option
             return success(guesty_status(live=True))
         if name == "guesty_search_reservation":
             return success({"ok": True, "tool": name, "data": guesty_search_reservation(arguments)})
+        if name == "guesty_confirm_reservation":
+            return success({"ok": True, "tool": name, "data": guesty_confirm_reservation(arguments)})
         if name == "guesty_get_reservation":
             return success({"ok": True, "tool": name, "data": guesty_get_reservation(str(arguments.get("reservation_id") or ""))})
         if name == "guesty_list_listings":
@@ -1343,9 +1619,13 @@ def run_guesty_tool(name: str, arguments: Optional[dict] = None, context: Option
             return success({"ok": True, "tool": name, "data": glam_search_public_property_links(arguments)})
         if name == "twilio_send_property_link_sms":
             return success({"ok": True, "tool": name, "data": twilio_send_property_link_sms(arguments)})
+        if name == "twilio_send_human_handoff_sms":
+            return success({"ok": True, "tool": name, "data": twilio_send_human_handoff_sms(arguments)})
         raise ValueError(f"Unsupported GLAM tool: {name}")
     except Exception as exc:
         payload = guesty_error_payload(exc)
+        if bridge_name == "twilio_sms":
+            payload["hint"] = "Check Twilio credentials, sender number, destination E.164 format, and account SMS geo-permissions."
         payload["bridge"] = bridge_name
         return payload
 
