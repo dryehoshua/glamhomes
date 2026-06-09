@@ -160,6 +160,129 @@ GUESTY_LISTING_FIELDS = (
     "bedrooms bathrooms active listed defaultCheckInTime defaultCheckOutTime"
 )
 
+CALL_TOPIC_KEYWORDS = {
+    "Booking intent": {
+        "book",
+        "booking",
+        "reservation",
+        "reserve",
+        "available",
+        "availability",
+        "dates",
+        "stay",
+        "villa",
+        "property",
+        "quote",
+        "price",
+        "pricing",
+        "guests",
+    },
+    "Support": {
+        "help",
+        "support",
+        "problem",
+        "issue",
+        "maintenance",
+        "lock",
+        "door",
+        "ac",
+        "air",
+        "water",
+        "electricity",
+        "wifi",
+        "checkout",
+        "checkin",
+    },
+    "Human handoff": {
+        "human",
+        "agent",
+        "representative",
+        "person",
+        "manager",
+        "callback",
+        "call back",
+        "handoff",
+        "escalate",
+    },
+    "Events risk": {
+        "party",
+        "event",
+        "dj",
+        "music",
+        "visitors",
+        "birthday",
+        "bachelor",
+        "bachelorette",
+        "wedding",
+    },
+    "Payment": {
+        "payment",
+        "deposit",
+        "refund",
+        "charge",
+        "invoice",
+        "card",
+        "pay",
+        "balance",
+    },
+}
+
+CALL_STOPWORDS = {
+    "about",
+    "after",
+    "again",
+    "also",
+    "and",
+    "are",
+    "because",
+    "but",
+    "call",
+    "can",
+    "concierge",
+    "could",
+    "for",
+    "from",
+    "glam",
+    "guest",
+    "have",
+    "hello",
+    "here",
+    "homes",
+    "how",
+    "just",
+    "know",
+    "let",
+    "like",
+    "may",
+    "need",
+    "not",
+    "now",
+    "okay",
+    "please",
+    "that",
+    "the",
+    "this",
+    "thank",
+    "thanks",
+    "there",
+    "with",
+    "would",
+    "you",
+    "your",
+    "para",
+    "por",
+    "que",
+    "con",
+    "una",
+    "uno",
+    "los",
+    "las",
+    "del",
+    "como",
+    "hola",
+    "gracias",
+}
+
 
 REALTIME_TOOLS = [
     {
@@ -1312,6 +1435,145 @@ def call_metadata_from_events(events: list[dict]) -> dict:
     return payload
 
 
+def transcript_text_blob(events: list[dict]) -> str:
+    parts = []
+    for event in events:
+        text = compact_text(event.get("text"))
+        if text:
+            parts.append(text)
+    return " ".join(parts)
+
+
+def call_search_blob(summary: dict, events: Optional[list[dict]] = None) -> str:
+    fields = [
+        summary.get("call_sid", ""),
+        summary.get("from", ""),
+        summary.get("to", ""),
+        summary.get("status", ""),
+        summary.get("preview", ""),
+        summary.get("source", ""),
+    ]
+    if events is not None:
+        fields.append(transcript_text_blob(events))
+        for event in events:
+            metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+            fields.extend(str(value or "") for value in metadata.values() if isinstance(value, (str, int, float)))
+    return " ".join(str(field or "") for field in fields)
+
+
+def normalized_query_terms(query: object) -> list[str]:
+    clean = compact_text(query).lower()
+    if not clean:
+        return []
+    return [term for term in re.split(r"\s+", clean) if term]
+
+
+def call_matches_query(summary: dict, query: object, path_by_sid: dict[str, Path]) -> bool:
+    terms = normalized_query_terms(query)
+    if not terms:
+        return True
+    call_sid = str(summary.get("call_sid") or "")
+    path = path_by_sid.get(call_sid)
+    events = read_transcript_events(path, maximum=1000) if path else []
+    blob = call_search_blob(summary, events).lower()
+    digit_blob = digits_only(blob)
+    for term in terms:
+        digit_term = digits_only(term)
+        if digit_term and digit_term in digit_blob:
+            continue
+        if term in blob:
+            continue
+        return False
+    return True
+
+
+def call_topic_hits(text: str) -> list[str]:
+    lowered = text.lower()
+    hits = []
+    for label, keywords in CALL_TOPIC_KEYWORDS.items():
+        if any(keyword in lowered for keyword in keywords):
+            hits.append(label)
+    return hits
+
+
+def token_counts_from_text(text: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for token in re.findall(r"[A-Za-z][A-Za-z']{3,}", text.lower()):
+        clean = token.strip("'")
+        if clean in CALL_STOPWORDS:
+            continue
+        counts[clean] = counts.get(clean, 0) + 1
+    return counts
+
+
+def merge_counts(target: dict[str, int], source: dict[str, int]) -> None:
+    for key, value in source.items():
+        target[key] = target.get(key, 0) + value
+
+
+def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
+    unique_callers = {str(call.get("from") or "") for call in calls if str(call.get("from") or "").strip()}
+    with_transcript = sum(1 for call in calls if call.get("has_transcript"))
+    total_messages = sum(int(call.get("message_count") or 0) for call in calls)
+    topic_counts: dict[str, int] = {label: 0 for label in CALL_TOPIC_KEYWORDS}
+    top_terms: dict[str, int] = {}
+    human_handoffs = 0
+    tool_actions = 0
+    guest_messages = 0
+    concierge_messages = 0
+    booking_intent_calls = 0
+
+    for call in calls:
+        call_sid = str(call.get("call_sid") or "")
+        path = path_by_sid.get(call_sid)
+        events = read_transcript_events(path, maximum=1000) if path else []
+        conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
+        text_blob = transcript_text_blob(conversation_events)
+        hits = call_topic_hits(text_blob)
+        for hit in hits:
+            topic_counts[hit] = topic_counts.get(hit, 0) + 1
+        if "Booking intent" in hits:
+            booking_intent_calls += 1
+        merge_counts(top_terms, token_counts_from_text(text_blob))
+        for event in events:
+            role = transcript_event_role(event)
+            kind = str(event.get("kind") or "").lower()
+            if role == "guest":
+                guest_messages += 1
+            elif role == "concierge":
+                concierge_messages += 1
+            elif role == "tool":
+                tool_actions += 1
+            if "human_handoff" in kind:
+                human_handoffs += 1
+
+    total_calls = len(calls)
+    topic_rows = [
+        {"label": label, "count": count}
+        for label, count in sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)
+        if count > 0
+    ]
+    top_term_rows = [
+        {"term": term, "count": count}
+        for term, count in sorted(top_terms.items(), key=lambda item: item[1], reverse=True)[:14]
+    ]
+    return {
+        "total_calls": total_calls,
+        "calls_with_transcript": with_transcript,
+        "unique_callers": len(unique_callers),
+        "prospect_calls": booking_intent_calls,
+        "human_handoffs": human_handoffs,
+        "tool_actions": tool_actions,
+        "guest_messages": guest_messages,
+        "concierge_messages": concierge_messages,
+        "avg_messages_per_call": round(total_messages / total_calls, 1) if total_calls else 0,
+        "transcript_coverage_pct": round((with_transcript / total_calls) * 100, 1) if total_calls else 0,
+        "handoff_rate_pct": round((human_handoffs / total_calls) * 100, 1) if total_calls else 0,
+        "topics": topic_rows,
+        "top_terms": top_term_rows,
+    }
+
+
 def transcript_call_summary(path: Path) -> Optional[dict]:
     events = read_transcript_events(path, maximum=250)
     if not events:
@@ -1343,13 +1605,15 @@ def transcript_call_summary(path: Path) -> Optional[dict]:
     }
 
 
-def build_call_inbox(limit: int = 50) -> dict:
+def build_call_inbox(limit: int = 50, query: object = "") -> dict:
     summaries: dict[str, dict] = {}
+    path_by_sid: dict[str, Path] = {}
     for path in transcript_jsonl_files():
         summary = transcript_call_summary(path)
         if not summary:
             continue
         summaries[summary["call_sid"]] = summary
+        path_by_sid[str(summary["call_sid"])] = path
 
     twilio_error = ""
     if twilio_configured():
@@ -1385,11 +1649,17 @@ def build_call_inbox(limit: int = 50) -> dict:
         except Exception as exc:
             twilio_error = str(exc)
 
-    calls = sorted(summaries.values(), key=lambda item: transcript_sort_key(item.get("last_at") or item.get("started_at")), reverse=True)
+    all_calls = sorted(summaries.values(), key=lambda item: transcript_sort_key(item.get("last_at") or item.get("started_at")), reverse=True)
+    filtered_calls = [call for call in all_calls if call_matches_query(call, query, path_by_sid)]
+    calls = filtered_calls[:limit]
     return {
         "ok": True,
-        "count": len(calls[:limit]),
-        "calls": calls[:limit],
+        "count": len(calls),
+        "total_available": len(all_calls),
+        "filtered_total": len(filtered_calls),
+        "query": compact_text(query),
+        "calls": calls,
+        "metrics": build_call_metrics(filtered_calls, path_by_sid),
         "twilio_error": twilio_error,
         "generated_at": now_iso(),
     }
@@ -1948,7 +2218,13 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 return
             params = parse.parse_qs(parsed.query)
             try:
-                write_json(self, build_call_inbox(limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100)))
+                write_json(
+                    self,
+                    build_call_inbox(
+                        limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100),
+                        query=(params.get("q") or [""])[0],
+                    ),
+                )
             except Exception as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return

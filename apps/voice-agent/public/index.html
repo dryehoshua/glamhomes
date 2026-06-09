@@ -520,7 +520,7 @@
 
     .chat-panel {
       display: grid;
-      grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+      grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
     }
 
     .chat-header {
@@ -722,6 +722,96 @@
       overflow-wrap: anywhere;
     }
 
+    .analytics-dashboard {
+      padding: 14px 18px;
+      display: grid;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fff8eb;
+    }
+
+    .analytics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .analytics-header span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .kpi-card {
+      min-height: 82px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf8;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .kpi-card strong {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .kpi-card span {
+      font-size: 24px;
+      font-weight: 850;
+      line-height: 1;
+      overflow-wrap: anywhere;
+    }
+
+    .kpi-card small {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .keyword-panel {
+      display: grid;
+      gap: 8px;
+    }
+
+    .keyword-panel h3 {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      min-height: 32px;
+    }
+
+    .keyword-chip {
+      min-height: 28px;
+      border: 1px solid rgba(200, 155, 60, 0.38);
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: #fffdf8;
+      color: #3f3321;
+      font-size: 12px;
+      line-height: 1.2;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
     .call-inbox {
       min-height: 248px;
       border-bottom: 1px solid var(--line);
@@ -769,6 +859,30 @@
     }
 
     .call-inbox-auth input:focus {
+      outline: 2px solid rgba(184, 137, 53, 0.26);
+      border-color: var(--gold);
+    }
+
+    .call-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .call-search input {
+      width: min(320px, 42vw);
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .call-search input:focus {
       outline: 2px solid rgba(184, 137, 53, 0.26);
       border-color: var(--gold);
     }
@@ -1010,6 +1124,10 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .call-inbox-layout {
         grid-template-columns: 1fr;
       }
@@ -1049,8 +1167,18 @@
 
       .monitor-summary,
       .monitor-grid,
-      .monitor-events {
+      .monitor-events,
+      .kpi-grid {
         grid-template-columns: 1fr;
+      }
+
+      .analytics-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .analytics-header span {
+        text-align: left;
       }
 
       .call-inbox-header {
@@ -1061,6 +1189,14 @@
       .call-inbox-actions {
         width: 100%;
         justify-content: stretch;
+      }
+
+      .call-search {
+        width: 100%;
+      }
+
+      .call-search input {
+        width: 100%;
       }
 
       .call-inbox-auth {
@@ -1235,6 +1371,28 @@
         </div>
       </div>
 
+      <div class="analytics-dashboard" aria-label="Call center analytics">
+        <div class="analytics-header">
+          <div>
+            <p class="eyebrow">Call center analytics</p>
+            <h2>Performance Snapshot</h2>
+          </div>
+          <span id="analyticsScope">All stored conversations</span>
+        </div>
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="kpi-card"><strong>Total calls</strong><span>--</span><small>Waiting for transcripts</small></div>
+          <div class="kpi-card"><strong>Prospects</strong><span>--</span><small>Booking intent detected</small></div>
+          <div class="kpi-card"><strong>Coverage</strong><span>--</span><small>Calls with transcript</small></div>
+          <div class="kpi-card"><strong>Human handoffs</strong><span>--</span><small>Escalations logged</small></div>
+        </div>
+        <div class="keyword-panel">
+          <h3>Frequent concepts</h3>
+          <div class="keyword-list" id="keywordList">
+            <span class="keyword-chip">Waiting for call data</span>
+          </div>
+        </div>
+      </div>
+
       <div class="call-inbox" aria-label="Call inbox">
         <div class="call-inbox-header">
           <div>
@@ -1243,6 +1401,10 @@
           </div>
           <div class="call-inbox-actions">
             <span class="pill" id="callInboxState">Local transcripts</span>
+            <div class="call-search">
+              <input id="callSearch" type="search" autocomplete="off" placeholder="Search number, keyword, CallSid">
+              <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
+            </div>
             <div class="call-inbox-auth" id="callInboxAuth">
               <input id="callInboxKey" type="password" autocomplete="current-password" placeholder="Dashboard key">
               <button class="secondary compact" id="unlockCalls" type="button">Unlock</button>
@@ -1295,6 +1457,8 @@
     let selectedMicDeviceId = "";
     let activeMode = "";
     let selectedCallSid = "";
+    let callSearchQuery = "";
+    let callSearchTimer = null;
     const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
     const dashboardKeyStorage = "glamHomesDashboardKey";
     let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
@@ -1487,6 +1651,99 @@
       refreshCallInbox(true);
     }
 
+    function formatPct(value) {
+      const number = Number(value || 0);
+      return Number.isFinite(number) ? number.toFixed(number % 1 ? 1 : 0) + "%" : "--";
+    }
+
+    function renderKpis(metrics = {}, data = {}) {
+      const grid = $("kpiGrid");
+      const rows = [
+        {
+          label: "Total calls",
+          value: metrics.total_calls ?? 0,
+          detail: (data.filtered_total ?? 0) + " matching · " + (data.total_available ?? 0) + " stored",
+        },
+        {
+          label: "Prospects",
+          value: metrics.prospect_calls ?? 0,
+          detail: "Booking intent detected",
+        },
+        {
+          label: "Transcript coverage",
+          value: formatPct(metrics.transcript_coverage_pct),
+          detail: (metrics.calls_with_transcript ?? 0) + " calls with transcript",
+        },
+        {
+          label: "Human handoffs",
+          value: metrics.human_handoffs ?? 0,
+          detail: formatPct(metrics.handoff_rate_pct) + " handoff rate",
+        },
+        {
+          label: "Unique callers",
+          value: metrics.unique_callers ?? 0,
+          detail: "Distinct caller numbers",
+        },
+        {
+          label: "Tool actions",
+          value: metrics.tool_actions ?? 0,
+          detail: "Guesty, SMS and bridge events",
+        },
+        {
+          label: "Guest messages",
+          value: metrics.guest_messages ?? 0,
+          detail: "Caller transcript turns",
+        },
+        {
+          label: "Avg messages",
+          value: metrics.avg_messages_per_call ?? 0,
+          detail: "Conversation density",
+        },
+      ];
+      grid.innerHTML = "";
+      for (const row of rows) {
+        const card = document.createElement("div");
+        card.className = "kpi-card";
+        const label = document.createElement("strong");
+        label.textContent = row.label;
+        const value = document.createElement("span");
+        value.textContent = row.value;
+        const detail = document.createElement("small");
+        detail.textContent = row.detail;
+        card.appendChild(label);
+        card.appendChild(value);
+        card.appendChild(detail);
+        grid.appendChild(card);
+      }
+
+      const chips = $("keywordList");
+      chips.innerHTML = "";
+      const topics = Array.isArray(metrics.topics) ? metrics.topics : [];
+      const terms = Array.isArray(metrics.top_terms) ? metrics.top_terms : [];
+      const combined = [
+        ...topics.map((item) => ({ text: item.label + " · " + item.count })),
+        ...terms.slice(0, 10).map((item) => ({ text: item.term + " · " + item.count })),
+      ];
+      if (!combined.length) {
+        const empty = document.createElement("span");
+        empty.className = "keyword-chip";
+        empty.textContent = "No recurring concepts yet";
+        chips.appendChild(empty);
+      } else {
+        for (const item of combined.slice(0, 16)) {
+          const chip = document.createElement("span");
+          chip.className = "keyword-chip";
+          chip.textContent = item.text;
+          chips.appendChild(chip);
+        }
+      }
+
+      const activeQuery = String(data.query || "").trim();
+      $("analyticsScope").textContent = activeQuery
+        ? "Filtered by: " + activeQuery
+        : "All stored conversations";
+    }
+
     function clearTranscript(title, detail) {
       $("transcriptHeader").innerHTML = "";
       const heading = document.createElement("strong");
@@ -1615,10 +1872,13 @@
       if (manual) $("refreshCalls").textContent = "Checking...";
       try {
         updateCallInboxAuth(false);
-        const { response, data } = await fetchJson("/api/calls/inbox?limit=50", { headers: callDataHeaders() });
+        const query = callSearchQuery.trim();
+        const inboxUrl = "/api/calls/inbox?limit=50" + (query ? "&q=" + encodeURIComponent(query) : "");
+        const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
         if (response.status === 403 || data.local_only || data.auth_required) {
           $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
           renderCallList([]);
+          renderKpis({}, { query });
           updateCallInboxAuth(Boolean(data.auth_required));
           clearTranscript(
             "Call Inbox is protected",
@@ -1630,7 +1890,9 @@
         }
         if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
         const calls = data.calls || [];
-        $("callInboxState").textContent = calls.length + " calls";
+        const total = typeof data.filtered_total === "number" ? data.filtered_total : calls.length;
+        $("callInboxState").textContent = query ? total + " matches" : total + " calls";
+        renderKpis(data.metrics || {}, data);
         updateCallInboxAuth(false);
         renderCallList(calls);
         if (!selectedCallSid && calls.length) {
@@ -1639,10 +1901,27 @@
       } catch (error) {
         $("callInboxState").textContent = "Unavailable";
         renderCallList([]);
+        renderKpis({}, { query: callSearchQuery });
         clearTranscript("Call Inbox unavailable", error.message);
       } finally {
         $("refreshCalls").textContent = "Refresh calls";
       }
+    }
+
+    function scheduleCallSearch() {
+      window.clearTimeout(callSearchTimer);
+      callSearchTimer = window.setTimeout(() => {
+        callSearchQuery = $("callSearch").value.trim();
+        selectedCallSid = "";
+        refreshCallInbox(false);
+      }, 240);
+    }
+
+    function clearCallSearch() {
+      $("callSearch").value = "";
+      callSearchQuery = "";
+      selectedCallSid = "";
+      refreshCallInbox(true);
     }
 
     function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
@@ -2015,6 +2294,8 @@
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
     $("refreshCalls").onclick = () => refreshCallInbox(true);
+    $("clearCallSearch").onclick = clearCallSearch;
+    $("callSearch").addEventListener("input", scheduleCallSearch);
     $("unlockCalls").onclick = saveCallInboxKey;
     $("callInboxKey").addEventListener("keydown", (event) => {
       if (event.key === "Enter") saveCallInboxKey();
