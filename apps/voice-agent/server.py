@@ -12,6 +12,7 @@ import base64
 from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
 import hashlib
+import hmac
 from html import escape as html_escape
 import json
 import os
@@ -1339,7 +1340,6 @@ def transcript_call_summary(path: Path) -> Optional[dict]:
         "has_transcript": bool(message_events),
         "preview": str(preview_source.get("text") or "")[:180],
         "source": "local_transcript",
-        "path": str(path),
     }
 
 
@@ -1707,6 +1707,31 @@ def is_local_dashboard_request(handler: BaseHTTPRequestHandler) -> bool:
     return client_host in {"127.0.0.1", "::1"} and host_header in {"127.0.0.1", "localhost"} and not public_proxy and not forwarded
 
 
+def dashboard_access_key() -> str:
+    return os.environ.get("GLAM_DASHBOARD_KEY", "").strip()
+
+
+def request_dashboard_key(handler: BaseHTTPRequestHandler) -> str:
+    return (handler.headers.get("X-Glam-Dashboard-Key") or "").strip()
+
+
+def can_access_call_data(handler: BaseHTTPRequestHandler) -> bool:
+    if is_local_dashboard_request(handler):
+        return True
+    configured = dashboard_access_key()
+    provided = request_dashboard_key(handler)
+    return bool(configured and provided and hmac.compare_digest(configured, provided))
+
+
+def protected_call_data_payload() -> dict:
+    return {
+        "ok": False,
+        "protected": True,
+        "auth_required": True,
+        "error": "Call Inbox requires the GLAM dashboard access key.",
+    }
+
+
 def local_only_monitor_payload() -> dict:
     return {
         "ok": False,
@@ -1918,16 +1943,8 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 write_json(self, {"ok": False, "generated_at": now_iso(), "error": str(exc)}, status=500)
             return
         if parsed.path == "/api/calls/inbox":
-            if not is_local_dashboard_request(self):
-                write_json(
-                    self,
-                    {
-                        "ok": False,
-                        "local_only": True,
-                        "error": "Call Inbox is local-only to protect phone numbers and transcripts.",
-                    },
-                    status=403,
-                )
+            if not can_access_call_data(self):
+                write_json(self, protected_call_data_payload(), status=403)
                 return
             params = parse.parse_qs(parsed.query)
             try:
@@ -1936,16 +1953,8 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return
         if parsed.path == "/api/calls/transcript":
-            if not is_local_dashboard_request(self):
-                write_json(
-                    self,
-                    {
-                        "ok": False,
-                        "local_only": True,
-                        "error": "Call transcripts are local-only to protect guest conversations.",
-                    },
-                    status=403,
-                )
+            if not can_access_call_data(self):
+                write_json(self, protected_call_data_payload(), status=403)
                 return
             params = parse.parse_qs(parsed.query)
             call_sid = (params.get("call_sid") or params.get("sid") or [""])[0]

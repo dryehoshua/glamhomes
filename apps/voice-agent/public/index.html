@@ -748,6 +748,31 @@
       justify-content: flex-end;
     }
 
+    .call-inbox-auth {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .call-inbox-auth input {
+      width: min(240px, 54vw);
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .call-inbox-auth input:focus {
+      outline: 2px solid rgba(184, 137, 53, 0.26);
+      border-color: var(--gold);
+    }
+
     .call-inbox-layout {
       min-height: 0;
       display: grid;
@@ -1038,6 +1063,15 @@
         justify-content: stretch;
       }
 
+      .call-inbox-auth {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      .call-inbox-auth input {
+        width: 100%;
+      }
+
       .call-inbox-actions .secondary {
         width: 100%;
       }
@@ -1209,6 +1243,10 @@
           </div>
           <div class="call-inbox-actions">
             <span class="pill" id="callInboxState">Local transcripts</span>
+            <div class="call-inbox-auth" id="callInboxAuth">
+              <input id="callInboxKey" type="password" autocomplete="current-password" placeholder="Dashboard key">
+              <button class="secondary compact" id="unlockCalls" type="button">Unlock</button>
+            </div>
             <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
           </div>
         </div>
@@ -1258,6 +1296,8 @@
     let activeMode = "";
     let selectedCallSid = "";
     const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+    const dashboardKeyStorage = "glamHomesDashboardKey";
+    let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
     const sessionId = "GH-" + new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
 
     $("sessionLabel").textContent = sessionId;
@@ -1298,8 +1338,12 @@
       return clean.length > 10 ? clean.slice(0, 8) + "..." : clean;
     }
 
-    async function fetchJson(url) {
-      const response = await fetch(url);
+    function callDataHeaders() {
+      return dashboardKey ? { "X-Glam-Dashboard-Key": dashboardKey } : {};
+    }
+
+    async function fetchJson(url, options = {}) {
+      const response = await fetch(url, options);
       let data = {};
       try {
         data = await response.json();
@@ -1414,6 +1458,35 @@
       }
     }
 
+    function updateCallInboxAuth(authRequired = false) {
+      const auth = $("callInboxAuth");
+      const input = $("callInboxKey");
+      if (!auth || !input) return;
+      if (isLocalDashboard) {
+        auth.style.display = "none";
+        return;
+      }
+      auth.style.display = "flex";
+      if (dashboardKey && !authRequired) {
+        input.value = dashboardKey;
+        $("callInboxState").textContent = "Unlocked";
+      } else if (!input.value && dashboardKey) {
+        input.value = dashboardKey;
+      }
+    }
+
+    function saveCallInboxKey() {
+      const value = $("callInboxKey").value.trim();
+      dashboardKey = value;
+      if (value) {
+        localStorage.setItem(dashboardKeyStorage, value);
+      } else {
+        localStorage.removeItem(dashboardKeyStorage);
+      }
+      selectedCallSid = "";
+      refreshCallInbox(true);
+    }
+
     function clearTranscript(title, detail) {
       $("transcriptHeader").innerHTML = "";
       const heading = document.createElement("strong");
@@ -1523,7 +1596,14 @@
       }
       clearTranscript("Loading transcript", "Opening " + compactSid(callSid) + "...");
       try {
-        const { response, data } = await fetchJson("/api/calls/transcript?call_sid=" + encodeURIComponent(callSid));
+        const { response, data } = await fetchJson(
+          "/api/calls/transcript?call_sid=" + encodeURIComponent(callSid),
+          { headers: callDataHeaders() },
+        );
+        if (response.status === 403 && data.auth_required) {
+          updateCallInboxAuth(true);
+          throw new Error("Enter the dashboard key to open call transcripts.");
+        }
         if (!response.ok) throw new Error(data.error || "Transcript unavailable");
         renderTranscript(data.summary || {}, data.events || []);
       } catch (error) {
@@ -1534,16 +1614,24 @@
     async function refreshCallInbox(manual = false) {
       if (manual) $("refreshCalls").textContent = "Checking...";
       try {
-        const { response, data } = await fetchJson("/api/calls/inbox?limit=50");
-        if (response.status === 403 || data.local_only) {
-          $("callInboxState").textContent = "Local only";
+        updateCallInboxAuth(false);
+        const { response, data } = await fetchJson("/api/calls/inbox?limit=50", { headers: callDataHeaders() });
+        if (response.status === 403 || data.local_only || data.auth_required) {
+          $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
           renderCallList([]);
-          clearTranscript("Call Inbox is protected", "Open http://127.0.0.1:3000 on this Mac to view phone numbers and transcripts.");
+          updateCallInboxAuth(Boolean(data.auth_required));
+          clearTranscript(
+            "Call Inbox is protected",
+            data.auth_required
+              ? "Enter the dashboard key to view phone numbers and literal call transcripts."
+              : "Open http://127.0.0.1:3000 on this Mac to view phone numbers and transcripts.",
+          );
           return;
         }
         if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
         const calls = data.calls || [];
         $("callInboxState").textContent = calls.length + " calls";
+        updateCallInboxAuth(false);
         renderCallList(calls);
         if (!selectedCallSid && calls.length) {
           await openCallTranscript(calls[0].call_sid);
@@ -1927,6 +2015,10 @@
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
     $("refreshCalls").onclick = () => refreshCallInbox(true);
+    $("unlockCalls").onclick = saveCallInboxKey;
+    $("callInboxKey").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") saveCallInboxKey();
+    });
     $("manualInput").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
     });
@@ -1945,6 +2037,7 @@
     });
 
     loadStatus();
+    updateCallInboxAuth(false);
     refreshTwilioMonitor();
     refreshCallInbox();
     window.setInterval(refreshTwilioMonitor, 45000);
