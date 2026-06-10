@@ -55,6 +55,29 @@ Los transcripts salen de:
 El frontend muestra el texto literal de cada evento guardado. No usa Twilio
 Recording ni Twilio Transcription en esta version.
 
+## Frontend actual
+
+El dashboard quedo separado en dos pestañas principales:
+
+- `Voice Console`: operacion del concierge, monitor Twilio, prueba de voz y chat
+  local.
+- `Calls & Analytics`: inbox de llamadas, busqueda, KPIs y graficas.
+
+La pestaña `Calls & Analytics` usa una distribucion de dos columnas en desktop:
+analitica a la izquierda y transcripts a la derecha. En mobile, cada zona tiene
+scroll propio para evitar que el inbox o el transcript deformen toda la pagina.
+
+Graficas incluidas:
+
+- Barra: volumen por temas detectados.
+- Dona: mezcla de prospectos, soporte, handoffs y otros.
+
+El modulo de graficas esta vendorizado localmente en:
+
+`apps/voice-agent/public/vendor/chart.umd.min.js`
+
+Esto evita depender de un CDN en cada carga del dashboard.
+
 ## Verificacion realizada
 
 - Local Call Inbox: OK, 35 llamadas visibles.
@@ -64,6 +87,12 @@ Recording ni Twilio Transcription en esta version.
 - Busqueda: filtra por numero, CallSid o palabras dentro del transcript.
 - KPIs: calcula llamadas, prospectos, cobertura de transcript, handoffs,
   llamadores unicos, herramientas usadas y conceptos frecuentes.
+- Frontend desktop: OK, pestañas navegables, charts renderizados y sin errores
+  de consola.
+- Frontend mobile: OK, sin overflow horizontal, listado y transcript con scroll
+  propio.
+- Public health: OK, voice service y SMS service activos en
+  `https://glamhomes.aipeople.app/api/twilio/public-health`.
 
 ## Notas de seguridad
 
