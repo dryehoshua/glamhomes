@@ -1022,14 +1022,14 @@
 
     .call-item {
       width: 100%;
-      min-height: 72px;
+      min-height: 76px;
       border: 0;
       border-bottom: 1px solid rgba(223, 212, 189, 0.84);
       border-radius: 0;
       background: transparent;
-      padding: 10px 12px;
+      padding: 12px 14px;
       display: grid;
-      gap: 4px;
+      gap: 3px;
       text-align: left;
       color: var(--ink);
     }
@@ -1039,13 +1039,22 @@
       box-shadow: inset 3px 0 0 var(--gold);
     }
 
-    .call-item strong {
-      font-size: 13px;
+    .call-item-name {
+      font-size: 14px;
+      font-weight: 840;
       line-height: 1.2;
       overflow-wrap: anywhere;
     }
 
-    .call-item span {
+    .call-item-number {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 720;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .call-item-time {
       color: var(--muted);
       font-size: 12px;
       line-height: 1.25;
@@ -2056,8 +2065,21 @@
       $("transcriptMessages").appendChild(bubble);
     }
 
+    function callerDisplayName(call) {
+      const name = String(call?.caller_name || "").trim();
+      return name || "Unknown";
+    }
+
+    function callerDisplayNumber(call) {
+      return String(call?.from || "").trim() || "No caller number";
+    }
+
+    function callerLastSpoke(call) {
+      return call?.last_guest_at || call?.last_at || call?.started_at || "";
+    }
+
     function callTitle(call) {
-      return call.from ? call.from + " -> " + (call.to || "GLAM") : call.call_sid || "Unknown call";
+      return callerDisplayName(call) + " · " + callerDisplayNumber(call);
     }
 
     function renderCallList(calls) {
@@ -2067,10 +2089,12 @@
         const empty = document.createElement("button");
         empty.className = "call-item";
         empty.type = "button";
-        const title = document.createElement("strong");
+        const title = document.createElement("span");
+        title.className = "call-item-name";
         title.textContent = "No calls yet";
         const detail = document.createElement("span");
-        detail.textContent = "New Twilio calls will appear here once a transcript is saved.";
+        detail.className = "call-item-time";
+        detail.textContent = "Waiting for the next caller.";
         empty.appendChild(title);
         empty.appendChild(detail);
         list.appendChild(empty);
@@ -2082,19 +2106,19 @@
         button.type = "button";
         button.dataset.callSid = call.call_sid || "";
 
-        const title = document.createElement("strong");
-        title.textContent = callTitle(call);
+        const title = document.createElement("span");
+        title.className = "call-item-name";
+        title.textContent = callerDisplayName(call);
+        const number = document.createElement("span");
+        number.className = "call-item-number";
+        number.textContent = callerDisplayNumber(call);
         const detail = document.createElement("span");
-        const status = call.status || "local";
-        const duration = call.duration ? " · " + call.duration + "s" : "";
-        const transcript = call.has_transcript ? " · transcript" : " · no transcript yet";
-        detail.textContent = compactDate(call.started_at || call.last_at) + " · " + status + duration + transcript;
-        const preview = document.createElement("span");
-        preview.textContent = call.preview || compactSid(call.call_sid);
+        detail.className = "call-item-time";
+        detail.textContent = compactDate(callerLastSpoke(call));
 
         button.appendChild(title);
+        button.appendChild(number);
         button.appendChild(detail);
-        button.appendChild(preview);
         button.addEventListener("click", () => openCallTranscript(call.call_sid));
         list.appendChild(button);
       }
@@ -2105,7 +2129,7 @@
       const heading = document.createElement("strong");
       heading.textContent = callTitle(summary || {});
       const sub = document.createElement("span");
-      sub.textContent = (summary?.status || "local") + " · " + compactDate(summary?.started_at || summary?.last_at) + " · " + compactSid(summary?.call_sid);
+      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {}));
       $("transcriptHeader").appendChild(heading);
       $("transcriptHeader").appendChild(sub);
 

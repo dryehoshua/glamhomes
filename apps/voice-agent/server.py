@@ -1444,6 +1444,56 @@ def transcript_text_blob(events: list[dict]) -> str:
     return " ".join(parts)
 
 
+def infer_caller_name(events: list[dict]) -> str:
+    stop_words = {
+        "calling",
+        "looking",
+        "interested",
+        "trying",
+        "checking",
+        "asking",
+        "from",
+        "with",
+        "about",
+        "need",
+        "want",
+        "going",
+        "here",
+        "the",
+        "a",
+        "an",
+    }
+    patterns = [
+        r"\bmy name is\s+([A-Za-z][A-Za-z' -]{1,42})",
+        r"\bthis is\s+([A-Za-z][A-Za-z' -]{1,42})",
+        r"\bme llamo\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ' -]{1,42})",
+        r"\bmi nombre es\s+([A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ' -]{1,42})",
+    ]
+    for event in events:
+        if transcript_event_role(event) != "guest":
+            continue
+        text = compact_text(event.get("text"))
+        if not text:
+            continue
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if not match:
+                continue
+            candidate = re.split(
+                r"[,.;!?]|\b(?:and|calling|looking|interested|from|with|about|because|to|for|that|who)\b",
+                match.group(1),
+                maxsplit=1,
+                flags=re.IGNORECASE,
+            )[0]
+            words = [word.strip(" '-") for word in candidate.split() if word.strip(" '-")]
+            if not words or len(words) > 3:
+                continue
+            if words[0].lower() in stop_words:
+                continue
+            return " ".join(words).title()
+    return ""
+
+
 def call_search_blob(summary: dict, events: Optional[list[dict]] = None) -> str:
     fields = [
         summary.get("call_sid", ""),
@@ -1452,6 +1502,7 @@ def call_search_blob(summary: dict, events: Optional[list[dict]] = None) -> str:
         summary.get("status", ""),
         summary.get("preview", ""),
         summary.get("source", ""),
+        summary.get("caller_name", ""),
     ]
     if events is not None:
         fields.append(transcript_text_blob(events))
@@ -1587,14 +1638,19 @@ def transcript_call_summary(path: Path) -> Optional[dict]:
     timestamps_sorted = sorted(timestamps, key=transcript_sort_key)
     roles = [transcript_event_role(event) for event in events]
     message_events = [event for event, role in zip(events, roles) if role in {"guest", "concierge"} and str(event.get("text") or "").strip()]
+    guest_events = [event for event, role in zip(events, roles) if role == "guest" and str(event.get("text") or "").strip()]
     preview_source = message_events[-1] if message_events else events[-1]
     metadata = call_metadata_from_events(events)
+    guest_timestamps = [event.get("timestamp") for event in guest_events if event.get("timestamp")]
+    guest_timestamps_sorted = sorted(guest_timestamps, key=transcript_sort_key)
     return {
         "call_sid": call_sid,
         "from": metadata.get("from", ""),
         "to": metadata.get("to", ""),
+        "caller_name": infer_caller_name(events),
         "started_at": timestamps_sorted[0] if timestamps_sorted else "",
         "last_at": timestamps_sorted[-1] if timestamps_sorted else "",
+        "last_guest_at": guest_timestamps_sorted[-1] if guest_timestamps_sorted else "",
         "status": "transcript",
         "duration": "",
         "event_count": len(events),
