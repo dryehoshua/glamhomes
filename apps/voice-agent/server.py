@@ -127,6 +127,10 @@ Guesty and property links:
   send the link by SMS if the caller number is available. In web chat, paste the
   direct link in your response so the messaging app/browser can generate the
   preview.
+- Whenever you recommend a property, confirm a reservation, answer a question
+  with a link, or summarize next steps, proactively offer SMS delivery. Many
+  guests will not know you can text links while on the call; make the offer
+  naturally, e.g. "I can also text that link to you now if you'd like."
 - After confirming useful information, always offer to send it by SMS.
 - If you have dates and guests, check availability/pricing in Guesty before
   selling a property as available. Direct Glam Homes links can include checkIn,
@@ -145,6 +149,32 @@ Guesty and property links:
   have the live Guesty connection available in this moment. I can take the details
   and have the team confirm." Then ask for name, phone, email, and confirmation
   code if available.
+
+Internal analytics and admin boundaries:
+- Call analytics, transcript summaries, relevant-call reports, and dashboard
+  metrics are admin-only web dashboard data. Do not provide them over ordinary
+  phone calls.
+- If someone asks by phone for call volume, today's calls, weekly/monthly
+  summaries, transcripts, or "most relevant calls", say that those reports are
+  available only in the secure GLAM HOMES web dashboard or through an approved
+  admin workflow. Do not read internal customer data aloud.
+
+Booked guest journey roles:
+- Pre-check-in / booking confirmation: ask for confirmation code plus one
+  matching guest detail before sharing dates/property/status. Confirm planned
+  arrival time, guest count, best phone/email, and whether they need directions
+  or house guidance by SMS.
+- Check-in welcome: if the guest is near check-in, welcome them warmly, confirm
+  whether they are already inside, ask if access worked, and offer to text
+  orientation/help links when available. Never reveal access codes unless the
+  reservation has been properly validated and that data is explicitly available.
+- Mid-stay follow-up: ask how the stay is going, whether anything needs
+  attention, and escalate maintenance/access/safety issues immediately.
+- Checkout reminder: if checkout is near, answer departure questions, remind
+  them that checkout details depend on their confirmed reservation, and escalate
+  late checkout or policy exceptions to the team.
+- Post-stay: thank them, capture feedback, and route lost-and-found, refunds,
+  complaints, or return-stay requests to the team when needed.
 """.strip()
 
 
@@ -1380,6 +1410,36 @@ def parse_any_datetime(value: object) -> Optional[datetime]:
         return None
 
 
+def aware_datetime(value: Optional[datetime]) -> Optional[datetime]:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def range_bounds(start: object = "", end: object = "") -> tuple[Optional[datetime], Optional[datetime]]:
+    return aware_datetime(parse_any_datetime(start)), aware_datetime(parse_any_datetime(end))
+
+
+def call_activity_datetime(call: dict) -> Optional[datetime]:
+    return aware_datetime(parse_any_datetime(call.get("last_guest_at") or call.get("last_at") or call.get("started_at")))
+
+
+def call_in_range(call: dict, start: object = "", end: object = "") -> bool:
+    start_dt, end_dt = range_bounds(start, end)
+    if not start_dt and not end_dt:
+        return True
+    activity_dt = call_activity_datetime(call)
+    if not activity_dt:
+        return False
+    if start_dt and activity_dt < start_dt:
+        return False
+    if end_dt and activity_dt > end_dt:
+        return False
+    return True
+
+
 def transcript_sort_key(value: object) -> float:
     parsed = parse_any_datetime(value)
     return parsed.timestamp() if parsed else 0.0
@@ -1661,16 +1721,19 @@ def transcript_call_summary(path: Path) -> Optional[dict]:
     }
 
 
-def build_call_inbox(limit: int = 50, query: object = "") -> dict:
+def build_call_inbox(limit: int = 50, query: object = "", start: object = "", end: object = "") -> dict:
     all_calls, path_by_sid, twilio_error = collect_call_summaries(limit=100)
-    filtered_calls = [call for call in all_calls if call_matches_query(call, query, path_by_sid)]
+    period_calls = [call for call in all_calls if call_in_range(call, start, end)]
+    filtered_calls = [call for call in period_calls if call_matches_query(call, query, path_by_sid)]
     calls = filtered_calls[:limit]
     return {
         "ok": True,
         "count": len(calls),
-        "total_available": len(all_calls),
+        "total_available": len(period_calls),
         "filtered_total": len(filtered_calls),
         "query": compact_text(query),
+        "start": compact_text(start),
+        "end": compact_text(end),
         "calls": calls,
         "metrics": build_call_metrics(filtered_calls, path_by_sid),
         "twilio_error": twilio_error,
@@ -1763,7 +1826,40 @@ def thread_last_timestamp(thread: dict) -> float:
     return transcript_sort_key(thread.get("last_guest_at") or thread.get("last_at") or thread.get("first_at"))
 
 
-def build_call_thread_summary(thread_id: str, calls: list[dict]) -> dict:
+def call_relevance_score(call: dict, path_by_sid: dict[str, Path]) -> int:
+    score = int(call.get("message_count") or 0)
+    if call.get("error_code"):
+        score += 30
+    status = str(call.get("status") or "").lower()
+    if status in {"failed", "busy", "no-answer"}:
+        score += 20
+    call_sid = str(call.get("call_sid") or "")
+    path = path_by_sid.get(call_sid)
+    events = read_transcript_events(path, maximum=1000) if path else []
+    text_blob = transcript_text_blob(events)
+    hits = set(call_topic_hits(text_blob))
+    if "Human handoff" in hits:
+        score += 70
+    if "Support" in hits:
+        score += 35
+    if "Payment" in hits:
+        score += 25
+    if "Events risk" in hits:
+        score += 22
+    if "Booking intent" in hits:
+        score += 15
+    for event in events:
+        kind = str(event.get("kind") or "").lower()
+        role = transcript_event_role(event)
+        if "human_handoff" in kind:
+            score += 80
+        elif role == "tool":
+            score += 4
+    return score
+
+
+def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Optional[dict[str, Path]] = None) -> dict:
+    path_by_sid = path_by_sid or {}
     ordered = sorted(calls, key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
     display_calls = sorted(calls, key=lambda item: transcript_sort_key(item.get("last_guest_at") or item.get("last_at") or item.get("started_at")), reverse=True)
     latest = display_calls[0] if display_calls else {}
@@ -1780,6 +1876,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict]) -> dict:
     last_guest_sorted = sorted(last_guest_values, key=transcript_sort_key)
     last_sorted = sorted(last_values, key=transcript_sort_key)
     first_sorted = sorted(first_values, key=transcript_sort_key)
+    relevance_score = sum(call_relevance_score(call, path_by_sid) for call in calls)
     return {
         "thread_id": thread_id,
         "phone": str(latest.get("from") or "").strip(),
@@ -1791,6 +1888,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict]) -> dict:
         "message_count": message_count,
         "event_count": event_count,
         "interaction_count": message_count + len(calls),
+        "relevance_score": relevance_score,
         "has_transcript": any(call.get("has_transcript") for call in calls),
         "latest_call_sid": latest.get("call_sid", ""),
         "call_sids": [call.get("call_sid", "") for call in ordered if call.get("call_sid")],
@@ -1799,6 +1897,8 @@ def build_call_thread_summary(thread_id: str, calls: list[dict]) -> dict:
 
 def sort_call_threads(threads: list[dict], sort_mode: object) -> list[dict]:
     mode = str(sort_mode or "recent").strip().lower()
+    if mode == "relevant":
+        return sorted(threads, key=lambda item: (int(item.get("relevance_score") or 0), thread_last_timestamp(item)), reverse=True)
     if mode == "most":
         return sorted(threads, key=lambda item: (int(item.get("interaction_count") or 0), thread_last_timestamp(item)), reverse=True)
     if mode == "least":
@@ -1806,11 +1906,12 @@ def sort_call_threads(threads: list[dict], sort_mode: object) -> list[dict]:
     return sorted(threads, key=thread_last_timestamp, reverse=True)
 
 
-def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = "recent") -> dict:
+def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = "recent", start: object = "", end: object = "") -> dict:
     all_calls, path_by_sid, twilio_error = collect_call_summaries(limit=100)
+    period_calls = [call for call in all_calls if call_in_range(call, start, end)]
     groups = {
         thread_id: calls
-        for thread_id, calls in grouped_calls_by_thread(all_calls).items()
+        for thread_id, calls in grouped_calls_by_thread(period_calls).items()
         if group_has_phone(calls)
     }
     query_text = compact_text(query)
@@ -1824,7 +1925,7 @@ def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = 
         included_thread_ids = set(groups)
     filtered_calls = [call for thread_id in included_thread_ids for call in groups.get(thread_id, [])]
     threads = [
-        build_call_thread_summary(thread_id, groups[thread_id])
+        build_call_thread_summary(thread_id, groups[thread_id], path_by_sid)
         for thread_id in included_thread_ids
         if groups.get(thread_id)
     ]
@@ -1837,6 +1938,8 @@ def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = 
         "filtered_total": len(sorted_threads),
         "query": query_text,
         "sort": str(sort_mode or "recent"),
+        "start": compact_text(start),
+        "end": compact_text(end),
         "threads": visible_threads,
         "metrics": build_call_metrics(filtered_calls, path_by_sid),
         "twilio_error": twilio_error,
@@ -1856,7 +1959,7 @@ def normalize_thread_event(event: dict, call_sid: str) -> dict:
     }
 
 
-def build_call_thread(thread_id: object) -> dict:
+def build_call_thread(thread_id: object, start: object = "", end: object = "") -> dict:
     clean_thread_id = normalize_thread_id(thread_id)
     if not clean_thread_id:
         raise FileNotFoundError("Conversation thread not found.")
@@ -1865,6 +1968,9 @@ def build_call_thread(thread_id: object) -> dict:
     calls = groups.get(clean_thread_id)
     if not calls:
         raise FileNotFoundError("Conversation thread not found.")
+    calls = [call for call in calls if call_in_range(call, start, end)]
+    if not calls:
+        raise FileNotFoundError("Conversation thread not found in the selected date range.")
     ordered_calls = sorted(calls, key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
     events: list[dict] = []
     for call in ordered_calls:
@@ -1884,7 +1990,11 @@ def build_call_thread(thread_id: object) -> dict:
         path = path_by_sid.get(call_sid)
         raw_events = read_transcript_events(path, maximum=1000) if path else []
         if raw_events:
-            events.extend(normalize_thread_event(event, call_sid) for event in raw_events)
+            events.extend(
+                normalize_thread_event(event, call_sid)
+                for event in raw_events
+                if call_in_range({"last_at": event.get("timestamp")}, start, end)
+            )
         else:
             events.append(
                 {
@@ -1900,9 +2010,11 @@ def build_call_thread(thread_id: object) -> dict:
     events = sorted(events, key=lambda item: transcript_sort_key(item.get("timestamp")))
     return {
         "ok": True,
-        "summary": build_call_thread_summary(clean_thread_id, calls),
+        "summary": build_call_thread_summary(clean_thread_id, calls, path_by_sid),
         "calls": ordered_calls,
         "events": events,
+        "start": compact_text(start),
+        "end": compact_text(end),
         "generated_at": now_iso(),
     }
 
@@ -2465,6 +2577,8 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     build_call_inbox(
                         limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100),
                         query=(params.get("q") or [""])[0],
+                        start=(params.get("start") or [""])[0],
+                        end=(params.get("end") or [""])[0],
                     ),
                 )
             except Exception as exc:
@@ -2482,6 +2596,8 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                         limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100),
                         query=(params.get("q") or [""])[0],
                         sort_mode=(params.get("sort") or ["recent"])[0],
+                        start=(params.get("start") or [""])[0],
+                        end=(params.get("end") or [""])[0],
                     ),
                 )
             except Exception as exc:
@@ -2494,7 +2610,14 @@ class ConciergeHandler(BaseHTTPRequestHandler):
             params = parse.parse_qs(parsed.query)
             thread_id = (params.get("thread_id") or params.get("phone") or [""])[0]
             try:
-                write_json(self, build_call_thread(thread_id))
+                write_json(
+                    self,
+                    build_call_thread(
+                        thread_id,
+                        start=(params.get("start") or [""])[0],
+                        end=(params.get("end") or [""])[0],
+                    ),
+                )
             except FileNotFoundError as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=404)
             except Exception as exc:

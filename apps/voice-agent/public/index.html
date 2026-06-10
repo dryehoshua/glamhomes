@@ -797,6 +797,53 @@
       text-align: right;
     }
 
+    .analytics-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .range-filters,
+    .custom-range {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .range-filter {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .range-filter.active {
+      background: #f8ead0;
+      color: var(--ink);
+      border-color: rgba(200, 155, 60, 0.52);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .custom-range input {
+      width: 136px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1377,6 +1424,20 @@
         text-align: left;
       }
 
+      .analytics-controls,
+      .range-filters,
+      .custom-range {
+        width: 100%;
+      }
+
+      .range-filter {
+        flex: 1 0 auto;
+      }
+
+      .custom-range input {
+        flex: 1 1 130px;
+      }
+
       .call-inbox-header {
         align-items: flex-start;
         flex-direction: column;
@@ -1604,6 +1665,20 @@
           </div>
           <span id="analyticsScope">All stored conversations</span>
         </div>
+        <div class="analytics-controls">
+          <div class="range-filters" aria-label="Analytics range">
+            <button class="range-filter" type="button" data-range="today">Today</button>
+            <button class="range-filter active" type="button" data-range="week">7 days</button>
+            <button class="range-filter" type="button" data-range="month">30 days</button>
+            <button class="range-filter" type="button" data-range="all">All</button>
+            <button class="range-filter" type="button" data-range="custom">Custom</button>
+          </div>
+          <div class="custom-range" id="customRangeControls" style="display: none;">
+            <input id="rangeStart" type="date" aria-label="Start date">
+            <input id="rangeEnd" type="date" aria-label="End date">
+            <button class="secondary compact" id="applyRange" type="button">Apply</button>
+          </div>
+        </div>
         <div class="kpi-grid" id="kpiGrid">
           <div class="kpi-card"><strong>Total calls</strong><span>--</span><small>Waiting for transcripts</small></div>
           <div class="kpi-card"><strong>Prospects</strong><span>--</span><small>Booking intent detected</small></div>
@@ -1638,6 +1713,7 @@
             <span class="pill" id="callInboxState">Local conversations</span>
             <div class="thread-filters" aria-label="Conversation sorting">
               <button class="thread-filter active" type="button" data-sort="recent">Recent</button>
+              <button class="thread-filter" type="button" data-sort="relevant">Relevant</button>
               <button class="thread-filter" type="button" data-sort="most">Most interaction</button>
               <button class="thread-filter" type="button" data-sort="least">Least interaction</button>
             </div>
@@ -1690,6 +1766,7 @@
     let callSearchQuery = "";
     let callSearchTimer = null;
     let callSortMode = "recent";
+    let analyticsRangeMode = "week";
     let topicChart = null;
     let mixChart = null;
     let lastMetrics = {};
@@ -1908,6 +1985,65 @@
       return Number.isFinite(number) ? number.toFixed(number % 1 ? 1 : 0) + "%" : "--";
     }
 
+    function isoDateInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return year + "-" + month + "-" + day;
+    }
+
+    function startOfLocalDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+    }
+
+    function endOfLocalDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+    }
+
+    function addDays(date, days) {
+      const copy = new Date(date);
+      copy.setDate(copy.getDate() + days);
+      return copy;
+    }
+
+    function dateInputToLocalDate(value, endOfDay = false) {
+      if (!value) return null;
+      const parts = value.split("-").map((part) => Number(part));
+      if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      return endOfDay ? endOfLocalDay(date) : startOfLocalDay(date);
+    }
+
+    function currentAnalyticsRange() {
+      const now = new Date();
+      if (analyticsRangeMode === "all") return { start: "", end: "", label: "All stored conversations" };
+      if (analyticsRangeMode === "week") {
+        return { start: startOfLocalDay(addDays(now, -6)).toISOString(), end: now.toISOString(), label: "Last 7 days" };
+      }
+      if (analyticsRangeMode === "month") {
+        return { start: startOfLocalDay(addDays(now, -29)).toISOString(), end: now.toISOString(), label: "Last 30 days" };
+      }
+      if (analyticsRangeMode === "custom") {
+        const start = dateInputToLocalDate($("rangeStart").value, false);
+        const end = dateInputToLocalDate($("rangeEnd").value, true);
+        const startLabel = $("rangeStart").value || "Start";
+        const endLabel = $("rangeEnd").value || "End";
+        return {
+          start: start ? start.toISOString() : "",
+          end: end ? end.toISOString() : "",
+          label: start || end ? startLabel + " to " + endLabel : "Custom range",
+        };
+      }
+      return { start: startOfLocalDay(now).toISOString(), end: now.toISOString(), label: "Today" };
+    }
+
+    function appendAnalyticsRangeParams(params) {
+      const range = currentAnalyticsRange();
+      if (range.start) params.set("start", range.start);
+      if (range.end) params.set("end", range.end);
+      return range;
+    }
+
     function chartTheme() {
       return {
         gold: "#c89b3c",
@@ -2081,9 +2217,10 @@
       }
 
       const activeQuery = String(data.query || "").trim();
+      const rangeLabel = currentAnalyticsRange().label;
       $("analyticsScope").textContent = activeQuery
-        ? "Filtered by: " + activeQuery
-        : "All stored conversations";
+        ? rangeLabel + " · " + activeQuery
+        : rangeLabel;
       renderCharts(metrics, data);
     }
 
@@ -2213,7 +2350,11 @@
       clearTranscript("Loading conversation", "Opening caller history...");
       try {
         const { response, data } = await fetchJson(
-          "/api/calls/thread?thread_id=" + encodeURIComponent(threadId),
+          (() => {
+            const params = new URLSearchParams({ thread_id: threadId });
+            appendAnalyticsRangeParams(params);
+            return "/api/calls/thread?" + params.toString();
+          })(),
           { headers: callDataHeaders() },
         );
         if (response.status === 403 && data.auth_required) {
@@ -2232,7 +2373,10 @@
       try {
         updateCallInboxAuth(false);
         const query = callSearchQuery.trim();
-        const inboxUrl = "/api/calls/threads?limit=50&sort=" + encodeURIComponent(callSortMode) + (query ? "&q=" + encodeURIComponent(query) : "");
+        const params = new URLSearchParams({ limit: "50", sort: callSortMode });
+        if (query) params.set("q", query);
+        appendAnalyticsRangeParams(params);
+        const inboxUrl = "/api/calls/threads?" + params.toString();
         const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
         if (response.status === 403 || data.local_only || data.auth_required) {
           $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
@@ -2284,12 +2428,28 @@
     }
 
     function setCallSortMode(mode) {
-      callSortMode = ["recent", "most", "least"].includes(mode) ? mode : "recent";
+      callSortMode = ["recent", "relevant", "most", "least"].includes(mode) ? mode : "recent";
       for (const button of document.querySelectorAll(".thread-filter")) {
         button.classList.toggle("active", button.dataset.sort === callSortMode);
       }
       selectedThreadId = "";
       refreshCallInbox(true);
+    }
+
+    function setAnalyticsRange(mode) {
+      analyticsRangeMode = ["today", "week", "month", "all", "custom"].includes(mode) ? mode : "today";
+      for (const button of document.querySelectorAll(".range-filter")) {
+        button.classList.toggle("active", button.dataset.range === analyticsRangeMode);
+      }
+      $("customRangeControls").style.display = analyticsRangeMode === "custom" ? "inline-flex" : "none";
+      selectedThreadId = "";
+      refreshCallInbox(true);
+    }
+
+    function initializeAnalyticsRangeInputs() {
+      const now = new Date();
+      $("rangeStart").value = isoDateInput(now);
+      $("rangeEnd").value = isoDateInput(now);
     }
 
     function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
@@ -2663,6 +2823,7 @@
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
     $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("clearCallSearch").onclick = clearCallSearch;
+    $("applyRange").onclick = () => setAnalyticsRange("custom");
     $("callSearch").addEventListener("input", scheduleCallSearch);
     $("unlockCalls").onclick = saveCallInboxKey;
     $("callInboxKey").addEventListener("keydown", (event) => {
@@ -2685,6 +2846,9 @@
     for (const button of document.querySelectorAll(".thread-filter")) {
       button.addEventListener("click", () => setCallSortMode(button.dataset.sort));
     }
+    for (const button of document.querySelectorAll(".range-filter")) {
+      button.addEventListener("click", () => setAnalyticsRange(button.dataset.range));
+    }
 
     window.addEventListener("beforeunload", () => {
       if (micStream) micStream.getTracks().forEach((track) => track.stop());
@@ -2692,6 +2856,7 @@
     });
 
     loadStatus();
+    initializeAnalyticsRangeInputs();
     updateCallInboxAuth(false);
     refreshTwilioMonitor();
     refreshCallInbox();

@@ -81,13 +81,16 @@ Cada item del inbox muestra solo:
 Filtros disponibles:
 
 - `Recent`: ultimas conversaciones.
+- `Relevant`: conversaciones con mayor senal de soporte, handoff, pago,
+  eventos o actividad relevante.
 - `Most interaction`: clientes con mas llamadas/mensajes.
 - `Least interaction`: clientes con menor interaccion.
+- Rango de analytics: `Today`, `7 days`, `30 days`, `All` y `Custom`.
 
 Endpoints de hilos:
 
-- `GET /api/calls/threads?limit=50&sort=recent|most|least&q=...`
-- `GET /api/calls/thread?thread_id=phone:<digits>`
+- `GET /api/calls/threads?limit=50&sort=recent|relevant|most|least&q=...&start=...&end=...`
+- `GET /api/calls/thread?thread_id=phone:<digits>&start=...&end=...`
 
 Graficas incluidas:
 
