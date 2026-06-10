@@ -1662,6 +1662,23 @@ def transcript_call_summary(path: Path) -> Optional[dict]:
 
 
 def build_call_inbox(limit: int = 50, query: object = "") -> dict:
+    all_calls, path_by_sid, twilio_error = collect_call_summaries(limit=100)
+    filtered_calls = [call for call in all_calls if call_matches_query(call, query, path_by_sid)]
+    calls = filtered_calls[:limit]
+    return {
+        "ok": True,
+        "count": len(calls),
+        "total_available": len(all_calls),
+        "filtered_total": len(filtered_calls),
+        "query": compact_text(query),
+        "calls": calls,
+        "metrics": build_call_metrics(filtered_calls, path_by_sid),
+        "twilio_error": twilio_error,
+        "generated_at": now_iso(),
+    }
+
+
+def collect_call_summaries(limit: int = 100) -> tuple[list[dict], dict[str, Path], str]:
     summaries: dict[str, dict] = {}
     path_by_sid: dict[str, Path] = {}
     for path in transcript_jsonl_files():
@@ -1680,14 +1697,16 @@ def build_call_inbox(limit: int = 50, query: object = "") -> dict:
                     continue
                 summary = summaries.get(call_sid) or {
                     "call_sid": call_sid,
-                    "from": "",
-                    "to": "",
-                    "started_at": "",
-                    "last_at": "",
-                    "event_count": 0,
-                    "message_count": 0,
-                    "has_transcript": False,
-                    "preview": "",
+                        "from": "",
+                        "to": "",
+                        "caller_name": "",
+                        "started_at": "",
+                        "last_at": "",
+                        "last_guest_at": "",
+                        "event_count": 0,
+                        "message_count": 0,
+                        "has_transcript": False,
+                        "preview": "",
                     "source": "twilio",
                 }
                 summary.update(
@@ -1706,17 +1725,184 @@ def build_call_inbox(limit: int = 50, query: object = "") -> dict:
             twilio_error = str(exc)
 
     all_calls = sorted(summaries.values(), key=lambda item: transcript_sort_key(item.get("last_at") or item.get("started_at")), reverse=True)
-    filtered_calls = [call for call in all_calls if call_matches_query(call, query, path_by_sid)]
-    calls = filtered_calls[:limit]
+    return all_calls, path_by_sid, twilio_error
+
+
+def call_thread_id(call: dict) -> str:
+    number = str(call.get("from") or "").strip()
+    digits = digits_only(number)
+    if digits:
+        return f"phone:{digits}"
+    call_sid = safe_filename_part(call.get("call_sid"), fallback="")
+    return f"call:{call_sid}" if call_sid else "call:unknown"
+
+
+def normalize_thread_id(value: object) -> str:
+    raw = str(value or "").strip()
+    if raw.startswith(("phone:", "call:")):
+        return raw
+    digits = digits_only(raw)
+    if digits:
+        return f"phone:{digits}"
+    clean = safe_filename_part(raw, fallback="")
+    return f"call:{clean}" if clean else ""
+
+
+def grouped_calls_by_thread(calls: list[dict]) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for call in calls:
+        grouped.setdefault(call_thread_id(call), []).append(call)
+    return grouped
+
+
+def group_has_phone(calls: list[dict]) -> bool:
+    return any(str(call.get("from") or "").strip() for call in calls)
+
+
+def thread_last_timestamp(thread: dict) -> float:
+    return transcript_sort_key(thread.get("last_guest_at") or thread.get("last_at") or thread.get("first_at"))
+
+
+def build_call_thread_summary(thread_id: str, calls: list[dict]) -> dict:
+    ordered = sorted(calls, key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
+    display_calls = sorted(calls, key=lambda item: transcript_sort_key(item.get("last_guest_at") or item.get("last_at") or item.get("started_at")), reverse=True)
+    latest = display_calls[0] if display_calls else {}
+    caller_name = ""
+    for call in display_calls:
+        caller_name = str(call.get("caller_name") or "").strip()
+        if caller_name:
+            break
+    message_count = sum(int(call.get("message_count") or 0) for call in calls)
+    event_count = sum(int(call.get("event_count") or 0) for call in calls)
+    last_guest_values = [call.get("last_guest_at") for call in calls if call.get("last_guest_at")]
+    last_values = [call.get("last_at") or call.get("started_at") for call in calls if call.get("last_at") or call.get("started_at")]
+    first_values = [call.get("started_at") or call.get("last_at") for call in calls if call.get("started_at") or call.get("last_at")]
+    last_guest_sorted = sorted(last_guest_values, key=transcript_sort_key)
+    last_sorted = sorted(last_values, key=transcript_sort_key)
+    first_sorted = sorted(first_values, key=transcript_sort_key)
+    return {
+        "thread_id": thread_id,
+        "phone": str(latest.get("from") or "").strip(),
+        "caller_name": caller_name,
+        "first_at": first_sorted[0] if first_sorted else "",
+        "last_at": last_sorted[-1] if last_sorted else "",
+        "last_guest_at": last_guest_sorted[-1] if last_guest_sorted else "",
+        "call_count": len(calls),
+        "message_count": message_count,
+        "event_count": event_count,
+        "interaction_count": message_count + len(calls),
+        "has_transcript": any(call.get("has_transcript") for call in calls),
+        "latest_call_sid": latest.get("call_sid", ""),
+        "call_sids": [call.get("call_sid", "") for call in ordered if call.get("call_sid")],
+    }
+
+
+def sort_call_threads(threads: list[dict], sort_mode: object) -> list[dict]:
+    mode = str(sort_mode or "recent").strip().lower()
+    if mode == "most":
+        return sorted(threads, key=lambda item: (int(item.get("interaction_count") or 0), thread_last_timestamp(item)), reverse=True)
+    if mode == "least":
+        return sorted(threads, key=lambda item: (int(item.get("interaction_count") or 0), -thread_last_timestamp(item)))
+    return sorted(threads, key=thread_last_timestamp, reverse=True)
+
+
+def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = "recent") -> dict:
+    all_calls, path_by_sid, twilio_error = collect_call_summaries(limit=100)
+    groups = {
+        thread_id: calls
+        for thread_id, calls in grouped_calls_by_thread(all_calls).items()
+        if group_has_phone(calls)
+    }
+    query_text = compact_text(query)
+    if query_text:
+        included_thread_ids = {
+            thread_id
+            for thread_id, calls in groups.items()
+            if any(call_matches_query(call, query_text, path_by_sid) for call in calls)
+        }
+    else:
+        included_thread_ids = set(groups)
+    filtered_calls = [call for thread_id in included_thread_ids for call in groups.get(thread_id, [])]
+    threads = [
+        build_call_thread_summary(thread_id, groups[thread_id])
+        for thread_id in included_thread_ids
+        if groups.get(thread_id)
+    ]
+    sorted_threads = sort_call_threads(threads, sort_mode)
+    visible_threads = sorted_threads[:limit]
     return {
         "ok": True,
-        "count": len(calls),
-        "total_available": len(all_calls),
-        "filtered_total": len(filtered_calls),
-        "query": compact_text(query),
-        "calls": calls,
+        "count": len(visible_threads),
+        "total_available": len(groups),
+        "filtered_total": len(sorted_threads),
+        "query": query_text,
+        "sort": str(sort_mode or "recent"),
+        "threads": visible_threads,
         "metrics": build_call_metrics(filtered_calls, path_by_sid),
         "twilio_error": twilio_error,
+        "generated_at": now_iso(),
+    }
+
+
+def normalize_thread_event(event: dict, call_sid: str) -> dict:
+    return {
+        "timestamp": event.get("timestamp", ""),
+        "role": transcript_event_role(event),
+        "speaker": event.get("speaker", "System"),
+        "kind": event.get("kind", "message"),
+        "text": str(event.get("text") or ""),
+        "call_sid": call_sid,
+        "metadata": event.get("metadata") if isinstance(event.get("metadata"), dict) else {},
+    }
+
+
+def build_call_thread(thread_id: object) -> dict:
+    clean_thread_id = normalize_thread_id(thread_id)
+    if not clean_thread_id:
+        raise FileNotFoundError("Conversation thread not found.")
+    all_calls, path_by_sid, _twilio_error = collect_call_summaries(limit=100)
+    groups = grouped_calls_by_thread(all_calls)
+    calls = groups.get(clean_thread_id)
+    if not calls:
+        raise FileNotFoundError("Conversation thread not found.")
+    ordered_calls = sorted(calls, key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
+    events: list[dict] = []
+    for call in ordered_calls:
+        call_sid = str(call.get("call_sid") or "")
+        marker_time = call.get("started_at") or call.get("last_at") or ""
+        events.append(
+            {
+                "timestamp": marker_time,
+                "role": "system",
+                "speaker": "System",
+                "kind": "call_marker",
+                "text": "Call session",
+                "call_sid": call_sid,
+                "metadata": {"status": call.get("status", ""), "duration": call.get("duration", "")},
+            }
+        )
+        path = path_by_sid.get(call_sid)
+        raw_events = read_transcript_events(path, maximum=1000) if path else []
+        if raw_events:
+            events.extend(normalize_thread_event(event, call_sid) for event in raw_events)
+        else:
+            events.append(
+                {
+                    "timestamp": call.get("last_at") or marker_time,
+                    "role": "system",
+                    "speaker": "System",
+                    "kind": "call_metadata",
+                    "text": "Call logged without a saved transcript.",
+                    "call_sid": call_sid,
+                    "metadata": {},
+                }
+            )
+    events = sorted(events, key=lambda item: transcript_sort_key(item.get("timestamp")))
+    return {
+        "ok": True,
+        "summary": build_call_thread_summary(clean_thread_id, calls),
+        "calls": ordered_calls,
+        "events": events,
         "generated_at": now_iso(),
     }
 
@@ -2281,6 +2467,36 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                         query=(params.get("q") or [""])[0],
                     ),
                 )
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/calls/threads":
+            if not can_access_call_data(self):
+                write_json(self, protected_call_data_payload(), status=403)
+                return
+            params = parse.parse_qs(parsed.query)
+            try:
+                write_json(
+                    self,
+                    build_call_threads(
+                        limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100),
+                        query=(params.get("q") or [""])[0],
+                        sort_mode=(params.get("sort") or ["recent"])[0],
+                    ),
+                )
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/calls/thread":
+            if not can_access_call_data(self):
+                write_json(self, protected_call_data_payload(), status=403)
+                return
+            params = parse.parse_qs(parsed.query)
+            thread_id = (params.get("thread_id") or params.get("phone") or [""])[0]
+            try:
+                write_json(self, build_call_thread(thread_id))
+            except FileNotFoundError as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=404)
             except Exception as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return

@@ -976,6 +976,34 @@
       border-color: var(--gold);
     }
 
+    .thread-filters {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+    }
+
+    .thread-filter {
+      min-height: 30px;
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 9px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+
+    .thread-filter.active {
+      background: #f8ead0;
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.32);
+    }
+
     .call-search {
       display: flex;
       align-items: center;
@@ -1367,6 +1395,15 @@
         width: 100%;
       }
 
+      .thread-filters {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .thread-filter {
+        flex: 1 0 auto;
+      }
+
       .call-inbox-auth {
         width: 100%;
         justify-content: stretch;
@@ -1595,12 +1632,17 @@
         <div class="call-inbox-header">
           <div>
             <p class="eyebrow">Call center memory</p>
-            <h2>Call Inbox</h2>
+            <h2>Conversation Inbox</h2>
           </div>
           <div class="call-inbox-actions">
-            <span class="pill" id="callInboxState">Local transcripts</span>
+            <span class="pill" id="callInboxState">Local conversations</span>
+            <div class="thread-filters" aria-label="Conversation sorting">
+              <button class="thread-filter active" type="button" data-sort="recent">Recent</button>
+              <button class="thread-filter" type="button" data-sort="most">Most interaction</button>
+              <button class="thread-filter" type="button" data-sort="least">Least interaction</button>
+            </div>
             <div class="call-search">
-              <input id="callSearch" type="search" autocomplete="off" placeholder="Search number, keyword, CallSid">
+              <input id="callSearch" type="search" autocomplete="off" placeholder="Search number, name, keyword">
               <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
             </div>
             <div class="call-inbox-auth" id="callInboxAuth">
@@ -1612,17 +1654,17 @@
         </div>
         <div class="call-inbox-layout">
           <div class="call-list" id="callList">
-            <button class="call-item" type="button"><strong>Loading calls...</strong><span>Checking local transcripts.</span></button>
+            <button class="call-item" type="button"><span class="call-item-name">Loading conversations...</span><span class="call-item-time">Checking local transcripts.</span></button>
           </div>
           <div class="transcript-panel">
             <div class="transcript-header" id="transcriptHeader">
-              <strong>Select a call</strong>
-              <span>Conversation transcripts are stored locally on this Mac.</span>
+              <strong>Select a conversation</strong>
+              <span>Each phone number keeps one continuous history.</span>
             </div>
             <div class="transcript-messages" id="transcriptMessages">
               <div class="transcript-bubble system">
                 <span class="transcript-speaker">System</span>
-                <span>Choose a recent call to open the messenger transcript.</span>
+                <span>Choose a recent caller to open the continuous conversation.</span>
               </div>
             </div>
           </div>
@@ -1644,9 +1686,10 @@
     let assistantFinalLogged = false;
     let selectedMicDeviceId = "";
     let activeMode = "";
-    let selectedCallSid = "";
+    let selectedThreadId = "";
     let callSearchQuery = "";
     let callSearchTimer = null;
+    let callSortMode = "recent";
     let topicChart = null;
     let mixChart = null;
     let lastMetrics = {};
@@ -1721,7 +1764,7 @@
       if (safeName === "calls") {
         window.setTimeout(() => {
           renderCharts(lastMetrics, lastCallData);
-          if (!selectedCallSid) refreshCallInbox(false);
+          if (!selectedThreadId) refreshCallInbox(false);
         }, 60);
       }
     }
@@ -1856,7 +1899,7 @@
       } else {
         localStorage.removeItem(dashboardKeyStorage);
       }
-      selectedCallSid = "";
+      selectedThreadId = "";
       refreshCallInbox(true);
     }
 
@@ -2071,7 +2114,7 @@
     }
 
     function callerDisplayNumber(call) {
-      return String(call?.from || "").trim() || "No caller number";
+      return String(call?.phone || call?.from || "").trim() || "No caller number";
     }
 
     function callerLastSpoke(call) {
@@ -2082,16 +2125,16 @@
       return callerDisplayName(call) + " · " + callerDisplayNumber(call);
     }
 
-    function renderCallList(calls) {
+    function renderCallList(threads) {
       const list = $("callList");
       list.innerHTML = "";
-      if (!calls.length) {
+      if (!threads.length) {
         const empty = document.createElement("button");
         empty.className = "call-item";
         empty.type = "button";
         const title = document.createElement("span");
         title.className = "call-item-name";
-        title.textContent = "No calls yet";
+        title.textContent = "No conversations yet";
         const detail = document.createElement("span");
         detail.className = "call-item-time";
         detail.textContent = "Waiting for the next caller.";
@@ -2100,26 +2143,26 @@
         list.appendChild(empty);
         return;
       }
-      for (const call of calls) {
+      for (const thread of threads) {
         const button = document.createElement("button");
-        button.className = "call-item" + (call.call_sid === selectedCallSid ? " active" : "");
+        button.className = "call-item" + (thread.thread_id === selectedThreadId ? " active" : "");
         button.type = "button";
-        button.dataset.callSid = call.call_sid || "";
+        button.dataset.threadId = thread.thread_id || "";
 
         const title = document.createElement("span");
         title.className = "call-item-name";
-        title.textContent = callerDisplayName(call);
+        title.textContent = callerDisplayName(thread);
         const number = document.createElement("span");
         number.className = "call-item-number";
-        number.textContent = callerDisplayNumber(call);
+        number.textContent = callerDisplayNumber(thread);
         const detail = document.createElement("span");
         detail.className = "call-item-time";
-        detail.textContent = compactDate(callerLastSpoke(call));
+        detail.textContent = compactDate(callerLastSpoke(thread));
 
         button.appendChild(title);
         button.appendChild(number);
         button.appendChild(detail);
-        button.addEventListener("click", () => openCallTranscript(call.call_sid));
+        button.addEventListener("click", () => openCallThread(thread.thread_id));
         list.appendChild(button);
       }
     }
@@ -2129,7 +2172,8 @@
       const heading = document.createElement("strong");
       heading.textContent = callTitle(summary || {});
       const sub = document.createElement("span");
-      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {}));
+      const calls = Number(summary?.call_count || 0);
+      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "");
       $("transcriptHeader").appendChild(heading);
       $("transcriptHeader").appendChild(sub);
 
@@ -2160,26 +2204,26 @@
       feed.scrollTop = feed.scrollHeight;
     }
 
-    async function openCallTranscript(callSid) {
-      if (!callSid) return;
-      selectedCallSid = callSid;
+    async function openCallThread(threadId) {
+      if (!threadId) return;
+      selectedThreadId = threadId;
       for (const item of document.querySelectorAll(".call-item")) {
-        item.classList.toggle("active", item.dataset.callSid === callSid);
+        item.classList.toggle("active", item.dataset.threadId === threadId);
       }
-      clearTranscript("Loading transcript", "Opening " + compactSid(callSid) + "...");
+      clearTranscript("Loading conversation", "Opening caller history...");
       try {
         const { response, data } = await fetchJson(
-          "/api/calls/transcript?call_sid=" + encodeURIComponent(callSid),
+          "/api/calls/thread?thread_id=" + encodeURIComponent(threadId),
           { headers: callDataHeaders() },
         );
         if (response.status === 403 && data.auth_required) {
           updateCallInboxAuth(true);
-          throw new Error("Enter the dashboard key to open call transcripts.");
+          throw new Error("Enter the dashboard key to open caller history.");
         }
-        if (!response.ok) throw new Error(data.error || "Transcript unavailable");
+        if (!response.ok) throw new Error(data.error || "Conversation unavailable");
         renderTranscript(data.summary || {}, data.events || []);
       } catch (error) {
-        clearTranscript("Transcript unavailable", error.message);
+        clearTranscript("Conversation unavailable", error.message);
       }
     }
 
@@ -2188,7 +2232,7 @@
       try {
         updateCallInboxAuth(false);
         const query = callSearchQuery.trim();
-        const inboxUrl = "/api/calls/inbox?limit=50" + (query ? "&q=" + encodeURIComponent(query) : "");
+        const inboxUrl = "/api/calls/threads?limit=50&sort=" + encodeURIComponent(callSortMode) + (query ? "&q=" + encodeURIComponent(query) : "");
         const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
         if (response.status === 403 || data.local_only || data.auth_required) {
           $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
@@ -2204,14 +2248,14 @@
           return;
         }
         if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
-        const calls = data.calls || [];
-        const total = typeof data.filtered_total === "number" ? data.filtered_total : calls.length;
-        $("callInboxState").textContent = query ? total + " matches" : total + " calls";
+        const threads = data.threads || [];
+        const total = typeof data.filtered_total === "number" ? data.filtered_total : threads.length;
+        $("callInboxState").textContent = query ? total + " matches" : total + " conversations";
         renderKpis(data.metrics || {}, data);
         updateCallInboxAuth(false);
-        renderCallList(calls);
-        if (!selectedCallSid && calls.length) {
-          await openCallTranscript(calls[0].call_sid);
+        renderCallList(threads);
+        if (!selectedThreadId && threads.length) {
+          await openCallThread(threads[0].thread_id);
         }
       } catch (error) {
         $("callInboxState").textContent = "Unavailable";
@@ -2227,7 +2271,7 @@
       window.clearTimeout(callSearchTimer);
       callSearchTimer = window.setTimeout(() => {
         callSearchQuery = $("callSearch").value.trim();
-        selectedCallSid = "";
+        selectedThreadId = "";
         refreshCallInbox(false);
       }, 240);
     }
@@ -2235,7 +2279,16 @@
     function clearCallSearch() {
       $("callSearch").value = "";
       callSearchQuery = "";
-      selectedCallSid = "";
+      selectedThreadId = "";
+      refreshCallInbox(true);
+    }
+
+    function setCallSortMode(mode) {
+      callSortMode = ["recent", "most", "least"].includes(mode) ? mode : "recent";
+      for (const button of document.querySelectorAll(".thread-filter")) {
+        button.classList.toggle("active", button.dataset.sort === callSortMode);
+      }
+      selectedThreadId = "";
       refreshCallInbox(true);
     }
 
@@ -2628,6 +2681,9 @@
     }
     for (const button of document.querySelectorAll(".tab-button")) {
       button.addEventListener("click", () => switchTab(button.dataset.tab));
+    }
+    for (const button of document.querySelectorAll(".thread-filter")) {
+      button.addEventListener("click", () => setCallSortMode(button.dataset.sort));
     }
 
     window.addEventListener("beforeunload", () => {

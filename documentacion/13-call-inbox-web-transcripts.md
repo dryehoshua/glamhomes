@@ -67,6 +67,28 @@ La pestaña `Calls & Analytics` usa una distribucion de dos columnas en desktop:
 analitica a la izquierda y transcripts a la derecha. En mobile, cada zona tiene
 scroll propio para evitar que el inbox o el transcript deformen toda la pagina.
 
+El inbox ahora se agrupa por numero de telefono, como una conversacion continua
+tipo messenger/WhatsApp. Si un cliente llamo ayer y vuelve a llamar hoy, no se
+crea una tarjeta nueva para cada `CallSid`; se abre el mismo hilo del numero.
+
+Cada item del inbox muestra solo:
+
+- Nombre detectado o `Unknown`.
+- Numero de telefono.
+- Ultima hora en que hablo el cliente; si no hay turno del cliente, ultima
+  actividad registrada.
+
+Filtros disponibles:
+
+- `Recent`: ultimas conversaciones.
+- `Most interaction`: clientes con mas llamadas/mensajes.
+- `Least interaction`: clientes con menor interaccion.
+
+Endpoints de hilos:
+
+- `GET /api/calls/threads?limit=50&sort=recent|most|least&q=...`
+- `GET /api/calls/thread?thread_id=phone:<digits>`
+
 Graficas incluidas:
 
 - Barra: volumen por temas detectados.
@@ -80,8 +102,9 @@ Esto evita depender de un CDN en cada carga del dashboard.
 
 ## Verificacion realizada
 
-- Local Call Inbox: OK, 35 llamadas visibles.
-- Transcript local: OK, primera llamada con 47 eventos.
+- Local Conversation Inbox: OK, 5 hilos por numero visibles.
+- Hilo local principal: OK, `+525630907754` agrupado con 22 llamadas y 273
+  eventos visibles en un solo historial continuo.
 - Publico sin llave: OK, responde 403 protegido.
 - Publico con llave: OK, devuelve llamada con transcript.
 - Busqueda: filtra por numero, CallSid o palabras dentro del transcript.
