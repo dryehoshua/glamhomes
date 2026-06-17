@@ -730,6 +730,58 @@
       font-size: 12px;
     }
 
+    .emergency-config {
+      border: 1px solid rgba(240, 207, 122, 0.28);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .emergency-config header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .emergency-config strong {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #e8d7a8;
+    }
+
+    .emergency-config span {
+      color: #d7c8a9;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .emergency-form {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) minmax(130px, 0.8fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .emergency-form input {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid rgba(240, 207, 122, 0.35);
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.09);
+      color: #fff8e8;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .emergency-form input::placeholder {
+      color: #bfae8c;
+    }
+
     .monitor-events {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1336,6 +1388,10 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .emergency-form {
+        grid-template-columns: 1fr;
+      }
+
       .kpi-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -1519,7 +1575,7 @@
             <span class="avatar-mark">LIVE</span>
           </div>
           <div class="agent-meta">
-            <p class="agent-name">Male concierge</p>
+            <p class="agent-name">Concierge voice</p>
             <p class="status" id="statusText">Ready for local testing. Select a voice, then test voice or start voice.</p>
           </div>
         </div>
@@ -1548,11 +1604,16 @@
         <label>
           GPT Calls voice
           <select id="voiceSelect">
-            <option value="ash" selected>Ash - recommended male</option>
-            <option value="echo">Echo - clear male</option>
-            <option value="cedar">Cedar - deep male</option>
-            <option value="verse">Verse - energetic neutral</option>
+            <option value="ash" selected>Ash - warm masculine</option>
+            <option value="echo">Echo - clear masculine</option>
+            <option value="cedar">Cedar - calm masculine</option>
+            <option value="verse">Verse - conversational masculine</option>
             <option value="marin">Marin - premium recommended</option>
+            <option value="coral">Coral - bright feminine</option>
+            <option value="shimmer">Shimmer - soft feminine</option>
+            <option value="sage">Sage - warm feminine</option>
+            <option value="alloy">Alloy - balanced neutral</option>
+            <option value="ballad">Ballad - expressive neutral</option>
           </select>
         </label>
         <div class="voice-list" id="voiceButtons">
@@ -1560,6 +1621,12 @@
           <button class="voice-option" data-voice="echo">Echo</button>
           <button class="voice-option" data-voice="cedar">Cedar</button>
           <button class="voice-option" data-voice="verse">Verse</button>
+          <button class="voice-option" data-voice="marin">Marin</button>
+          <button class="voice-option" data-voice="coral">Coral</button>
+          <button class="voice-option" data-voice="shimmer">Shimmer</button>
+          <button class="voice-option" data-voice="sage">Sage</button>
+          <button class="voice-option" data-voice="alloy">Alloy</button>
+          <button class="voice-option" data-voice="ballad">Ballad</button>
         </div>
         <p class="hint">To change voices after the concierge speaks, end the session and open a new one.</p>
       </div>
@@ -1591,7 +1658,7 @@
         </div>
         <div class="note">
           <strong>Brand</strong>
-          <span>Gold palette, premium tone, and male assistant for booking calls.</span>
+          <span>Gold palette, premium tone, and selectable concierge voices for booking calls.</span>
         </div>
       </div>
     </section>
@@ -1630,6 +1697,17 @@
           <span id="monitorLastChecked">Last check: pending</span>
           <span id="monitorPhone">Line: pending</span>
           <span id="monitorPublicUrl">Tunnel: pending</span>
+        </div>
+        <div class="emergency-config" aria-label="Emergency advisor number">
+          <header>
+            <strong>Emergency advisor SMS</strong>
+            <span id="emergencyContactState">Loading emergency line...</span>
+          </header>
+          <div class="emergency-form">
+            <input id="emergencyPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
+            <input id="emergencyPassword" type="password" autocomplete="current-password" placeholder="Password">
+            <button class="monitor-refresh" id="saveEmergencyContact" type="button">Save number</button>
+          </div>
         </div>
         <div class="monitor-events">
           <div class="event-column">
@@ -1829,6 +1907,48 @@
       return { response, data };
     }
 
+    async function loadEmergencyContact() {
+      try {
+        const { data } = await fetchJson("/api/emergency-contact", { headers: callDataHeaders() });
+        const label = data.phone_number || data.masked_phone_number || "not configured";
+        $("emergencyContactState").textContent = "Current: " + label + (data.source ? " · " + data.source : "");
+        if (data.phone_number && !String(data.phone_number).includes("*")) {
+          $("emergencyPhone").value = data.phone_number;
+        } else if (!$("emergencyPhone").value) {
+          $("emergencyPhone").placeholder = data.masked_phone_number || "+525630907754";
+        }
+      } catch (error) {
+        $("emergencyContactState").textContent = "Could not load emergency number.";
+      }
+    }
+
+    async function saveEmergencyContact() {
+      const phone = $("emergencyPhone").value.trim();
+      const password = $("emergencyPassword").value;
+      if (!phone || !password) {
+        $("emergencyContactState").textContent = "Enter phone number and password.";
+        return;
+      }
+      $("saveEmergencyContact").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/emergency-contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone_number: phone, password, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not save emergency number.");
+        }
+        $("emergencyPassword").value = "";
+        $("emergencyPhone").value = data.phone_number || phone;
+        $("emergencyContactState").textContent = "Current: " + (data.phone_number || phone) + " · saved";
+      } catch (error) {
+        $("emergencyContactState").textContent = error.message;
+      } finally {
+        $("saveEmergencyContact").textContent = "Save number";
+      }
+    }
+
     function switchTab(tabName) {
       const safeName = tabName === "calls" ? "calls" : "voice";
       for (const button of document.querySelectorAll(".tab-button")) {
@@ -1978,6 +2098,7 @@
       }
       selectedThreadId = "";
       refreshCallInbox(true);
+      loadEmergencyContact();
     }
 
     function formatPct(value) {
@@ -2502,11 +2623,37 @@
       return voices.includes(voice) ? voice : "ash";
     }
 
-    function setVoice(voice) {
+    function setVoice(voice, options = {}) {
       if (!voices.includes(voice) || peer) return;
       $("voiceSelect").value = voice;
       for (const button of document.querySelectorAll(".voice-option")) {
         button.classList.toggle("active", button.dataset.voice === voice);
+      }
+      if (options.persist !== false) saveVoiceConfig(voice);
+    }
+
+    async function loadVoiceConfig() {
+      try {
+        const { data } = await fetchJson("/api/voice-config");
+        const voice = data.active_voice || data.default_voice;
+        if (voices.includes(voice)) setVoice(voice, { persist: false });
+      } catch {
+      }
+    }
+
+    async function saveVoiceConfig(voice) {
+      try {
+        const { response, data } = await fetchJson("/api/voice-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ voice, updated_by: "dashboard" })
+        });
+        if (!response.ok || data.ok === false) throw new Error(data.error || "Voice config save failed");
+        if (data.active_voice && voices.includes(data.active_voice)) {
+          $("voiceSelect").value = data.active_voice;
+        }
+      } catch (error) {
+        appendMessage("System", "Voice selected locally, but it could not be saved for Twilio: " + error.message, "system");
       }
     }
 
@@ -2733,11 +2880,11 @@
             const text = "Run a brief English voice test: 'Hello, this is the Glam Homes concierge. I am ready to handle booking calls with a premium and clear tone.'";
             appendMessage("System", "Voice test " + currentVoice() + " sent.", "system");
             sendEvent(createUserText(text));
-            sendEvent(createResponse("Respond only with the test phrase. Male, confident, warm, and professional voice."));
+            sendEvent(createResponse("Respond only with the test phrase. Confident, warm, and professional concierge voice."));
           } else {
             appendMessage("System", "Instant voice is open. Speak whenever you are ready.", "system");
             sendEvent(createUserText("Greet in one short sentence as GLAM HOMES CONCIERGE and confirm that you can handle booking and support."));
-            sendEvent(createResponse("Greet in English by default, with a male, premium, natural voice. Keep it brief."));
+            sendEvent(createResponse("Greet in English by default, with a premium, natural concierge voice. Keep it brief."));
           }
         });
 
@@ -2791,7 +2938,7 @@
         appendMessage("System", "Text saved on screen. Start voice to send it to the model.", "system");
         return;
       }
-      sendEvent(createResponse("Answer the message as the male Glam Homes concierge. Be brief, clear, and booking-oriented."));
+      sendEvent(createResponse("Answer the message as the Glam Homes concierge. Be brief, clear, and booking-oriented."));
       setStatus("Text sent to the Concierge.", "working");
     }
 
@@ -2800,6 +2947,8 @@
         const response = await fetch("/api/status");
         const data = await response.json();
         $("serverState").textContent = data.openai_configured ? "Local + Realtime ready" : "Missing OPENAI_API_KEY";
+        const configuredVoice = data.voice_config?.active_voice || data.default_voice;
+        if (voices.includes(configuredVoice)) setVoice(configuredVoice, { persist: false });
         if (!data.openai_configured) {
           appendMessage("System", "Configure OPENAI_API_KEY in .env or Keychain to activate real voice.", "system");
         }
@@ -2821,6 +2970,7 @@
     $("testMic").onclick = testMicrophone;
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
+    $("saveEmergencyContact").onclick = saveEmergencyContact;
     $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("clearCallSearch").onclick = clearCallSearch;
     $("applyRange").onclick = () => setAnalyticsRange("custom");
@@ -2856,6 +3006,8 @@
     });
 
     loadStatus();
+    loadVoiceConfig();
+    loadEmergencyContact();
     initializeAnalyticsRangeInputs();
     updateCallInboxAuth(false);
     refreshTwilioMonitor();

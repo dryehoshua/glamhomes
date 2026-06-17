@@ -41,17 +41,34 @@ def safety_identifier(call_sid: str) -> str:
     return base64.urlsafe_b64encode(digest)[:32].decode("ascii")
 
 
-def session_update(call_sid: str, caller: str, called: str) -> dict[str, Any]:
-    voice = os.environ.get("OPENAI_REALTIME_VOICE", glam.DEFAULT_VOICE)
-    if voice not in glam.ALLOWED_VOICES:
-        voice = glam.DEFAULT_VOICE
+def session_update(call_sid: str, caller: str, called: str, caller_context: dict[str, Any] | None = None) -> dict[str, Any]:
+    voice = glam.active_realtime_voice()
+    if caller_context is None:
+        caller_context_instruction = "\nCaller ID lookup: pending. Do not wait for it before greeting the caller."
+    elif caller_context.get("matched"):
+        reservation = caller_context.get("reservation") if isinstance(caller_context.get("reservation"), dict) else {}
+        guest_name = str(caller_context.get("guest_name") or "").strip()
+        caller_context_instruction = (
+            "\nCaller ID lookup: matched a Guesty reservation for this caller phone."
+            f"\nRegistered guest name: {guest_name or 'unknown'}."
+            f"\nProperty on file: {reservation.get('listing_title') or 'unknown'}."
+            "\nGreet the caller by the registered guest first name if available, but do not reveal the stored confirmation code and still validate before sharing sensitive stay details."
+            "\nIf the guest later provides a reservation code, repeat it back and ask them to confirm it before using Guesty tools with confirmation_code_confirmed=true."
+            "\nWhen validating that confirmed code, you may pass the caller phone as guest_phone because Caller ID matched the Guesty guest phone."
+        )
+    else:
+        caller_context_instruction = "\nCaller ID lookup: no matching Guesty reservation was found for the caller phone."
     instructions = (
         glam.AGENT_INSTRUCTIONS
         + "\n\nCurrent channel: Twilio Media Streams phone call."
         + f"\nCallSid: {call_sid}. Caller: {caller or 'unknown'}. To: {called or os.environ.get('TWILIO_PHONE_NUMBER', glam.TWILIO_PHONE_NUMBER)}."
+        + caller_context_instruction
         + "\nUse Guesty tools when you need live reservation, property, or availability data."
-        + "\nUse the public property links bridge for shareable links. If the caller asks for a link, send it by SMS with twilio_send_property_link_sms when appropriate."
-        + "\nIf the caller asks for a person or does not want to continue with the AI, use twilio_send_human_handoff_sms with the reason and a concise call summary."
+        + "\nUse the public property links bridge for shareable links. Always offer SMS delivery for useful links, and send accepted links with twilio_send_property_link_sms."
+        + "\nFor validated stay details such as address, door code, check-in instructions, or Wi-Fi, always offer SMS delivery and use twilio_send_stay_details_sms when accepted."
+        + f"\n{glam.IMPORTANT_SMS_OFFER_RULE}"
+        + "\nFor any matter requiring human attention, including special services, towels, housekeeping, maintenance, access issues, complaints, policy exceptions, or a human request, tell the caller you will notify a human advisor now and use twilio_send_human_handoff_sms with caller number, reservation code if known, and a concise problem summary."
+        + "\nIf the caller specifically asks to transfer the call to a human, use twilio_transfer_call_to_human."
     )
     return {
         "type": "session.update",
@@ -204,6 +221,29 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
 
         async def receive_from_twilio() -> None:
             nonlocal stream_sid, call_sid, caller, called, latest_media_timestamp
+
+            async def lookup_and_send_caller_context(start_call_sid: str, start_caller: str, start_called: str) -> None:
+                timeout_seconds = float(os.environ.get("GLAM_CALLER_LOOKUP_TIMEOUT_SECONDS", "4"))
+                try:
+                    context = await asyncio.wait_for(
+                        asyncio.to_thread(glam.guesty_caller_reservation_context, start_caller),
+                        timeout=timeout_seconds,
+                    )
+                except asyncio.TimeoutError:
+                    context = {"ok": False, "matched": False, "reason": "caller_id_lookup_timeout"}
+                except Exception as exc:
+                    context = {"ok": False, "matched": False, "reason": "caller_id_lookup_failed", "error": str(exc)}
+                try:
+                    await openai_ws.send(json.dumps(session_update(start_call_sid, start_caller, start_called, context), ensure_ascii=False))
+                    await append_call_event(
+                        "System",
+                        "Caller ID lookup completed.",
+                        kind="caller_id_lookup",
+                        metadata=context,
+                    )
+                except Exception:
+                    return
+
             async for raw_message in twilio_ws:
                 data = json.loads(raw_message)
                 event = data.get("event")
@@ -215,7 +255,8 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
                     call_sid = custom.get("callSid") or call_sid
                     caller = custom.get("from") or caller
                     called = custom.get("to") or called
-                    await openai_ws.send(json.dumps(session_update(call_sid, caller, called), ensure_ascii=False))
+                    await openai_ws.send(json.dumps(session_update(call_sid, caller, called, None), ensure_ascii=False))
+                    asyncio.create_task(lookup_and_send_caller_context(call_sid, caller, called))
                     await openai_ws.send(
                         json.dumps(
                             create_user_text(
@@ -229,7 +270,7 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
                         "System",
                         "Call connected to OpenAI Realtime.",
                         kind="call_connected",
-                        metadata={"stream_sid": stream_sid, "from": caller, "to": called},
+                        metadata={"stream_sid": stream_sid, "from": caller, "to": called, "caller_context": {"status": "pending"}},
                     )
                 elif event == "media":
                     media = data.get("media") or {}

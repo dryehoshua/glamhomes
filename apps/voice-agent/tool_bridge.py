@@ -16,6 +16,7 @@ TOOL_BRIDGE_GROUPS = {
         "guesty_status",
         "guesty_search_reservation",
         "guesty_confirm_reservation",
+        "guesty_confirmed_stay_details",
         "guesty_get_reservation",
         "guesty_list_listings",
         "guesty_available_listings",
@@ -26,7 +27,11 @@ TOOL_BRIDGE_GROUPS = {
     },
     "twilio_sms": {
         "twilio_send_property_link_sms",
+        "twilio_send_stay_details_sms",
         "twilio_send_human_handoff_sms",
+    },
+    "twilio_voice": {
+        "twilio_transfer_call_to_human",
     },
 }
 
@@ -43,7 +48,12 @@ def apply_tool_context(tool_name: str, arguments: dict[str, Any] | None, context
 
     merged = deepcopy(arguments or {})
     context = context or {}
-    if tool_name in {"twilio_send_property_link_sms", "twilio_send_human_handoff_sms"}:
+    if tool_name in {
+        "twilio_send_property_link_sms",
+        "twilio_send_stay_details_sms",
+        "twilio_send_human_handoff_sms",
+        "twilio_transfer_call_to_human",
+    }:
         if not merged.get("phone_number") and context.get("caller"):
             merged["phone_number"] = context["caller"]
         if not merged.get("call_sid") and context.get("call_sid"):

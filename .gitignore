@@ -1,6 +1,8 @@
 .env
 .cache/
 data/private/
+data/emergency_contact.json
+data/voice_config.json
 transcripts/*
 !transcripts/.gitkeep
 logs/
