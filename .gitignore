@@ -2,6 +2,7 @@
 .cache/
 data/private/
 data/emergency_contact.json
+data/reservation_validation.json
 data/voice_config.json
 transcripts/*
 !transcripts/.gitkeep

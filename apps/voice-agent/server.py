@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 from datetime import date, datetime, timezone
+from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
 import hashlib
 import hmac
@@ -40,6 +41,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 PROPERTY_LINKS_DB = DATA_DIR / "glam_homes_property_links.sqlite"
 EMERGENCY_CONTACT_PATH = DATA_DIR / "emergency_contact.json"
 VOICE_CONFIG_PATH = DATA_DIR / "voice_config.json"
+RESERVATION_VALIDATION_PATH = DATA_DIR / "reservation_validation.json"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PORT", "3000"))
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
@@ -165,6 +167,11 @@ Guesty and property links:
 - Before revealing concrete reservation data, validate at least two reasonable
   guest details. Never reveal access codes, sensitive payment details, third-party
   data, or unconfirmed changes.
+- Current temporary reservation validation mode is relaxed: a confirmed
+  reservation code plus a guest name that matches or sounds reasonably similar
+  to the Guesty reservation name is enough. Do not require email or phone when
+  the guest provides the reservation code and name. If the name does not match
+  closely, ask for one more detail or escalate.
 - When a guest gives a confirmation code, repeat it back exactly as you heard it
   and ask them to confirm it before making any Guesty lookup by code. Only after
   they confirm should you call Guesty tools with confirmation_code_confirmed=true.
@@ -890,6 +897,8 @@ def truthy(value: object) -> bool:
 
 
 def confirmation_code_is_confirmed(arguments: dict) -> bool:
+    if reservation_validation_mode() == "relaxed" and compact_text(arguments.get("guest_name")):
+        return True
     return truthy(arguments.get("confirmation_code_confirmed") or arguments.get("code_confirmed"))
 
 
@@ -1160,11 +1169,23 @@ def name_matches(provided: object, actual: object) -> bool:
     tokens = [token for token in left.split() if len(token) >= 2]
     if not tokens:
         return False
-    return all(token in right.split() or token in right for token in tokens)
+    right_tokens = [token for token in right.split() if len(token) >= 2]
+    if all(token in right_tokens or token in right for token in tokens):
+        return True
+    if left in right or right in left:
+        return True
+    if SequenceMatcher(None, left, right).ratio() >= 0.68:
+        return True
+    matched_tokens = 0
+    for token in tokens:
+        if any(SequenceMatcher(None, token, actual_token).ratio() >= 0.78 for actual_token in right_tokens):
+            matched_tokens += 1
+    return matched_tokens >= max(1, min(len(tokens), 2))
 
 
 def guesty_validation_result(reservation: dict, arguments: dict) -> dict:
     guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
+    mode = reservation_validation_mode()
     checks = [
         ("guest_phone", arguments.get("guest_phone"), guest.get("phone")),
         ("guest_email", arguments.get("guest_email"), guest.get("email")),
@@ -1183,6 +1204,7 @@ def guesty_validation_result(reservation: dict, arguments: dict) -> dict:
             matches.append(name)
     return {
         "confirmation_code_match": True,
+        "validation_mode": mode,
         "provided_guest_detail_count": len(provided),
         "matched_guest_detail_count": len(matches),
         "matched_fields": matches,
@@ -1671,6 +1693,52 @@ def update_voice_config(voice: object, updated_by: object = "") -> dict:
     }
     VOICE_CONFIG_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return voice_config_payload()
+
+
+def read_reservation_validation_config() -> dict:
+    try:
+        payload = json.loads(RESERVATION_VALIDATION_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def reservation_validation_mode() -> str:
+    configured = str(read_reservation_validation_config().get("mode") or os.environ.get("GLAM_RESERVATION_VALIDATION_MODE", "relaxed")).strip().lower()
+    return configured if configured in {"relaxed", "strict"} else "relaxed"
+
+
+def reservation_validation_payload() -> dict:
+    config = read_reservation_validation_config()
+    mode = reservation_validation_mode()
+    return {
+        "ok": True,
+        "mode": mode,
+        "source": "dashboard" if config.get("mode") else "env_or_default",
+        "updated_at": config.get("updated_at", ""),
+        "updated_by": config.get("updated_by", ""),
+        "description": (
+            "Relaxed: reservation code plus similar guest name is enough; phone/email are optional."
+            if mode == "relaxed"
+            else "Strict: reservation code must be explicitly repeated/confirmed and one guest detail must match."
+        ),
+    }
+
+
+def update_reservation_validation_mode(mode: object, updated_by: object = "") -> dict:
+    clean = str(mode or "").strip().lower()
+    if clean not in {"relaxed", "strict"}:
+        raise ValueError("Reservation validation mode must be relaxed or strict.")
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "mode": clean,
+        "updated_at": now_iso(),
+        "updated_by": truncate_sms_part(updated_by, 80),
+    }
+    RESERVATION_VALIDATION_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return reservation_validation_payload()
 
 
 def read_emergency_contact_config() -> dict:
@@ -3422,6 +3490,7 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     "guesty_configured": guesty_configured(),
                     "twilio_configured": twilio_configured(),
                     "vapi_configured": vapi_configured(),
+                    "reservation_validation": reservation_validation_payload(),
                     "property_links_configured": property_links_configured(),
                     "property_links_db": str(PROPERTY_LINKS_DB),
                     "twilio_phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
@@ -3437,6 +3506,9 @@ class ConciergeHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/voice-config":
             write_json(self, voice_config_payload())
+            return
+        if parsed.path == "/api/reservation-validation":
+            write_json(self, reservation_validation_payload())
             return
         if parsed.path == "/api/emergency-contact":
             reveal = can_access_call_data(self) or emergency_admin_authorized(self)
@@ -3744,6 +3816,16 @@ class ConciergeHandler(BaseHTTPRequestHandler):
             try:
                 body = json.loads(read_request_body(self).decode("utf-8") or "{}")
                 write_json(self, update_voice_config(body.get("voice"), body.get("updated_by") or "dashboard"))
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/reservation-validation":
+            try:
+                body = json.loads(read_request_body(self).decode("utf-8") or "{}")
+                if not emergency_admin_authorized(self, body):
+                    write_json(self, {"ok": False, "error": "Invalid dashboard password."}, status=403)
+                    return
+                write_json(self, update_reservation_validation_mode(body.get("mode"), body.get("updated_by") or "dashboard"))
             except Exception as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return

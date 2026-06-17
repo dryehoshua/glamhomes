@@ -571,6 +571,19 @@
       line-height: 1.38;
     }
 
+    .note select,
+    .note input {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 9px;
+      font: inherit;
+      font-size: 12px;
+    }
+
     .chat-panel {
       display: grid;
       grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -1667,6 +1680,16 @@
           <span id="guestyState">Checking local connection...</span>
         </div>
         <div class="note">
+          <strong>Reservation validation</strong>
+          <span id="reservationValidationState">Loading validation mode...</span>
+          <select id="reservationValidationMode">
+            <option value="relaxed">Relaxed: reservation + similar name</option>
+            <option value="strict">Strict: require confirmed code</option>
+          </select>
+          <input id="reservationValidationPassword" type="password" autocomplete="current-password" placeholder="Password">
+          <button class="secondary compact" id="saveReservationValidation" type="button">Save mode</button>
+        </div>
+        <div class="note">
           <strong>Brand</strong>
           <span>Gold palette, premium tone, and selectable concierge voices for booking calls.</span>
         </div>
@@ -1956,6 +1979,41 @@
         $("emergencyContactState").textContent = error.message;
       } finally {
         $("saveEmergencyContact").textContent = "Save number";
+      }
+    }
+
+    async function loadReservationValidation() {
+      try {
+        const { data } = await fetchJson("/api/reservation-validation");
+        if (data.mode) $("reservationValidationMode").value = data.mode;
+        $("reservationValidationState").textContent = (data.description || "Validation mode loaded.") + (data.source ? " · " + data.source : "");
+      } catch (error) {
+        $("reservationValidationState").textContent = "Could not load validation mode.";
+      }
+    }
+
+    async function saveReservationValidation() {
+      const mode = $("reservationValidationMode").value;
+      const password = $("reservationValidationPassword").value;
+      if (!password) {
+        $("reservationValidationState").textContent = "Enter password to change validation mode.";
+        return;
+      }
+      $("saveReservationValidation").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/reservation-validation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, password, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not save validation mode.");
+        $("reservationValidationPassword").value = "";
+        $("reservationValidationMode").value = data.mode || mode;
+        $("reservationValidationState").textContent = (data.description || "Validation mode saved.") + " · saved";
+      } catch (error) {
+        $("reservationValidationState").textContent = error.message;
+      } finally {
+        $("saveReservationValidation").textContent = "Save mode";
       }
     }
 
@@ -2990,6 +3048,7 @@
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
     $("saveEmergencyContact").onclick = saveEmergencyContact;
+    $("saveReservationValidation").onclick = saveReservationValidation;
     $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("clearCallSearch").onclick = clearCallSearch;
     $("applyRange").onclick = () => setAnalyticsRange("custom");
@@ -3027,6 +3086,7 @@
     loadStatus();
     loadVoiceConfig();
     loadEmergencyContact();
+    loadReservationValidation();
     initializeAnalyticsRangeInputs();
     updateCallInboxAuth(false);
     refreshTwilioMonitor();
