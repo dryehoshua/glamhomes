@@ -1602,7 +1602,7 @@
 
       <div class="voice-panel">
         <label>
-          GPT Calls voice
+          Call voice
           <select id="voiceSelect">
             <option value="ash" selected>Ash - warm masculine</option>
             <option value="echo">Echo - clear masculine</option>
@@ -1614,6 +1614,7 @@
             <option value="sage">Sage - warm feminine</option>
             <option value="alloy">Alloy - balanced neutral</option>
             <option value="ballad">Ballad - expressive neutral</option>
+            <option value="vapi:riley">Riley / Elliot - Vapi voice (Twilio only)</option>
           </select>
         </label>
         <div class="voice-list" id="voiceButtons">
@@ -1627,6 +1628,7 @@
           <button class="voice-option" data-voice="sage">Sage</button>
           <button class="voice-option" data-voice="alloy">Alloy</button>
           <button class="voice-option" data-voice="ballad">Ballad</button>
+          <button class="voice-option" data-voice="vapi:riley">Riley / Elliot</button>
         </div>
         <p class="hint">To change voices after the concierge speaks, end the session and open a new one.</p>
       </div>
@@ -1830,7 +1832,7 @@
   <script src="/vendor/chart.umd.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const voices = ["ash", "echo", "cedar", "verse", "marin", "alloy", "ballad", "coral", "sage", "shimmer"];
+    const voices = ["ash", "echo", "cedar", "verse", "marin", "alloy", "ballad", "coral", "sage", "shimmer", "vapi:riley"];
     let peer = null;
     let channel = null;
     let micStream = null;
@@ -2623,6 +2625,10 @@
       return voices.includes(voice) ? voice : "ash";
     }
 
+    function isVapiVoice(voice = currentVoice()) {
+      return String(voice || "").startsWith("vapi:");
+    }
+
     function setVoice(voice, options = {}) {
       if (!voices.includes(voice) || peer) return;
       $("voiceSelect").value = voice;
@@ -2848,6 +2854,11 @@
 
     async function startSession(mode) {
       if (peer) return;
+      if (isVapiVoice()) {
+        appendMessage("System", "Vapi voice is configured for live Twilio calls only. Select Sage, Coral, Ash, or another OpenAI voice to use the browser voice console.", "system");
+        setStatus("Vapi voice applies to Twilio calls only.", "idle");
+        return;
+      }
       activeMode = mode;
       setControls(true);
       setStatus(mode === "test" ? "Preparing voice test..." : "Requesting microphone permission...", "working");

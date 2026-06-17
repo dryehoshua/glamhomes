@@ -45,7 +45,10 @@ PORT = int(os.environ.get("PORT", "3000"))
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime-2")
 DEFAULT_VOICE = os.environ.get("OPENAI_REALTIME_VOICE", "ash")
-ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
+OPENAI_ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
+VAPI_DEFAULT_ASSISTANT_ID = os.environ.get("VAPI_ASSISTANT_ID", "a551072d-9b5d-4089-b01b-ccde2db3f656")
+VAPI_API_BASE = os.environ.get("VAPI_API_BASE", "https://api.vapi.ai").rstrip("/")
+ALLOWED_VOICES = OPENAI_ALLOWED_VOICES | {"vapi:riley"}
 TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+17864813013")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://glamhomes.aipeople.app").rstrip("/")
 DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER = "+525630907754"
@@ -253,16 +256,25 @@ IMPORTANT_SMS_OFFER_RULE = (
 )
 
 VOICE_CATALOG = [
-    {"id": "ash", "label": "Ash", "style": "warm, confident", "gender": "masculine"},
-    {"id": "echo", "label": "Echo", "style": "clear, polished", "gender": "masculine"},
-    {"id": "cedar", "label": "Cedar", "style": "calm, premium", "gender": "masculine"},
-    {"id": "verse", "label": "Verse", "style": "smooth, conversational", "gender": "masculine"},
-    {"id": "marin", "label": "Marin", "style": "luxury, composed", "gender": "neutral"},
-    {"id": "coral", "label": "Coral", "style": "bright, friendly", "gender": "feminine"},
-    {"id": "shimmer", "label": "Shimmer", "style": "soft, elegant", "gender": "feminine"},
-    {"id": "sage", "label": "Sage", "style": "warm, grounded", "gender": "feminine"},
-    {"id": "alloy", "label": "Alloy", "style": "balanced, neutral", "gender": "neutral"},
-    {"id": "ballad", "label": "Ballad", "style": "expressive, refined", "gender": "neutral"},
+    {"id": "ash", "label": "Ash", "style": "warm, confident", "gender": "masculine", "engine": "openai"},
+    {"id": "echo", "label": "Echo", "style": "clear, polished", "gender": "masculine", "engine": "openai"},
+    {"id": "cedar", "label": "Cedar", "style": "calm, premium", "gender": "masculine", "engine": "openai"},
+    {"id": "verse", "label": "Verse", "style": "smooth, conversational", "gender": "masculine", "engine": "openai"},
+    {"id": "marin", "label": "Marin", "style": "luxury, composed", "gender": "neutral", "engine": "openai"},
+    {"id": "coral", "label": "Coral", "style": "bright, friendly", "gender": "feminine", "engine": "openai"},
+    {"id": "shimmer", "label": "Shimmer", "style": "soft, elegant", "gender": "feminine", "engine": "openai"},
+    {"id": "sage", "label": "Sage", "style": "warm, grounded", "gender": "feminine", "engine": "openai"},
+    {"id": "alloy", "label": "Alloy", "style": "balanced, neutral", "gender": "neutral", "engine": "openai"},
+    {"id": "ballad", "label": "Ballad", "style": "expressive, refined", "gender": "neutral", "engine": "openai"},
+    {
+        "id": "vapi:riley",
+        "label": "Riley / Elliot",
+        "style": "Vapi voice, realistic and professional",
+        "gender": "masculine",
+        "engine": "vapi",
+        "assistant_id": VAPI_DEFAULT_ASSISTANT_ID,
+        "twilio_only": True,
+    },
 ]
 
 CALL_TOPIC_KEYWORDS = {
@@ -636,6 +648,52 @@ def keychain_openai_key() -> str:
 
 def openai_api_key() -> str:
     return os.environ.get("OPENAI_API_KEY", "").strip() or keychain_openai_key()
+
+
+def vapi_keys_text_from_path(path: Path) -> str:
+    if not path.exists():
+        return ""
+    if path.suffix.lower() == ".rtf":
+        textutil_cmd = "/usr/bin/textutil" if Path("/usr/bin/textutil").exists() else "textutil"
+        try:
+            result = subprocess.run(
+                [textutil_cmd, "-convert", "txt", "-stdout", str(path)],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except Exception:
+            return ""
+        return result.stdout if result.returncode == 0 else ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+def vapi_api_key() -> str:
+    configured = os.environ.get("VAPI_API_KEY", "").strip()
+    if configured:
+        return configured
+    candidate_paths = [
+        Path(os.environ.get("VAPI_KEYS_PATH", "")) if os.environ.get("VAPI_KEYS_PATH") else None,
+        PROJECT_ROOT / "API Keys" / "vapi keys.rtf",
+        Path.home() / "Desktop" / "GLAM HOMES" / "API Keys" / "vapi keys.rtf",
+        Path("/Users/dryehoshuapython/Desktop/GLAM HOMES/API Keys/vapi keys.rtf"),
+    ]
+    for candidate in candidate_paths:
+        if not candidate:
+            continue
+        text = vapi_keys_text_from_path(candidate)
+        for token in re.findall(r"[A-Za-z0-9_\-]{20,}", text):
+            if token.lower() not in {"vapi"}:
+                return token
+    return ""
+
+
+def vapi_configured() -> bool:
+    return bool(vapi_api_key() and VAPI_DEFAULT_ASSISTANT_ID)
 
 
 def guesty_configured() -> bool:
@@ -1545,23 +1603,55 @@ def read_voice_config() -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
-def active_realtime_voice() -> str:
+def voice_catalog_entry(voice_id: object) -> dict:
+    clean = str(voice_id or "").strip().lower()
+    for entry in VOICE_CATALOG:
+        if entry.get("id") == clean:
+            return dict(entry)
+    if clean in OPENAI_ALLOWED_VOICES:
+        return {"id": clean, "label": clean.title(), "engine": "openai"}
+    return {}
+
+
+def active_voice_id() -> str:
     configured_voice = str(read_voice_config().get("voice") or "").strip().lower()
     if configured_voice in ALLOWED_VOICES:
         return configured_voice
     env_voice = str(os.environ.get("OPENAI_REALTIME_VOICE", DEFAULT_VOICE) or "").strip().lower()
-    if env_voice in ALLOWED_VOICES:
+    if env_voice in OPENAI_ALLOWED_VOICES:
         return env_voice
-    return DEFAULT_VOICE if DEFAULT_VOICE in ALLOWED_VOICES else "ash"
+    return DEFAULT_VOICE if DEFAULT_VOICE in OPENAI_ALLOWED_VOICES else "ash"
+
+
+def active_voice_engine() -> str:
+    return str(voice_catalog_entry(active_voice_id()).get("engine") or "openai")
+
+
+def active_realtime_voice() -> str:
+    voice_id = active_voice_id()
+    if voice_id in OPENAI_ALLOWED_VOICES:
+        return voice_id
+    return DEFAULT_VOICE if DEFAULT_VOICE in OPENAI_ALLOWED_VOICES else "ash"
+
+
+def active_vapi_assistant_id() -> str:
+    entry = voice_catalog_entry(active_voice_id())
+    if entry.get("engine") == "vapi":
+        return str(entry.get("assistant_id") or VAPI_DEFAULT_ASSISTANT_ID).strip()
+    return VAPI_DEFAULT_ASSISTANT_ID
 
 
 def voice_config_payload() -> dict:
     config = read_voice_config()
-    active_voice = active_realtime_voice()
+    active_voice = active_voice_id()
     return {
         "ok": True,
         "active_voice": active_voice,
         "default_voice": active_voice,
+        "active_engine": active_voice_engine(),
+        "openai_realtime_voice": active_realtime_voice(),
+        "vapi_configured": vapi_configured(),
+        "vapi_assistant_id": active_vapi_assistant_id() if active_voice_engine() == "vapi" else "",
         "source": "dashboard" if config.get("voice") in ALLOWED_VOICES else "env_or_default",
         "updated_at": config.get("updated_at", ""),
         "updated_by": config.get("updated_by", ""),
@@ -1638,6 +1728,61 @@ def update_emergency_contact(phone_number: object, updated_by: object = "") -> d
     }
     EMERGENCY_CONTACT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return emergency_contact_payload(reveal=True)
+
+
+def vapi_api_request(path: str, payload: dict) -> dict:
+    api_key = vapi_api_key()
+    if not api_key:
+        raise RuntimeError("Missing VAPI_API_KEY or readable Vapi keys file.")
+    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    req = request.Request(
+        f"{VAPI_API_BASE}{path}",
+        method="POST",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "GlamHomesConcierge/1.0 (+https://glamhomes.aipeople.app)",
+        },
+    )
+    try:
+        with request.urlopen(req, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8", errors="replace") or "{}")
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Vapi HTTP {exc.code}: {detail}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"Vapi connection error: {exc.reason}") from exc
+
+
+def vapi_create_websocket_call(assistant_id: object = "") -> dict:
+    clean_assistant_id = str(assistant_id or active_vapi_assistant_id()).strip()
+    if not clean_assistant_id:
+        raise ValueError("Missing Vapi assistant ID.")
+    payload = {
+        "assistantId": clean_assistant_id,
+        "transport": {
+            "provider": "vapi.websocket",
+            "audioFormat": {
+                "format": "mulaw",
+                "container": "raw",
+                "sampleRate": 8000,
+            },
+        },
+    }
+    result = vapi_api_request("/call", payload)
+    transport = result.get("transport") if isinstance(result.get("transport"), dict) else {}
+    websocket_url = transport.get("websocketCallUrl") or result.get("websocketCallUrl") or ""
+    if not websocket_url:
+        raise RuntimeError("Vapi did not return a websocketCallUrl.")
+    return {
+        "ok": True,
+        "call_id": result.get("id", ""),
+        "assistant_id": clean_assistant_id,
+        "websocket_url": websocket_url,
+        "status": result.get("status", ""),
+    }
 
 
 def twilio_api_request(path: str, data: dict[str, str]) -> dict:
@@ -3276,6 +3421,7 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     "openai_configured": bool(openai_api_key()),
                     "guesty_configured": guesty_configured(),
                     "twilio_configured": twilio_configured(),
+                    "vapi_configured": vapi_configured(),
                     "property_links_configured": property_links_configured(),
                     "property_links_db": str(PROPERTY_LINKS_DB),
                     "twilio_phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),

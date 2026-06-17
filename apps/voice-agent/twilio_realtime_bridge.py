@@ -163,7 +163,7 @@ async def run_function_call(openai_ws: websockets.ClientConnection, call_sid: st
     )
 
 
-async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
+async def handle_media_stream_openai(twilio_ws: websockets.ServerConnection) -> None:
     api_key = glam.openai_api_key()
     if not api_key:
         await twilio_ws.close(code=1011, reason="Missing OPENAI_API_KEY")
@@ -331,6 +331,97 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
                     await append_call_event("System", f"OpenAI Realtime error: {detail}", kind="error")
 
         await asyncio.gather(receive_from_twilio(), receive_from_openai())
+
+
+async def handle_media_stream_vapi(twilio_ws: websockets.ServerConnection) -> None:
+    if not glam.vapi_configured():
+        await twilio_ws.close(code=1011, reason="Missing Vapi configuration")
+        return
+
+    stream_sid = ""
+    call_sid = "twilio-vapi-pending"
+    caller = ""
+    called = ""
+    vapi_ws: websockets.ClientConnection | None = None
+    receive_vapi_task: asyncio.Task | None = None
+
+    async def append_call_event(speaker: str, text: str, *, kind: str = "message", metadata: dict[str, Any] | None = None) -> None:
+        glam.append_transcript_event(call_sid, speaker, text, channel="twilio", kind=kind, metadata=metadata or {})
+
+    async def receive_from_vapi(socket: websockets.ClientConnection) -> None:
+        async for message in socket:
+            if isinstance(message, (bytes, bytearray)):
+                if stream_sid:
+                    await twilio_ws.send(
+                        json.dumps(
+                            {
+                                "event": "media",
+                                "streamSid": stream_sid,
+                                "media": {"payload": base64.b64encode(bytes(message)).decode("ascii")},
+                            }
+                        )
+                    )
+                continue
+            try:
+                event = json.loads(str(message))
+            except json.JSONDecodeError:
+                event = {"type": "vapi_message", "message": str(message)[:500]}
+            event_type = str(event.get("type") or event.get("message") or "vapi_event")
+            transcript = str(event.get("transcript") or event.get("text") or "").strip()
+            if transcript:
+                await append_call_event("Vapi", transcript, kind="vapi_event", metadata={"event_type": event_type})
+
+    async for raw_message in twilio_ws:
+        data = json.loads(raw_message)
+        event = data.get("event")
+        if event == "start":
+            start = data.get("start") or {}
+            stream_sid = start.get("streamSid") or data.get("streamSid") or ""
+            call_sid = start.get("callSid") or call_sid
+            custom = start.get("customParameters") or {}
+            call_sid = custom.get("callSid") or call_sid
+            caller = custom.get("from") or caller
+            called = custom.get("to") or called
+            try:
+                call = await asyncio.to_thread(glam.vapi_create_websocket_call, glam.active_vapi_assistant_id())
+                vapi_ws = await websockets.connect(call["websocket_url"], ping_interval=20, ping_timeout=20)
+                receive_vapi_task = asyncio.create_task(receive_from_vapi(vapi_ws))
+                await append_call_event(
+                    "System",
+                    "Call connected to Vapi voice bridge.",
+                    kind="call_connected",
+                    metadata={
+                        "stream_sid": stream_sid,
+                        "from": caller,
+                        "to": called,
+                        "voice_engine": "vapi",
+                        "vapi_call_id": call.get("call_id", ""),
+                        "vapi_assistant_id": call.get("assistant_id", ""),
+                    },
+                )
+            except Exception as exc:
+                await append_call_event("System", f"Vapi bridge error: {exc}", kind="error")
+                await twilio_ws.close(code=1011, reason="Vapi bridge error")
+                break
+        elif event == "media":
+            media = data.get("media") or {}
+            payload = media.get("payload")
+            if payload and vapi_ws:
+                await vapi_ws.send(base64.b64decode(payload))
+        elif event == "stop":
+            await append_call_event("System", "Twilio closed the Vapi audio stream.", kind="call_stop")
+            if vapi_ws:
+                await vapi_ws.close()
+            if receive_vapi_task:
+                receive_vapi_task.cancel()
+            break
+
+
+async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
+    if glam.active_voice_engine() == "vapi":
+        await handle_media_stream_vapi(twilio_ws)
+        return
+    await handle_media_stream_openai(twilio_ws)
 
 
 async def main_async() -> None:
