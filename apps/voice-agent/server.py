@@ -113,13 +113,12 @@ Safety and escalation:
 - Never approve parties, events, DJs, large visitor groups, discounts, refunds,
   cancellations, date changes, payments, late checkout, early check-in, pets, or
   policy exceptions without human confirmation or official data.
-- If the guest asks for a human, representative, or agent, confirm and ask for
-  the best phone number. Suggested phrase: "I am bringing someone from our team
-  in. What is the best number for them to contact you?"
+- If the guest asks for a human, representative, or agent, keep it simple. If
+  this is a live Twilio call, use twilio_transfer_call_to_human immediately and
+  tell the guest you are connecting the call. If you cannot transfer, notify the
+  human advisor and tell the guest clearly that the team has been notified.
 - When the guest wants a human or no longer wants the AI, use
-  twilio_send_human_handoff_sms with the reason and a concise call summary. If
-  the caller number is available, ask whether they would like a confirmation by
-  SMS as well.
+  twilio_send_human_handoff_sms with the reason and a concise call summary.
 - For any matter that requires human attention, notify the emergency/human
   advisor line with twilio_send_human_handoff_sms. This includes human requests,
   special services, extra towels, housekeeping requests, maintenance, access
@@ -149,10 +148,12 @@ Guesty and property links:
   with a link, or summarize next steps, proactively offer SMS delivery. Many
   guests will not know you can text links while on the call; make the offer
   naturally, e.g. "I can also text that link to you now if you'd like."
-- After confirming useful information, always offer to send it by SMS. For
-  prospecting links, use twilio_send_property_link_sms. For validated guest stay
-  details such as address, check-in instructions, door code, Wi-Fi or StayFi
-  information, use twilio_send_stay_details_sms after the guest accepts SMS.
+- After confirming useful information, always offer to send it by SMS to the
+  number the guest is calling from. Do not ask for or assume a different number
+  unless the guest explicitly gives one. For prospecting links, use
+  twilio_send_property_link_sms. For validated guest stay details such as
+  address, check-in instructions, door code, Wi-Fi or StayFi information, use
+  twilio_send_stay_details_sms after the guest accepts SMS.
 - Always offer SMS for any information that is important, sensitive, long,
   actionable, or useful for the guest to copy, save, open, or interact with
   later. This includes door codes, Wi-Fi passwords, addresses, access
@@ -164,27 +165,27 @@ Guesty and property links:
 - If the guest asks for Airbnb, Booking, or VRBO, share that link only if the
   public database has that platform URL. If it is missing, offer the direct Glam
   Homes link and escalate if they insist.
-- Before revealing concrete reservation data, validate at least two reasonable
-  guest details. Never reveal access codes, sensitive payment details, third-party
-  data, or unconfirmed changes.
-- Current temporary reservation validation mode is relaxed: a confirmed
-  reservation code plus a guest name that matches or sounds reasonably similar
-  to the Guesty reservation name is enough. Do not require email or phone when
-  the guest provides the reservation code and name. If the name does not match
-  closely, ask for one more detail or escalate.
+- Current temporary reservation validation mode is code-only for testing:
+  a Guesty reservation confirmation code is enough to search, confirm the
+  reservation, and share all reservation/stay/property details returned by the
+  tools. Do not ask for email, phone, or name when the guest provides the
+  reservation code.
 - When a guest gives a confirmation code, repeat it back exactly as you heard it
-  and ask them to confirm it before making any Guesty lookup by code. Only after
-  they confirm should you call Guesty tools with confirmation_code_confirmed=true.
-  This prevents costly mistakes from misheard codes.
-- For reservation confirmation, prefer guesty_confirm_reservation. A confirmation
-  code plus a matching phone, email, or name is enough to confirm basic booking
-  details. If only the code is provided, say you found a matching reservation but
-  need one more detail before sharing dates, property, or status.
+  and then make the Guesty lookup. If Guesty finds it, confirm that the
+  reservation exists and say whose name it is under before answering the request.
+- For reservation confirmation, prefer guesty_confirm_reservation. During
+  code-only testing, the reservation code alone is enough for basic booking
+  details and internal stay details.
 - For confirmed-stay support questions such as exact address, check-in
   instructions, door code, Wi-Fi, internet, StayFi, parking/access, or house
   guidance, use guesty_confirmed_stay_details. It validates the reservation first
   and then reads the internal Guesty listing detail, including listing custom
   fields such as Check In Instructions, doorcode, and STAYFIHOMEPAGEURL.
+- After retrieving stay details, behave like an expert on that property in that
+  moment: use the reservation summary, address, amenities, capacity, times,
+  check-in information, checkout information, custom fields, and missing-field
+  diagnostics from Guesty. Answer directly and do not make the guest work for
+  information that was already retrieved.
 - Never invent missing stay details. If guesty_confirmed_stay_details reports a
   field as missing or empty in Guesty, say that the field is not populated in
   Guesty and escalate to the human Glam Homes team.
@@ -203,10 +204,9 @@ Internal analytics and admin boundaries:
   admin workflow. Do not read internal customer data aloud.
 
 Booked guest journey roles:
-- Pre-check-in / booking confirmation: ask for confirmation code plus one
-  matching guest detail before sharing dates/property/status. Confirm planned
-  arrival time, guest count, best phone/email, and whether they need directions
-  or house guidance by SMS.
+- Pre-check-in / booking confirmation: ask for the confirmation code only during
+  testing. Confirm planned arrival time, guest count, and whether they need
+  directions or house guidance by SMS.
 - Check-in welcome: if the guest is near check-in, welcome them warmly, confirm
   whether they are already inside, ask if access worked, and offer to text
   orientation/help links when available. Never reveal access codes unless the
@@ -435,7 +435,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "guesty_confirm_reservation",
-        "description": "Safely confirm whether a Guesty reservation exists and only return basic booking details after one guest detail matches the confirmation code.",
+        "description": "Confirm whether a Guesty reservation exists. In code-only testing mode, the confirmation code alone returns basic booking details.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -452,7 +452,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "guesty_confirmed_stay_details",
-        "description": "After validating a reservation with one matching guest detail, retrieve internal Guesty listing stay details including address, check-in instructions, door code, Wi-Fi/StayFi info, and missing-field diagnostics.",
+        "description": "Retrieve internal Guesty reservation and listing stay details including address, amenities, check-in instructions, door code, Wi-Fi/StayFi info, custom fields, and missing-field diagnostics. In code-only testing mode, confirmation code alone is enough.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -564,7 +564,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "twilio_send_stay_details_sms",
-        "description": "After validating a Guesty reservation with one matching guest detail, text the caller relevant stay details such as address, check-in time, door code, Wi-Fi/StayFi info, and check-in instructions.",
+        "description": "Text the caller relevant stay details such as address, check-in time, door code, Wi-Fi/StayFi info, and check-in instructions. In Twilio calls, omit phone_number to use the caller number.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -897,7 +897,10 @@ def truthy(value: object) -> bool:
 
 
 def confirmation_code_is_confirmed(arguments: dict) -> bool:
-    if reservation_validation_mode() == "relaxed" and compact_text(arguments.get("guest_name")):
+    mode = reservation_validation_mode()
+    if mode == "code_only":
+        return True
+    if mode == "relaxed" and compact_text(arguments.get("guest_name")):
         return True
     return truthy(arguments.get("confirmation_code_confirmed") or arguments.get("code_confirmed"))
 
@@ -1118,6 +1121,17 @@ def guesty_listing_stay_details(listing_id: object) -> dict:
         "title": listing.get("title", ""),
         "nickname": listing.get("nickname", ""),
         "address": address,
+        "property_profile": {
+            "amenities": listing.get("amenities") if isinstance(listing.get("amenities"), list) else [],
+            "accommodates": listing.get("accommodates", ""),
+            "bedrooms": listing.get("bedrooms", ""),
+            "bathrooms": listing.get("bathrooms", ""),
+            "beds": listing.get("beds", ""),
+            "property_type": listing.get("propertyType", ""),
+            "room_type": listing.get("roomType", ""),
+            "active": listing.get("active", ""),
+            "listed": listing.get("listed", listing.get("isListed", "")),
+        },
         "times": {
             "default_check_in": listing.get("defaultCheckInTime", ""),
             "default_check_in_end": listing.get("defaultCheckInEndTime", ""),
@@ -1186,6 +1200,16 @@ def name_matches(provided: object, actual: object) -> bool:
 def guesty_validation_result(reservation: dict, arguments: dict) -> dict:
     guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
     mode = reservation_validation_mode()
+    if mode == "code_only":
+        return {
+            "confirmation_code_match": True,
+            "validation_mode": mode,
+            "provided_guest_detail_count": 0,
+            "matched_guest_detail_count": 0,
+            "matched_fields": ["confirmation_code"],
+            "safe_to_share_basic_details": True,
+            "requires_additional_validation": False,
+        }
     checks = [
         ("guest_phone", arguments.get("guest_phone"), guest.get("phone")),
         ("guest_email", arguments.get("guest_email"), guest.get("email")),
@@ -1215,9 +1239,11 @@ def guesty_validation_result(reservation: dict, arguments: dict) -> dict:
 
 def guesty_reservation_safe_summary(reservation: dict) -> dict:
     listing = reservation.get("listing") if isinstance(reservation.get("listing"), dict) else {}
+    guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
     return {
         "reservation_id": reservation.get("_id", ""),
         "confirmation_code": reservation.get("confirmationCode", ""),
+        "guest_name": guest.get("fullName") or "",
         "status": reservation.get("status", ""),
         "check_in": reservation.get("checkInDateLocalized") or reservation.get("checkIn") or "",
         "check_out": reservation.get("checkOutDateLocalized") or reservation.get("checkOut") or "",
@@ -1706,8 +1732,8 @@ def read_reservation_validation_config() -> dict:
 
 
 def reservation_validation_mode() -> str:
-    configured = str(read_reservation_validation_config().get("mode") or os.environ.get("GLAM_RESERVATION_VALIDATION_MODE", "relaxed")).strip().lower()
-    return configured if configured in {"relaxed", "strict"} else "relaxed"
+    configured = str(read_reservation_validation_config().get("mode") or os.environ.get("GLAM_RESERVATION_VALIDATION_MODE", "code_only")).strip().lower()
+    return configured if configured in {"code_only", "relaxed", "strict"} else "code_only"
 
 
 def reservation_validation_payload() -> dict:
@@ -1719,18 +1745,18 @@ def reservation_validation_payload() -> dict:
         "source": "dashboard" if config.get("mode") else "env_or_default",
         "updated_at": config.get("updated_at", ""),
         "updated_by": config.get("updated_by", ""),
-        "description": (
-            "Relaxed: reservation code plus similar guest name is enough; phone/email are optional."
-            if mode == "relaxed"
-            else "Strict: reservation code must be explicitly repeated/confirmed and one guest detail must match."
-        ),
+        "description": {
+            "code_only": "Code only: reservation code unlocks reservation, stay, and property details for testing.",
+            "relaxed": "Relaxed: reservation code plus similar guest name is enough; phone/email are optional.",
+            "strict": "Strict: reservation code must be explicitly repeated/confirmed and one guest detail must match.",
+        }[mode],
     }
 
 
 def update_reservation_validation_mode(mode: object, updated_by: object = "") -> dict:
     clean = str(mode or "").strip().lower()
-    if clean not in {"relaxed", "strict"}:
-        raise ValueError("Reservation validation mode must be relaxed or strict.")
+    if clean not in {"code_only", "relaxed", "strict"}:
+        raise ValueError("Reservation validation mode must be code_only, relaxed, or strict.")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
         "mode": clean,

@@ -34,16 +34,15 @@
 
     body {
       margin: 0;
-      height: 100vh;
-      height: 100dvh;
+      height: auto;
       min-height: 100vh;
       min-height: 100dvh;
-      overflow: hidden;
+      overflow: auto;
       color: var(--ink);
       background:
         linear-gradient(180deg, #fffaf0 0, #f7edda 44%, #eee1c5 100%);
       display: grid;
-      grid-template-rows: auto auto 1fr;
+      grid-template-rows: auto auto minmax(0, 1fr);
     }
 
     header {
@@ -120,6 +119,7 @@
       display: flex;
       align-items: end;
       gap: 8px;
+      overflow-x: auto;
       background: rgba(255, 253, 248, 0.86);
       border-bottom: 1px solid rgba(223, 212, 189, 0.72);
     }
@@ -151,13 +151,13 @@
     main {
       min-height: 0;
       padding: 18px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .tab-view {
       display: none;
       min-height: 0;
-      height: 100%;
+      height: auto;
     }
 
     .tab-view.active {
@@ -174,6 +174,12 @@
       gap: 18px;
     }
 
+    .security-layout {
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
     .panel {
       min-height: 0;
       background: var(--panel);
@@ -185,7 +191,7 @@
 
     .control-panel {
       display: grid;
-      grid-template-rows: auto auto auto 1fr;
+      grid-template-rows: auto auto auto auto;
     }
 
     .stage {
@@ -582,6 +588,78 @@
       padding: 0 9px;
       font: inherit;
       font-size: 12px;
+    }
+
+    .security-panel {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .security-panel header {
+      min-height: auto;
+      padding: 0 0 12px;
+      display: grid;
+      gap: 5px;
+      background: transparent;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .security-panel header span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .security-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .security-card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      padding: 14px;
+      display: grid;
+      gap: 11px;
+    }
+
+    .security-card strong {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .security-card span,
+    .security-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.38;
+      overflow-wrap: anywhere;
+    }
+
+    .security-form {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .security-card select,
+    .security-card input {
+      min-width: 0;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 13px;
     }
 
     .chat-panel {
@@ -1372,7 +1450,8 @@
       }
 
       .voice-layout,
-      .calls-layout {
+      .calls-layout,
+      .security-layout {
         grid-template-columns: 1fr;
         grid-template-rows: none;
         height: auto;
@@ -1402,6 +1481,11 @@
       }
 
       .emergency-form {
+        grid-template-columns: 1fr;
+      }
+
+      .security-grid,
+      .security-form {
         grid-template-columns: 1fr;
       }
 
@@ -1582,6 +1666,7 @@
   <nav class="app-tabs" aria-label="Dashboard sections">
     <button class="tab-button active" type="button" data-tab="voice" aria-selected="true">Voice Console</button>
     <button class="tab-button" type="button" data-tab="calls" aria-selected="false">Calls & Analytics</button>
+    <button class="tab-button" type="button" data-tab="security" aria-selected="false">Security</button>
   </nav>
 
   <main>
@@ -1680,16 +1765,6 @@
           <span id="guestyState">Checking local connection...</span>
         </div>
         <div class="note">
-          <strong>Reservation validation</strong>
-          <span id="reservationValidationState">Loading validation mode...</span>
-          <select id="reservationValidationMode">
-            <option value="relaxed">Relaxed: reservation + similar name</option>
-            <option value="strict">Strict: require confirmed code</option>
-          </select>
-          <input id="reservationValidationPassword" type="password" autocomplete="current-password" placeholder="Password">
-          <button class="secondary compact" id="saveReservationValidation" type="button">Save mode</button>
-        </div>
-        <div class="note">
           <strong>Brand</strong>
           <span>Gold palette, premium tone, and selectable concierge voices for booking calls.</span>
         </div>
@@ -1730,17 +1805,6 @@
           <span id="monitorLastChecked">Last check: pending</span>
           <span id="monitorPhone">Line: pending</span>
           <span id="monitorPublicUrl">Tunnel: pending</span>
-        </div>
-        <div class="emergency-config" aria-label="Emergency advisor number">
-          <header>
-            <strong>Emergency advisor SMS</strong>
-            <span id="emergencyContactState">Loading emergency line...</span>
-          </header>
-          <div class="emergency-form">
-            <input id="emergencyPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
-            <input id="emergencyPassword" type="password" autocomplete="current-password" placeholder="Password">
-            <button class="monitor-refresh" id="saveEmergencyContact" type="button">Save number</button>
-          </div>
         </div>
         <div class="monitor-events">
           <div class="event-column">
@@ -1857,6 +1921,52 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="tab-view security-layout" id="securityView" aria-label="Security settings">
+      <section class="panel security-panel" aria-label="Reservation access settings">
+        <header>
+          <p class="eyebrow">Access controls</p>
+          <h2>Reservation Security</h2>
+          <span>Temporary testing can stay simple now, then move back to stricter checks later.</span>
+        </header>
+        <div class="security-card">
+          <strong>Reservation validation</strong>
+          <span id="reservationValidationState">Loading validation mode...</span>
+          <div class="security-form">
+            <select id="reservationValidationMode">
+              <option value="code_only">Code only: reservation unlocks details</option>
+              <option value="relaxed">Relaxed: reservation + similar name</option>
+              <option value="strict">Strict: confirmed code + matching detail</option>
+            </select>
+            <input id="reservationValidationPassword" type="password" autocomplete="current-password" placeholder="Password">
+            <button class="secondary compact" id="saveReservationValidation" type="button">Save mode</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel security-panel" aria-label="Human support and SMS settings">
+        <header>
+          <p class="eyebrow">Human escalation</p>
+          <h2>Advisor SMS</h2>
+          <span>Human issues notify this number. Caller-facing SMS uses the number that called in.</span>
+        </header>
+        <div class="security-grid">
+          <div class="security-card">
+            <strong>Emergency advisor SMS</strong>
+            <span id="emergencyContactState">Loading emergency line...</span>
+            <div class="security-form">
+              <input id="emergencyPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
+              <input id="emergencyPassword" type="password" autocomplete="current-password" placeholder="Password">
+              <button class="secondary compact" id="saveEmergencyContact" type="button">Save number</button>
+            </div>
+          </div>
+          <div class="security-card">
+            <strong>Current call rules</strong>
+            <p>Use caller ID when it matches Guesty. With a reservation code, confirm the reservation and guest name, then answer directly from Guesty. Offer SMS to the caller number for useful details. Transfer live calls when a guest asks for a human.</p>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
 
@@ -2018,14 +2128,15 @@
     }
 
     function switchTab(tabName) {
-      const safeName = tabName === "calls" ? "calls" : "voice";
+      const safeName = ["voice", "calls", "security"].includes(tabName) ? tabName : "voice";
       for (const button of document.querySelectorAll(".tab-button")) {
         const isActive = button.dataset.tab === safeName;
         button.classList.toggle("active", isActive);
         button.setAttribute("aria-selected", isActive ? "true" : "false");
       }
-      $("voiceView").classList.toggle("active", safeName === "voice");
-      $("callsView").classList.toggle("active", safeName === "calls");
+      for (const view of document.querySelectorAll(".tab-view")) {
+        view.classList.toggle("active", view.id === safeName + "View");
+      }
       if (safeName === "calls") {
         window.setTimeout(() => {
           renderCharts(lastMetrics, lastCallData);

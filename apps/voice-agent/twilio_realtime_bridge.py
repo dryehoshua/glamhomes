@@ -51,10 +51,11 @@ def session_update(call_sid: str, caller: str, called: str, caller_context: dict
         caller_context_instruction = (
             "\nCaller ID lookup: matched a Guesty reservation for this caller phone."
             f"\nRegistered guest name: {guest_name or 'unknown'}."
+            f"\nMatched reservation code for Guesty tool use: {reservation.get('confirmation_code') or 'unknown'}."
             f"\nProperty on file: {reservation.get('listing_title') or 'unknown'}."
-            "\nGreet the caller by the registered guest first name if available, but do not reveal the stored confirmation code and still validate before sharing sensitive stay details."
-            "\nIf the guest later provides a reservation code, repeat it back and ask them to confirm it before using Guesty tools with confirmation_code_confirmed=true."
-            "\nWhen validating that confirmed code, you may pass the caller phone as guest_phone because Caller ID matched the Guesty guest phone."
+            "\nDuring current testing, treat this as recognized caller context. Greet the caller by the registered guest first name if available."
+            "\nIf the caller asks about this stay, you may use the reservation context and Guesty tools without asking for email or phone."
+            "\nIf the guest provides a reservation code, repeat it back once, call Guesty immediately, confirm whether it exists, and say whose name it is under."
         )
     else:
         caller_context_instruction = "\nCaller ID lookup: no matching Guesty reservation was found for the caller phone."
@@ -63,9 +64,9 @@ def session_update(call_sid: str, caller: str, called: str, caller_context: dict
         + "\n\nCurrent channel: Twilio Media Streams phone call."
         + f"\nCallSid: {call_sid}. Caller: {caller or 'unknown'}. To: {called or os.environ.get('TWILIO_PHONE_NUMBER', glam.TWILIO_PHONE_NUMBER)}."
         + caller_context_instruction
-        + "\nUse Guesty tools when you need live reservation, property, or availability data."
+        + "\nUse Guesty tools immediately when you need live reservation, property, or availability data. Keep the flow fast and simple."
         + "\nUse the public property links bridge for shareable links. Always offer SMS delivery for useful links, and send accepted links with twilio_send_property_link_sms."
-        + "\nFor validated stay details such as address, door code, check-in instructions, or Wi-Fi, always offer SMS delivery and use twilio_send_stay_details_sms when accepted."
+        + "\nFor stay details such as address, door code, check-in instructions, or Wi-Fi, always offer SMS delivery to the caller number and use twilio_send_stay_details_sms when accepted."
         + f"\n{glam.IMPORTANT_SMS_OFFER_RULE}"
         + "\nFor any matter requiring human attention, including special services, towels, housekeeping, maintenance, access issues, complaints, policy exceptions, or a human request, tell the caller you will notify a human advisor now and use twilio_send_human_handoff_sms with caller number, reservation code if known, and a concise problem summary."
         + "\nIf the caller specifically asks to transfer the call to a human, use twilio_transfer_call_to_human."
@@ -89,8 +90,8 @@ def session_update(call_sid: str, caller: str, called: str, caller_context: dict
                     "turn_detection": {
                         "type": "server_vad",
                         "threshold": 0.45,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 650,
+                        "prefix_padding_ms": 220,
+                        "silence_duration_ms": 460,
                     },
                 },
                 "output": {
@@ -156,7 +157,7 @@ async def run_function_call(openai_ws: websockets.ClientConnection, call_sid: st
     await openai_ws.send(
         json.dumps(
             create_response(
-                "Use the tool result to answer by phone. Keep it brief, natural, and do not reveal sensitive data without validation."
+                "Use the tool result to answer by phone. Keep it brief, natural, and direct. In code-only testing mode, the reservation code is enough for reservation and stay details."
             ),
             ensure_ascii=False,
         )
