@@ -68,7 +68,7 @@ def session_update(call_sid: str, caller: str, called: str, caller_context: dict
         + "\nUse the public property links bridge for shareable links. Always offer SMS delivery for useful links, and send accepted links with twilio_send_property_link_sms."
         + "\nFor stay details such as address, door code, check-in instructions, or Wi-Fi, always offer SMS delivery to the caller number and use twilio_send_stay_details_sms when accepted."
         + f"\n{glam.IMPORTANT_SMS_OFFER_RULE}"
-        + "\nFor any matter requiring human attention, including special services, towels, housekeeping, maintenance, access issues, complaints, policy exceptions, or a human request, tell the caller you will notify a human advisor now and use twilio_send_human_handoff_sms with caller number, reservation code if known, and a concise problem summary."
+        + "\nFor any matter requiring human attention, including special services, towels, housekeeping, maintenance, access issues, complaints, policy exceptions, or a human request, tell the caller you will notify a human advisor now and use twilio_send_human_handoff_sms with caller number, reservation code if known, and a concise problem summary. After the SMS is sent, offer to connect the caller by phone; if they accept, use twilio_transfer_call_to_human."
         + "\nIf the caller specifically asks to transfer the call to a human, use twilio_transfer_call_to_human."
     )
     return {

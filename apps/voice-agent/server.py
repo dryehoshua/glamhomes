@@ -119,6 +119,10 @@ Safety and escalation:
   human advisor and tell the guest clearly that the team has been notified.
 - When the guest wants a human or no longer wants the AI, use
   twilio_send_human_handoff_sms with the reason and a concise call summary.
+- When any matter requires human advisor attention, send the human advisor SMS
+  first, then offer the guest a live phone connection in plain language: "I have
+  notified our team by text. Would you like me to connect you with a human by
+  phone now?" If they say yes, use twilio_transfer_call_to_human.
 - For any matter that requires human attention, notify the emergency/human
   advisor line with twilio_send_human_handoff_sms. This includes human requests,
   special services, extra towels, housekeeping requests, maintenance, access
@@ -582,7 +586,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "twilio_send_human_handoff_sms",
-        "description": "Send a concise SMS alert to the Glam Homes emergency/human advisor number for any matter requiring human attention: human request, special service, towels, housekeeping, maintenance, access, complaint, policy exception, or operational issue.",
+        "description": "Send a concise SMS alert to the Glam Homes emergency/human advisor number for any matter requiring human attention: human request, special service, towels, housekeeping, maintenance, access, complaint, policy exception, or operational issue. After sending it, offer the caller a live phone transfer.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -3308,7 +3312,7 @@ def is_local_dashboard_request(handler: BaseHTTPRequestHandler) -> bool:
 
 
 def dashboard_access_key() -> str:
-    return os.environ.get("GLAM_DASHBOARD_KEY", "").strip()
+    return os.environ.get("GLAM_DASHBOARD_KEY", EMERGENCY_CONTACT_ADMIN_PASSWORD).strip()
 
 
 def request_dashboard_key(handler: BaseHTTPRequestHandler) -> str:
@@ -3316,8 +3320,6 @@ def request_dashboard_key(handler: BaseHTTPRequestHandler) -> str:
 
 
 def can_access_call_data(handler: BaseHTTPRequestHandler) -> bool:
-    if is_local_dashboard_request(handler):
-        return True
     configured = dashboard_access_key()
     provided = request_dashboard_key(handler)
     return bool(configured and provided and hmac.compare_digest(configured, provided))

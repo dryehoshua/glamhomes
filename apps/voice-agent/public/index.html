@@ -662,6 +662,52 @@
       font-size: 13px;
     }
 
+    .protected-view.locked .protected-content {
+      display: none;
+    }
+
+    .dashboard-lock {
+      min-height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display: grid;
+      align-content: center;
+      justify-items: start;
+      gap: 14px;
+    }
+
+    .dashboard-lock.hidden {
+      display: none;
+    }
+
+    .dashboard-lock span {
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .dashboard-unlock {
+      width: min(420px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .dashboard-unlock input {
+      min-width: 0;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 11px;
+      font: inherit;
+    }
+
     .chat-panel {
       display: grid;
       grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -1831,7 +1877,17 @@
     </section>
     </section>
 
-    <section class="tab-view calls-layout" id="callsView" aria-label="Calls and analytics">
+    <section class="tab-view calls-layout protected-view locked" id="callsView" aria-label="Calls and analytics">
+      <div class="dashboard-lock" id="callsLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Analytics Locked</h2>
+        <span>Enter the dashboard password to unlock analytics, call memory, security controls, and protected phone data.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
       <div class="analytics-dashboard" aria-label="Call center analytics">
         <div class="analytics-header">
           <div>
@@ -1896,10 +1952,6 @@
               <input id="callSearch" type="search" autocomplete="off" placeholder="Search number, name, keyword">
               <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
             </div>
-            <div class="call-inbox-auth" id="callInboxAuth">
-              <input id="callInboxKey" type="password" autocomplete="current-password" placeholder="Dashboard key">
-              <button class="secondary compact" id="unlockCalls" type="button">Unlock</button>
-            </div>
             <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
           </div>
         </div>
@@ -1921,9 +1973,20 @@
           </div>
         </div>
       </div>
+      </div>
     </section>
 
-    <section class="tab-view security-layout" id="securityView" aria-label="Security settings">
+    <section class="tab-view security-layout protected-view locked" id="securityView" aria-label="Security settings">
+      <div class="dashboard-lock" id="securityLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Security Locked</h2>
+        <span>Enter the dashboard password once to unlock all admin controls.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
       <section class="panel security-panel" aria-label="Reservation access settings">
         <header>
           <p class="eyebrow">Access controls</p>
@@ -1939,7 +2002,6 @@
               <option value="relaxed">Relaxed: reservation + similar name</option>
               <option value="strict">Strict: confirmed code + matching detail</option>
             </select>
-            <input id="reservationValidationPassword" type="password" autocomplete="current-password" placeholder="Password">
             <button class="secondary compact" id="saveReservationValidation" type="button">Save mode</button>
           </div>
         </div>
@@ -1957,7 +2019,6 @@
             <span id="emergencyContactState">Loading emergency line...</span>
             <div class="security-form">
               <input id="emergencyPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
-              <input id="emergencyPassword" type="password" autocomplete="current-password" placeholder="Password">
               <button class="secondary compact" id="saveEmergencyContact" type="button">Save number</button>
             </div>
           </div>
@@ -1967,6 +2028,7 @@
           </div>
         </div>
       </section>
+      </div>
     </section>
   </main>
 
@@ -2039,6 +2101,43 @@
       return dashboardKey ? { "X-Glam-Dashboard-Key": dashboardKey } : {};
     }
 
+    function dashboardUnlocked() {
+      return Boolean(dashboardKey);
+    }
+
+    function updateProtectedViews() {
+      const unlocked = dashboardUnlocked();
+      for (const view of document.querySelectorAll(".protected-view")) {
+        view.classList.toggle("locked", !unlocked);
+        const lock = view.querySelector(".dashboard-lock");
+        if (lock) lock.classList.toggle("hidden", unlocked);
+      }
+      if (unlocked) {
+        $("callInboxState").textContent = "Unlocked";
+      } else {
+        $("callInboxState").textContent = "Locked";
+      }
+    }
+
+    function unlockDashboard(value) {
+      const clean = String(value || "").trim();
+      dashboardKey = clean;
+      if (clean) {
+        localStorage.setItem(dashboardKeyStorage, clean);
+      } else {
+        localStorage.removeItem(dashboardKeyStorage);
+      }
+      for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
+        input.value = clean;
+      }
+      updateProtectedViews();
+      if (clean) {
+        loadEmergencyContact();
+        loadReservationValidation();
+        refreshCallInbox(true);
+      }
+    }
+
     async function fetchJson(url, options = {}) {
       const response = await fetch(url, options);
       let data = {};
@@ -2067,9 +2166,12 @@
 
     async function saveEmergencyContact() {
       const phone = $("emergencyPhone").value.trim();
-      const password = $("emergencyPassword").value;
-      if (!phone || !password) {
-        $("emergencyContactState").textContent = "Enter phone number and password.";
+      if (!dashboardUnlocked()) {
+        $("emergencyContactState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      if (!phone) {
+        $("emergencyContactState").textContent = "Enter phone number.";
         return;
       }
       $("saveEmergencyContact").textContent = "Saving...";
@@ -2077,12 +2179,11 @@
         const { response, data } = await fetchJson("/api/emergency-contact", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone_number: phone, password, updated_by: "dashboard" })
+          body: JSON.stringify({ phone_number: phone, password: dashboardKey, updated_by: "dashboard" })
         });
         if (!response.ok || !data.ok) {
           throw new Error(data.error || "Could not save emergency number.");
         }
-        $("emergencyPassword").value = "";
         $("emergencyPhone").value = data.phone_number || phone;
         $("emergencyContactState").textContent = "Current: " + (data.phone_number || phone) + " · saved";
       } catch (error) {
@@ -2104,9 +2205,8 @@
 
     async function saveReservationValidation() {
       const mode = $("reservationValidationMode").value;
-      const password = $("reservationValidationPassword").value;
-      if (!password) {
-        $("reservationValidationState").textContent = "Enter password to change validation mode.";
+      if (!dashboardUnlocked()) {
+        $("reservationValidationState").textContent = "Unlock the dashboard first.";
         return;
       }
       $("saveReservationValidation").textContent = "Saving...";
@@ -2114,10 +2214,9 @@
         const { response, data } = await fetchJson("/api/reservation-validation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode, password, updated_by: "dashboard" })
+          body: JSON.stringify({ mode, password: dashboardKey, updated_by: "dashboard" })
         });
         if (!response.ok || !data.ok) throw new Error(data.error || "Could not save validation mode.");
-        $("reservationValidationPassword").value = "";
         $("reservationValidationMode").value = data.mode || mode;
         $("reservationValidationState").textContent = (data.description || "Validation mode saved.") + " · saved";
       } catch (error) {
@@ -2251,33 +2350,14 @@
     }
 
     function updateCallInboxAuth(authRequired = false) {
-      const auth = $("callInboxAuth");
-      const input = $("callInboxKey");
-      if (!auth || !input) return;
-      if (isLocalDashboard) {
-        auth.style.display = "none";
-        return;
-      }
-      auth.style.display = "flex";
-      if (dashboardKey && !authRequired) {
-        input.value = dashboardKey;
-        $("callInboxState").textContent = "Unlocked";
-      } else if (!input.value && dashboardKey) {
-        input.value = dashboardKey;
-      }
+      updateProtectedViews();
+      if (authRequired && !dashboardUnlocked()) $("callInboxState").textContent = "Locked";
     }
 
     function saveCallInboxKey() {
-      const value = $("callInboxKey").value.trim();
-      dashboardKey = value;
-      if (value) {
-        localStorage.setItem(dashboardKeyStorage, value);
-      } else {
-        localStorage.removeItem(dashboardKeyStorage);
-      }
+      const value = document.querySelector(".dashboardUnlockInput")?.value || "";
+      unlockDashboard(value);
       selectedThreadId = "";
-      refreshCallInbox(true);
-      loadEmergencyContact();
     }
 
     function formatPct(value) {
@@ -2642,7 +2722,7 @@
     }
 
     async function openCallThread(threadId) {
-      if (!threadId) return;
+      if (!threadId || !dashboardUnlocked()) return;
       selectedThreadId = threadId;
       for (const item of document.querySelectorAll(".call-item")) {
         item.classList.toggle("active", item.dataset.threadId === threadId);
@@ -2669,6 +2749,10 @@
     }
 
     async function refreshCallInbox(manual = false) {
+      if (!dashboardUnlocked()) {
+        updateProtectedViews();
+        return;
+      }
       if (manual) $("refreshCalls").textContent = "Checking...";
       try {
         updateCallInboxAuth(false);
@@ -2679,6 +2763,11 @@
         const inboxUrl = "/api/calls/threads?" + params.toString();
         const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
         if (response.status === 403 || data.local_only || data.auth_required) {
+          if (response.status === 403 && data.auth_required) {
+            dashboardKey = "";
+            localStorage.removeItem(dashboardKeyStorage);
+            for (const input of document.querySelectorAll(".dashboardUnlockInput")) input.value = "";
+          }
           $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
           renderCallList([]);
           renderKpis({}, { query });
@@ -3164,10 +3253,18 @@
     $("clearCallSearch").onclick = clearCallSearch;
     $("applyRange").onclick = () => setAnalyticsRange("custom");
     $("callSearch").addEventListener("input", scheduleCallSearch);
-    $("unlockCalls").onclick = saveCallInboxKey;
-    $("callInboxKey").addEventListener("keydown", (event) => {
-      if (event.key === "Enter") saveCallInboxKey();
-    });
+    for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
+      input.value = dashboardKey;
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") unlockDashboard(input.value);
+      });
+    }
+    for (const button of document.querySelectorAll(".dashboardUnlockButton")) {
+      button.addEventListener("click", () => {
+        const input = button.closest(".dashboard-unlock")?.querySelector(".dashboardUnlockInput");
+        unlockDashboard(input?.value || "");
+      });
+    }
     $("manualInput").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
     });
@@ -3196,6 +3293,7 @@
 
     loadStatus();
     loadVoiceConfig();
+    updateProtectedViews();
     loadEmergencyContact();
     loadReservationValidation();
     initializeAnalyticsRangeInputs();
