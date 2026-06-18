@@ -699,8 +699,11 @@
     .calls-layout > .protected-content {
       min-width: 0;
       display: grid;
-      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
       gap: 18px;
+      align-items: stretch;
+      min-height: min(760px, calc(100vh - 178px));
+      max-height: calc(100vh - 156px);
     }
 
     .security-layout > .protected-content {
@@ -1009,9 +1012,9 @@
     }
 
     .analytics-dashboard {
-      padding: 14px 18px;
+      padding: 12px 14px;
       display: grid;
-      gap: 12px;
+      gap: 10px;
       border-bottom: 1px solid var(--line);
       background: #fff8eb;
     }
@@ -1034,7 +1037,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
@@ -1066,7 +1069,7 @@
     }
 
     .custom-range input {
-      width: 136px;
+      width: 168px;
       height: 32px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1079,19 +1082,19 @@
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .kpi-card {
-      min-height: 82px;
+      min-height: 72px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 10px;
+      padding: 9px;
       background: #fffdf8;
       display: grid;
       align-content: space-between;
-      gap: 8px;
+      gap: 6px;
     }
 
     .kpi-card strong {
@@ -1102,7 +1105,7 @@
     }
 
     .kpi-card span {
-      font-size: 24px;
+      font-size: 21px;
       font-weight: 850;
       line-height: 1;
       overflow-wrap: anywhere;
@@ -1114,9 +1117,39 @@
       line-height: 1.25;
     }
 
+    .analytics-secondary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .mini-metric {
+      min-height: 36px;
+      border: 1px solid rgba(223, 212, 189, 0.78);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: rgba(255, 253, 248, 0.78);
+      display: grid;
+      gap: 2px;
+    }
+
+    .mini-metric strong {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .mini-metric span {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 820;
+      line-height: 1.1;
+    }
+
     .keyword-panel {
       display: grid;
-      gap: 8px;
+      gap: 7px;
     }
 
     .keyword-panel h3 {
@@ -1128,18 +1161,20 @@
     .keyword-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 7px;
-      min-height: 32px;
+      gap: 6px;
+      min-height: 28px;
+      max-height: 74px;
+      overflow: auto;
     }
 
     .keyword-chip {
       min-height: 28px;
       border: 1px solid rgba(200, 155, 60, 0.38);
       border-radius: 999px;
-      padding: 5px 9px;
+      padding: 4px 8px;
       background: #fffdf8;
       color: #3f3321;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.2;
       max-width: 100%;
       overflow-wrap: anywhere;
@@ -1152,14 +1187,14 @@
     }
 
     .chart-card {
-      min-height: 260px;
+      min-height: 178px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 12px;
+      padding: 10px;
       background: #fffdf8;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
-      gap: 10px;
+      gap: 8px;
     }
 
     .chart-card h3 {
@@ -1170,7 +1205,7 @@
 
     .chart-box {
       position: relative;
-      min-height: 210px;
+      min-height: 132px;
     }
 
     .call-inbox {
@@ -1193,6 +1228,7 @@
       min-height: 0;
       border-bottom: 1px solid var(--line);
       overflow: auto;
+      max-height: 100%;
     }
 
     .calls-layout .chart-grid {
@@ -1200,11 +1236,11 @@
     }
 
     .calls-layout .chart-card {
-      min-height: 230px;
+      min-height: 172px;
     }
 
     .calls-layout .chart-box {
-      min-height: 178px;
+      min-height: 126px;
     }
 
     .calls-layout .call-inbox {
@@ -1292,7 +1328,7 @@
     }
 
     .call-search input {
-      width: min(320px, 42vw);
+      width: min(230px, 30vw);
       height: 34px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1311,12 +1347,11 @@
     .call-inbox-layout {
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
     }
 
     .call-list {
       min-height: 0;
-      max-height: 280px;
       overflow: auto;
       display: grid;
       align-content: start;
@@ -1547,6 +1582,8 @@
         grid-template-columns: 1fr;
         grid-template-rows: none;
         height: auto;
+        min-height: auto;
+        max-height: none;
       }
 
       .panel {
@@ -1594,6 +1631,7 @@
       }
 
       .calls-layout .analytics-dashboard {
+        max-height: none;
         overflow: visible;
       }
 
@@ -1690,6 +1728,10 @@
 
       .custom-range input {
         flex: 1 1 130px;
+      }
+
+      .analytics-secondary {
+        grid-template-columns: 1fr;
       }
 
       .call-inbox-header {
@@ -1967,8 +2009,8 @@
             <button class="range-filter" type="button" data-range="custom">Custom</button>
           </div>
           <div class="custom-range" id="customRangeControls" style="display: none;">
-            <input id="rangeStart" type="date" aria-label="Start date">
-            <input id="rangeEnd" type="date" aria-label="End date">
+            <input id="rangeStart" type="datetime-local" aria-label="Start date and time">
+            <input id="rangeEnd" type="datetime-local" aria-label="End date and time">
             <button class="secondary compact" id="applyRange" type="button">Apply</button>
           </div>
         </div>
@@ -1977,6 +2019,12 @@
           <div class="kpi-card"><strong>Prospects</strong><span>--</span><small>Booking intent detected</small></div>
           <div class="kpi-card"><strong>Coverage</strong><span>--</span><small>Calls with transcript</small></div>
           <div class="kpi-card"><strong>Human handoffs</strong><span>--</span><small>Escalations logged</small></div>
+        </div>
+        <div class="analytics-secondary" id="analyticsSecondary">
+          <div class="mini-metric"><strong>Unique callers</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Tool actions</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Guest turns</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Avg messages</strong><span>--</span></div>
         </div>
         <div class="chart-grid" aria-label="Call center charts">
           <div class="chart-card">
@@ -2011,7 +2059,8 @@
               <button class="thread-filter" type="button" data-sort="least">Least interaction</button>
             </div>
             <div class="call-search">
-              <input id="callSearch" type="search" autocomplete="off" placeholder="Search number, name, keyword">
+              <input id="callPhoneSearch" type="search" inputmode="tel" autocomplete="off" placeholder="Phone number">
+              <input id="callSearch" type="search" autocomplete="off" placeholder="Name or keyword">
               <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
             </div>
             <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
@@ -2124,6 +2173,7 @@
     let activeMode = "";
     let selectedThreadId = "";
     let callSearchQuery = "";
+    let callPhoneQuery = "";
     let callSearchTimer = null;
     let callSortMode = "recent";
     let analyticsRangeMode = "week";
@@ -2450,6 +2500,12 @@
       return year + "-" + month + "-" + day;
     }
 
+    function isoDateTimeInput(date) {
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return isoDateInput(date) + "T" + hours + ":" + minutes;
+    }
+
     function startOfLocalDay(date) {
       return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
     }
@@ -2466,6 +2522,10 @@
 
     function dateInputToLocalDate(value, endOfDay = false) {
       if (!value) return null;
+      if (value.includes("T")) {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
       const parts = value.split("-").map((part) => Number(part));
       if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
       const date = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -2615,26 +2675,6 @@
           value: metrics.human_handoffs ?? 0,
           detail: formatPct(metrics.handoff_rate_pct) + " handoff rate",
         },
-        {
-          label: "Unique callers",
-          value: metrics.unique_callers ?? 0,
-          detail: "Distinct caller numbers",
-        },
-        {
-          label: "Tool actions",
-          value: metrics.tool_actions ?? 0,
-          detail: "Guesty, SMS and bridge events",
-        },
-        {
-          label: "Guest messages",
-          value: metrics.guest_messages ?? 0,
-          detail: "Caller transcript turns",
-        },
-        {
-          label: "Avg messages",
-          value: metrics.avg_messages_per_call ?? 0,
-          detail: "Conversation density",
-        },
       ];
       grid.innerHTML = "";
       for (const row of rows) {
@@ -2650,6 +2690,28 @@
         card.appendChild(value);
         card.appendChild(detail);
         grid.appendChild(card);
+      }
+
+      const secondary = $("analyticsSecondary");
+      if (secondary) {
+        const secondaryRows = [
+          ["Unique callers", metrics.unique_callers ?? 0],
+          ["Tool actions", metrics.tool_actions ?? 0],
+          ["Guest turns", metrics.guest_messages ?? 0],
+          ["Avg messages", metrics.avg_messages_per_call ?? 0],
+        ];
+        secondary.innerHTML = "";
+        for (const [labelText, valueText] of secondaryRows) {
+          const item = document.createElement("div");
+          item.className = "mini-metric";
+          const label = document.createElement("strong");
+          label.textContent = labelText;
+          const value = document.createElement("span");
+          value.textContent = valueText;
+          item.appendChild(label);
+          item.appendChild(value);
+          secondary.appendChild(item);
+        }
       }
 
       const chips = $("keywordList");
@@ -2675,10 +2737,12 @@
       }
 
       const activeQuery = String(data.query || "").trim();
+      const activePhone = String(data.phone || "").trim();
       const rangeLabel = currentAnalyticsRange().label;
-      $("analyticsScope").textContent = activeQuery
-        ? rangeLabel + " · " + activeQuery
-        : rangeLabel;
+      const scopeParts = [rangeLabel];
+      if (activePhone) scopeParts.push("Phone " + activePhone);
+      if (activeQuery) scopeParts.push(activeQuery);
+      $("analyticsScope").textContent = scopeParts.join(" · ");
       renderCharts(metrics, data);
     }
 
@@ -2729,10 +2793,10 @@
         empty.type = "button";
         const title = document.createElement("span");
         title.className = "call-item-name";
-        title.textContent = "No conversations yet";
+        title.textContent = "No conversations found";
         const detail = document.createElement("span");
         detail.className = "call-item-time";
-        detail.textContent = "Waiting for the next caller.";
+        detail.textContent = "Adjust date, hour, phone, or keyword filters.";
         empty.appendChild(title);
         empty.appendChild(detail);
         list.appendChild(empty);
@@ -2835,8 +2899,10 @@
       try {
         updateCallInboxAuth(false);
         const query = callSearchQuery.trim();
+        const phone = callPhoneQuery.trim();
         const params = new URLSearchParams({ limit: "50", sort: callSortMode });
         if (query) params.set("q", query);
+        if (phone) params.set("phone", phone);
         appendAnalyticsRangeParams(params);
         const inboxUrl = "/api/calls/threads?" + params.toString();
         const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
@@ -2848,7 +2914,7 @@
           }
           $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
           renderCallList([]);
-          renderKpis({}, { query });
+          renderKpis({}, { query, phone });
           updateCallInboxAuth(Boolean(data.auth_required));
           clearTranscript(
             "Call Inbox is protected",
@@ -2861,9 +2927,9 @@
         if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
         const threads = data.threads || [];
         const total = typeof data.filtered_total === "number" ? data.filtered_total : threads.length;
-        $("callInboxState").textContent = query ? total + " matches" : total + " conversations";
-        renderKpis(data.metrics || {}, data);
         updateCallInboxAuth(false);
+        $("callInboxState").textContent = query || phone ? total + " matches" : total + " conversations";
+        renderKpis(data.metrics || {}, data);
         renderCallList(threads);
         if (!selectedThreadId && threads.length) {
           await openCallThread(threads[0].thread_id);
@@ -2871,7 +2937,7 @@
       } catch (error) {
         $("callInboxState").textContent = "Unavailable";
         renderCallList([]);
-        renderKpis({}, { query: callSearchQuery });
+        renderKpis({}, { query: callSearchQuery, phone: callPhoneQuery });
         clearTranscript("Call Inbox unavailable", error.message);
       } finally {
         $("refreshCalls").textContent = "Refresh calls";
@@ -2882,6 +2948,7 @@
       window.clearTimeout(callSearchTimer);
       callSearchTimer = window.setTimeout(() => {
         callSearchQuery = $("callSearch").value.trim();
+        callPhoneQuery = $("callPhoneSearch").value.trim();
         selectedThreadId = "";
         refreshCallInbox(false);
       }, 240);
@@ -2889,7 +2956,9 @@
 
     function clearCallSearch() {
       $("callSearch").value = "";
+      $("callPhoneSearch").value = "";
       callSearchQuery = "";
+      callPhoneQuery = "";
       selectedThreadId = "";
       refreshCallInbox(true);
     }
@@ -2915,8 +2984,8 @@
 
     function initializeAnalyticsRangeInputs() {
       const now = new Date();
-      $("rangeStart").value = isoDateInput(now);
-      $("rangeEnd").value = isoDateInput(now);
+      $("rangeStart").value = isoDateTimeInput(startOfLocalDay(now));
+      $("rangeEnd").value = isoDateTimeInput(now);
     }
 
     function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
@@ -3370,6 +3439,7 @@
     $("clearCallSearch").onclick = clearCallSearch;
     $("applyRange").onclick = () => setAnalyticsRange("custom");
     $("callSearch").addEventListener("input", scheduleCallSearch);
+    $("callPhoneSearch").addEventListener("input", scheduleCallSearch);
     for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
       input.value = dashboardKey;
       input.addEventListener("keydown", (event) => {

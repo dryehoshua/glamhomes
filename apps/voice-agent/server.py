@@ -2749,6 +2749,29 @@ def call_matches_query(summary: dict, query: object, path_by_sid: dict[str, Path
     return True
 
 
+def call_matches_phone(summary: dict, phone: object, path_by_sid: dict[str, Path]) -> bool:
+    wanted_digits = digits_only(phone)
+    if not wanted_digits:
+        return True
+    call_sid = str(summary.get("call_sid") or "")
+    path = path_by_sid.get(call_sid)
+    events = read_transcript_events(path, maximum=1000) if path else []
+    phone_values = [str(summary.get("from") or ""), str(summary.get("to") or "")]
+    for event in events:
+        metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+        for key, value in metadata.items():
+            key_text = str(key or "").lower()
+            if any(token in key_text for token in ("phone", "from", "to", "caller")):
+                phone_values.append(str(value or ""))
+    haystack = " ".join(phone_values)
+    haystack_digits = digits_only(haystack)
+    if not haystack_digits:
+        return False
+    if len(wanted_digits) >= 7:
+        return wanted_digits in haystack_digits or wanted_digits[-7:] in haystack_digits
+    return wanted_digits in haystack_digits
+
+
 def call_topic_hits(text: str) -> list[str]:
     lowered = text.lower()
     hits = []
@@ -3057,15 +3080,15 @@ def sort_call_threads(threads: list[dict], sort_mode: object) -> list[dict]:
     return sorted(threads, key=thread_last_timestamp, reverse=True)
 
 
-def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = "recent", start: object = "", end: object = "") -> dict:
+def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = "recent", start: object = "", end: object = "", phone: object = "") -> dict:
     all_calls, path_by_sid, twilio_error = collect_call_summaries(limit=100)
     period_calls = [call for call in all_calls if call_in_range(call, start, end)]
     groups = {
         thread_id: calls
         for thread_id, calls in grouped_calls_by_thread(period_calls).items()
-        if group_has_phone(calls)
     }
     query_text = compact_text(query)
+    phone_text = compact_text(phone)
     if query_text:
         included_thread_ids = {
             thread_id
@@ -3074,6 +3097,12 @@ def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = 
         }
     else:
         included_thread_ids = set(groups)
+    if phone_text:
+        included_thread_ids = {
+            thread_id
+            for thread_id in included_thread_ids
+            if any(call_matches_phone(call, phone_text, path_by_sid) for call in groups.get(thread_id, []))
+        }
     filtered_calls = [call for thread_id in included_thread_ids for call in groups.get(thread_id, [])]
     threads = [
         build_call_thread_summary(thread_id, groups[thread_id], path_by_sid)
@@ -3088,6 +3117,7 @@ def build_call_threads(limit: int = 50, query: object = "", sort_mode: object = 
         "total_available": len(groups),
         "filtered_total": len(sorted_threads),
         "query": query_text,
+        "phone": phone_text,
         "sort": str(sort_mode or "recent"),
         "start": compact_text(start),
         "end": compact_text(end),
@@ -3904,6 +3934,7 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     build_call_threads(
                         limit=clamp_limit((params.get("limit") or ["50"])[0], default=50, maximum=100),
                         query=(params.get("q") or [""])[0],
+                        phone=(params.get("phone") or [""])[0],
                         sort_mode=(params.get("sort") or ["recent"])[0],
                         start=(params.get("start") or [""])[0],
                         end=(params.get("end") or [""])[0],
