@@ -3843,6 +3843,9 @@ class ConciergeHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/voice-config":
             try:
                 body = json.loads(read_request_body(self).decode("utf-8") or "{}")
+                if not emergency_admin_authorized(self, body):
+                    write_json(self, {"ok": False, "error": "Invalid dashboard password."}, status=403)
+                    return
                 write_json(self, update_voice_config(body.get("voice"), body.get("updated_by") or "dashboard"))
             except Exception as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)

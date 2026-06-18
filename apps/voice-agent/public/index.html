@@ -175,7 +175,7 @@
     }
 
     .security-layout {
-      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      grid-template-columns: 1fr;
       gap: 18px;
       align-items: start;
     }
@@ -533,6 +533,33 @@
       gap: 8px;
     }
 
+    .voice-panel[data-engine="standard"] .voice-option[data-engine="vapi"],
+    .voice-panel[data-engine="vapi"] .voice-option[data-engine="standard"],
+    .voice-panel[data-engine="standard"] .vapi-copy,
+    .voice-panel[data-engine="vapi"] .standard-copy {
+      display: none;
+    }
+
+    .voice-admin-lock {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff4d7;
+      color: #4d3b18;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .voice-admin-lock.hidden {
+      display: none;
+    }
+
+    .voice-admin-lock .dashboard-unlock {
+      width: 100%;
+    }
+
     .voice-option {
       min-height: 40px;
       border: 1px solid var(--line);
@@ -591,9 +618,10 @@
     }
 
     .security-panel {
-      padding: 18px;
+      width: 100%;
+      padding: 22px;
       display: grid;
-      gap: 14px;
+      gap: 18px;
       box-shadow: var(--shadow);
     }
 
@@ -614,18 +642,20 @@
 
     .security-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(2, minmax(320px, 1fr));
+      gap: 18px;
     }
 
     .security-card {
       min-width: 0;
+      min-height: 132px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fffdf8;
-      padding: 14px;
+      padding: 18px;
       display: grid;
-      gap: 11px;
+      gap: 13px;
+      align-content: start;
     }
 
     .security-card strong {
@@ -644,7 +674,7 @@
 
     .security-form {
       display: grid;
-      grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr) auto;
+      grid-template-columns: minmax(260px, 1fr) auto;
       gap: 8px;
       align-items: center;
     }
@@ -664,6 +694,20 @@
 
     .protected-view.locked .protected-content {
       display: none;
+    }
+
+    .calls-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .security-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
     }
 
     .dashboard-lock {
@@ -1497,7 +1541,9 @@
 
       .voice-layout,
       .calls-layout,
-      .security-layout {
+      .security-layout,
+      .calls-layout > .protected-content,
+      .security-layout > .protected-content {
         grid-template-columns: 1fr;
         grid-template-rows: none;
         height: auto;
@@ -1589,7 +1635,8 @@
       }
 
       .portrait-wrap,
-      .composer {
+      .composer,
+      .dashboard-unlock {
         grid-template-columns: 1fr;
       }
 
@@ -1752,9 +1799,23 @@
         <button class="danger" id="stopVoice" disabled>End session</button>
       </div>
 
-      <div class="voice-panel">
+      <div class="voice-panel" id="voicePanel" data-engine="standard">
+        <div class="voice-admin-lock" id="voiceLockNotice">
+          <span>Unlock dashboard controls to change the call voice.</span>
+          <div class="dashboard-unlock">
+            <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+            <button class="secondary compact dashboardUnlockButton" type="button">Unlock</button>
+          </div>
+        </div>
         <label>
-          Call voice
+          Voice engine
+          <select id="voiceEngineSelect">
+            <option value="standard">Standard voices</option>
+            <option value="vapi">Vapi voices</option>
+          </select>
+        </label>
+        <label>
+          Active voice
           <select id="voiceSelect">
             <option value="ash" selected>Ash - warm masculine</option>
             <option value="echo">Echo - clear masculine</option>
@@ -1766,21 +1827,22 @@
             <option value="sage">Sage - warm feminine</option>
             <option value="alloy">Alloy - balanced neutral</option>
             <option value="ballad">Ballad - expressive neutral</option>
-            <option value="vapi:riley">Riley / Elliot - Vapi voice (Twilio only)</option>
           </select>
         </label>
+        <p class="hint standard-copy">Standard voices use the OpenAI/Twilio realtime flow for calls and browser testing.</p>
+        <p class="hint vapi-copy">Vapi voices switch live Twilio calls to the Vapi bridge. Browser voice testing remains available only for Standard voices.</p>
         <div class="voice-list" id="voiceButtons">
-          <button class="voice-option active" data-voice="ash">Ash</button>
-          <button class="voice-option" data-voice="echo">Echo</button>
-          <button class="voice-option" data-voice="cedar">Cedar</button>
-          <button class="voice-option" data-voice="verse">Verse</button>
-          <button class="voice-option" data-voice="marin">Marin</button>
-          <button class="voice-option" data-voice="coral">Coral</button>
-          <button class="voice-option" data-voice="shimmer">Shimmer</button>
-          <button class="voice-option" data-voice="sage">Sage</button>
-          <button class="voice-option" data-voice="alloy">Alloy</button>
-          <button class="voice-option" data-voice="ballad">Ballad</button>
-          <button class="voice-option" data-voice="vapi:riley">Riley / Elliot</button>
+          <button class="voice-option active" data-engine="standard" data-voice="ash">Ash</button>
+          <button class="voice-option" data-engine="standard" data-voice="echo">Echo</button>
+          <button class="voice-option" data-engine="standard" data-voice="cedar">Cedar</button>
+          <button class="voice-option" data-engine="standard" data-voice="verse">Verse</button>
+          <button class="voice-option" data-engine="standard" data-voice="marin">Marin</button>
+          <button class="voice-option" data-engine="standard" data-voice="coral">Coral</button>
+          <button class="voice-option" data-engine="standard" data-voice="shimmer">Shimmer</button>
+          <button class="voice-option" data-engine="standard" data-voice="sage">Sage</button>
+          <button class="voice-option" data-engine="standard" data-voice="alloy">Alloy</button>
+          <button class="voice-option" data-engine="standard" data-voice="ballad">Ballad</button>
+          <button class="voice-option" data-engine="vapi" data-voice="vapi:riley">Riley / Elliot</button>
         </div>
         <p class="hint">To change voices after the concierge speaks, end the session and open a new one.</p>
       </div>
@@ -2035,7 +2097,22 @@
   <script src="/vendor/chart.umd.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const voices = ["ash", "echo", "cedar", "verse", "marin", "alloy", "ballad", "coral", "sage", "shimmer", "vapi:riley"];
+    const voiceCatalog = [
+      { id: "ash", label: "Ash - warm masculine", engine: "standard" },
+      { id: "echo", label: "Echo - clear masculine", engine: "standard" },
+      { id: "cedar", label: "Cedar - calm masculine", engine: "standard" },
+      { id: "verse", label: "Verse - conversational masculine", engine: "standard" },
+      { id: "marin", label: "Marin - premium neutral", engine: "standard" },
+      { id: "coral", label: "Coral - bright feminine", engine: "standard" },
+      { id: "shimmer", label: "Shimmer - soft feminine", engine: "standard" },
+      { id: "sage", label: "Sage - warm feminine", engine: "standard" },
+      { id: "alloy", label: "Alloy - balanced neutral", engine: "standard" },
+      { id: "ballad", label: "Ballad - expressive neutral", engine: "standard" },
+      { id: "vapi:riley", label: "Riley / Elliot - Vapi voice", engine: "vapi" },
+    ];
+    const voices = voiceCatalog.map((voice) => voice.id);
+    const standardVoices = voiceCatalog.filter((voice) => voice.engine === "standard").map((voice) => voice.id);
+    const vapiVoices = voiceCatalog.filter((voice) => voice.engine === "vapi").map((voice) => voice.id);
     let peer = null;
     let channel = null;
     let micStream = null;
@@ -2112,6 +2189,7 @@
         const lock = view.querySelector(".dashboard-lock");
         if (lock) lock.classList.toggle("hidden", unlocked);
       }
+      updateVoiceLock();
       if (unlocked) {
         $("callInboxState").textContent = "Unlocked";
       } else {
@@ -2882,8 +2960,41 @@
       $("startVoice").disabled = active;
       $("testVoice").disabled = active;
       $("stopVoice").disabled = !active;
-      $("voiceSelect").disabled = active;
-      for (const button of document.querySelectorAll(".voice-option")) button.disabled = active;
+      updateVoiceLock(active);
+    }
+
+    function voiceEngineFor(voice) {
+      return isVapiVoice(voice) ? "vapi" : "standard";
+    }
+
+    function renderVoiceSelect(engine, selectedVoice = "") {
+      const available = voiceCatalog.filter((voice) => voice.engine === engine);
+      $("voiceSelect").innerHTML = "";
+      for (const voice of available) {
+        const option = document.createElement("option");
+        option.value = voice.id;
+        option.textContent = voice.label;
+        $("voiceSelect").appendChild(option);
+      }
+      const fallback = available[0]?.id || "ash";
+      $("voiceSelect").value = available.some((voice) => voice.id === selectedVoice) ? selectedVoice : fallback;
+    }
+
+    function setVoiceEngine(engine, selectedVoice = "") {
+      const safeEngine = engine === "vapi" ? "vapi" : "standard";
+      $("voicePanel").dataset.engine = safeEngine;
+      $("voiceEngineSelect").value = safeEngine;
+      renderVoiceSelect(safeEngine, selectedVoice);
+    }
+
+    function updateVoiceLock(sessionActive = Boolean(peer)) {
+      const locked = !dashboardUnlocked();
+      $("voiceLockNotice").classList.toggle("hidden", !locked);
+      $("voiceEngineSelect").disabled = locked || sessionActive;
+      $("voiceSelect").disabled = locked || sessionActive;
+      for (const button of document.querySelectorAll(".voice-option")) {
+        button.disabled = locked || sessionActive;
+      }
     }
 
     function currentVoice() {
@@ -2897,6 +3008,12 @@
 
     function setVoice(voice, options = {}) {
       if (!voices.includes(voice) || peer) return;
+      if (options.persist !== false && !dashboardUnlocked()) {
+        appendMessage("System", "Unlock dashboard controls with MosesGlam before changing the call voice.", "system");
+        updateVoiceLock();
+        return;
+      }
+      setVoiceEngine(voiceEngineFor(voice), voice);
       $("voiceSelect").value = voice;
       for (const button of document.querySelectorAll(".voice-option")) {
         button.classList.toggle("active", button.dataset.voice === voice);
@@ -2918,7 +3035,7 @@
         const { response, data } = await fetchJson("/api/voice-config", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ voice, updated_by: "dashboard" })
+          body: JSON.stringify({ voice, password: dashboardKey, updated_by: "dashboard" })
         });
         if (!response.ok || data.ok === false) throw new Error(data.error || "Voice config save failed");
         if (data.active_voice && voices.includes(data.active_voice)) {
@@ -3269,6 +3386,11 @@
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
     });
     $("voiceSelect").addEventListener("change", () => setVoice($("voiceSelect").value));
+    $("voiceEngineSelect").addEventListener("change", () => {
+      const engine = $("voiceEngineSelect").value;
+      const fallback = engine === "vapi" ? vapiVoices[0] : standardVoices[0];
+      setVoice(fallback || "ash");
+    });
     $("micSelect").addEventListener("change", () => {
       selectedMicDeviceId = $("micSelect").value;
       $("micState").textContent = selectedMicDeviceId ? "Microphone selected." : "Using the system microphone.";
@@ -3291,6 +3413,7 @@
       if (peer) peer.close();
     });
 
+    setVoiceEngine("standard", "ash");
     loadStatus();
     loadVoiceConfig();
     updateProtectedViews();
