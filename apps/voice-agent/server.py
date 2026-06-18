@@ -9,6 +9,7 @@ exposing the standard API key to the browser.
 from __future__ import annotations
 
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timezone
 from difflib import SequenceMatcher
 from email.utils import parsedate_to_datetime
@@ -177,6 +178,10 @@ Guesty and property links:
 - When a guest gives a confirmation code, repeat it back exactly as you heard it
   and then make the Guesty lookup. If Guesty finds it, confirm that the
   reservation exists and say whose name it is under before answering the request.
+- Calls are noisy. If Guesty finds a reservation code that is at least 80%
+  similar to what the guest said, do not reject it. Ask whose name the
+  reservation is under; if the spoken name sounds at least 80% similar to the
+  Guesty guest name, continue.
 - For reservation confirmation, prefer guesty_confirm_reservation. During
   code-only testing, the reservation code alone is enough for basic booking
   details and internal stay details.
@@ -422,7 +427,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "guesty_search_reservation",
-        "description": "Search Guesty reservations in read-only mode by confirmation code, guest phone, guest email, or guest name.",
+        "description": "Search Guesty reservations in read-only mode by confirmation code, guest phone, guest email, or guest name. Confirmation-code search tolerates 80% similar codes for phone-call transcription mistakes.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -439,7 +444,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "guesty_confirm_reservation",
-        "description": "Confirm whether a Guesty reservation exists. In code-only testing mode, the confirmation code alone returns basic booking details.",
+        "description": "Confirm whether a Guesty reservation exists. Exact confirmation codes work directly; 80% similar codes require a guest_name that sounds 80% similar to the Guesty name.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -456,7 +461,7 @@ REALTIME_TOOLS = [
     {
         "type": "function",
         "name": "guesty_confirmed_stay_details",
-        "description": "Retrieve internal Guesty reservation and listing stay details including address, amenities, check-in instructions, door code, Wi-Fi/StayFi info, custom fields, and missing-field diagnostics. In code-only testing mode, confirmation code alone is enough.",
+        "description": "Retrieve internal Guesty reservation and listing stay details including address, amenities, check-in instructions, door code, Wi-Fi/StayFi info, custom fields, and missing-field diagnostics. Exact confirmation codes work directly; 80% similar codes require a guest_name that sounds 80% similar to the Guesty name.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -886,12 +891,104 @@ def guesty_reservations(limit: int = 5, skip: int = 0, filters: str = "") -> dic
     return guesty_client.guesty_get("/reservations", params)
 
 
-def guesty_reservation_by_code(code: str, limit: int = 5) -> dict:
+def reservation_code_match_text(value: object) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())
+
+
+def reservation_code_similarity(provided: object, actual: object) -> float:
+    left = reservation_code_match_text(provided)
+    right = reservation_code_match_text(actual)
+    if not left or not right:
+        return 0.0
+    if left == right:
+        return 1.0
+    return SequenceMatcher(None, left, right).ratio()
+
+
+def merge_reservation_payloads(payloads: list[dict], limit: int = 10) -> dict:
+    results: list[dict] = []
+    seen: set[str] = set()
+    for payload in payloads:
+        for reservation in guesty_result_items(payload):
+            key = str(reservation.get("_id") or reservation.get("confirmationCode") or json.dumps(reservation, sort_keys=True, default=str))
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(reservation)
+            if len(results) >= limit:
+                return {"results": results, "count": len(results)}
+    return {"results": results, "count": len(results)}
+
+
+def guesty_reservation_filter_payloads(filter_sets: list[list[dict]], per_query_limit: int = 25, max_workers: int = 4) -> list[dict]:
+    if not filter_sets:
+        return []
+    payloads = []
+    worker_count = max(1, min(max_workers, len(filter_sets)))
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        futures = [
+            executor.submit(guesty_reservations, limit=per_query_limit, filters=json.dumps(filters, separators=(",", ":")))
+            for filters in filter_sets
+        ]
+        for future in as_completed(futures):
+            try:
+                payloads.append(future.result())
+            except Exception:
+                continue
+    return payloads
+
+
+def guesty_reservation_by_code(code: str, limit: int = 5, fuzzy: bool = True) -> dict:
     clean = str(code or "").strip()
     if not clean:
         raise ValueError("Missing confirmation_code.")
     filters = [{"operator": "$in", "field": "confirmationCode", "value": [clean]}]
-    return guesty_reservations(limit=limit, filters=json.dumps(filters, separators=(",", ":")))
+    exact_error = ""
+    try:
+        exact_payload = guesty_reservations(limit=limit, filters=json.dumps(filters, separators=(",", ":")))
+    except Exception as exc:
+        exact_error = str(exc)
+        exact_payload = {"results": [], "count": 0}
+    if guesty_result_items(exact_payload) or not fuzzy:
+        return exact_payload
+
+    normalized = reservation_code_match_text(clean)
+    chunk_values = []
+    if len(normalized) >= 4:
+        chunk_values.extend([normalized[:4], normalized[-4:]])
+    if len(normalized) >= 6:
+        midpoint = len(normalized) // 2
+        chunk_values.append(normalized[max(0, midpoint - 2): midpoint + 2])
+
+    chunk_filter_sets = []
+    seen_chunks: set[str] = set()
+    for chunk in chunk_values:
+        if not chunk or chunk in seen_chunks:
+            continue
+        seen_chunks.add(chunk)
+        chunk_filter_sets.append([{"operator": "$contains", "field": "confirmationCode", "value": chunk}])
+    payloads = guesty_reservation_filter_payloads(chunk_filter_sets, per_query_limit=25)
+    if not payloads and not chunk_filter_sets:
+        payloads.append(guesty_reservations(limit=100))
+
+    candidates = merge_reservation_payloads(payloads, limit=100)
+    scored = []
+    for reservation in guesty_result_items(candidates):
+        actual_code = reservation.get("confirmationCode", "")
+        score = reservation_code_similarity(clean, actual_code)
+        if score >= 0.8:
+            scored.append((score, reservation))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    matched = [reservation for _score, reservation in scored[:limit]]
+    return {
+        "results": matched,
+        "count": len(matched),
+        "fuzzy_code_lookup": True,
+        "provided_confirmation_code": clean,
+        "best_similarity": scored[0][0] if scored else 0,
+        "requires_guest_name_confirmation": bool(matched),
+        "exact_lookup_error": exact_error,
+    }
 
 
 def truthy(value: object) -> bool:
@@ -930,9 +1027,19 @@ def guesty_search_reservation(params: dict) -> dict:
             return confirmation_required_payload("guesty_search_reservation", confirmation_code)
         return guesty_reservation_by_code(confirmation_code, limit=clamp_limit(params.get("limit"), default=5))
 
+    if params.get("guest_phone"):
+        phone_payload = guesty_reservation_by_phone(params.get("guest_phone"), limit=clamp_limit(params.get("limit"), default=5))
+        if params.get("guest_name"):
+            filtered = []
+            for reservation in guesty_result_items(phone_payload):
+                guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
+                if name_matches(params.get("guest_name"), guest.get("fullName")):
+                    filtered.append(reservation)
+            return {**phone_payload, "results": filtered, "count": len(filtered), "filtered_by_guest_name": True}
+        return phone_payload
+
     filters = []
     for field, value in [
-        ("guest.phone", params.get("guest_phone")),
         ("guest.email", params.get("guest_email")),
         ("guest.fullName", params.get("guest_name")),
     ]:
@@ -1160,6 +1267,31 @@ def normalize_match_text(value: object) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
 
 
+def phonetic_match_text(value: object) -> str:
+    text = normalize_match_text(value)
+    replacements = (
+        ("ph", "f"),
+        ("qu", "k"),
+        ("ck", "k"),
+        ("ll", "y"),
+        ("v", "b"),
+        ("z", "s"),
+        ("x", "s"),
+        ("j", "h"),
+        ("g", "h"),
+        ("c", "k"),
+        ("q", "k"),
+    )
+    tokens = []
+    for token in text.split():
+        for source, target in replacements:
+            token = token.replace(source, target)
+        if len(token) > 1:
+            token = token[0] + re.sub(r"[aeiou]+", "", token[1:])
+        tokens.append(token)
+    return " ".join(tokens)
+
+
 def digits_only(value: object) -> str:
     return re.sub(r"\D+", "", str(value or ""))
 
@@ -1171,6 +1303,50 @@ def phone_matches(provided: object, actual: object) -> bool:
         return False
     compare_len = min(len(left), len(right), 10)
     return left[-compare_len:] == right[-compare_len:]
+
+
+def phone_search_values(phone_number: object) -> list[str]:
+    clean_phone = normalize_phone_number(phone_number)
+    digits = digits_only(clean_phone)
+    values = [str(phone_number or "").strip(), clean_phone]
+    if len(digits) >= 10:
+        values.append(digits[-10:])
+    if len(digits) >= 7:
+        values.append(digits[-7:])
+    if len(digits) == 11 and digits.startswith("1"):
+        values.extend([digits[1:], "+1" + digits[1:]])
+    if len(digits) == 12 and digits.startswith("52"):
+        values.extend([digits[2:], "+52" + digits[2:]])
+    seen: set[str] = set()
+    output = []
+    for value in values:
+        value = str(value or "").strip()
+        if value and value not in seen:
+            seen.add(value)
+            output.append(value)
+    return output
+
+
+def guesty_reservation_by_phone(phone_number: object, limit: int = 5) -> dict:
+    clean_phone = normalize_phone_number(phone_number)
+    if len(digits_only(clean_phone)) < 7:
+        raise ValueError("Missing valid guest_phone.")
+    filter_sets = [[{"operator": "$contains", "field": "guest.phone", "value": value}] for value in phone_search_values(clean_phone)]
+    payloads = guesty_reservation_filter_payloads(filter_sets, per_query_limit=25)
+    merged = merge_reservation_payloads(payloads, limit=100)
+    matches = []
+    for reservation in guesty_result_items(merged):
+        guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
+        if phone_matches(clean_phone, guest.get("phone")):
+            matches.append(reservation)
+            if len(matches) >= limit:
+                break
+    return {
+        "results": matches,
+        "count": len(matches),
+        "phone_lookup": True,
+        "searched_values": phone_search_values(clean_phone),
+    }
 
 
 def email_matches(provided: object, actual: object) -> bool:
@@ -1192,11 +1368,20 @@ def name_matches(provided: object, actual: object) -> bool:
         return True
     if left in right or right in left:
         return True
-    if SequenceMatcher(None, left, right).ratio() >= 0.68:
+    if SequenceMatcher(None, left, right).ratio() >= 0.8:
+        return True
+    left_phonetic = phonetic_match_text(left)
+    right_phonetic = phonetic_match_text(right)
+    if left_phonetic and right_phonetic and SequenceMatcher(None, left_phonetic, right_phonetic).ratio() >= 0.8:
         return True
     matched_tokens = 0
     for token in tokens:
-        if any(SequenceMatcher(None, token, actual_token).ratio() >= 0.78 for actual_token in right_tokens):
+        token_phonetic = phonetic_match_text(token)
+        if any(
+            SequenceMatcher(None, token, actual_token).ratio() >= 0.8
+            or (token_phonetic and SequenceMatcher(None, token_phonetic, phonetic_match_text(actual_token)).ratio() >= 0.8)
+            for actual_token in right_tokens
+        ):
             matched_tokens += 1
     return matched_tokens >= max(1, min(len(tokens), 2))
 
@@ -1257,6 +1442,44 @@ def guesty_reservation_safe_summary(reservation: dict) -> dict:
     }
 
 
+def fuzzy_code_requires_name(payload: object) -> bool:
+    return isinstance(payload, dict) and bool(payload.get("fuzzy_code_lookup") and payload.get("requires_guest_name_confirmation"))
+
+
+def fuzzy_code_name_validation_payload(payload: dict, reservation: dict, arguments: dict, code: str, tool_name: str) -> Optional[dict]:
+    if not fuzzy_code_requires_name(payload):
+        return None
+    guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
+    guest_name = arguments.get("guest_name")
+    actual_name = guest.get("fullName") or ""
+    if not compact_text(guest_name):
+        return {
+            "ok": True,
+            "tool": tool_name,
+            "found": True,
+            "fuzzy_code_match": True,
+            "confirmation_code": code,
+            "matched_confirmation_code": reservation.get("confirmationCode", ""),
+            "code_similarity": payload.get("best_similarity", 0),
+            "requires_guest_name": True,
+            "message": "A very similar reservation code was found. Ask whose name the reservation is under, then call this tool again with guest_name.",
+        }
+    if not name_matches(guest_name, actual_name):
+        return {
+            "ok": True,
+            "tool": tool_name,
+            "found": True,
+            "fuzzy_code_match": True,
+            "confirmation_code": code,
+            "matched_confirmation_code": reservation.get("confirmationCode", ""),
+            "code_similarity": payload.get("best_similarity", 0),
+            "guest_name_match": False,
+            "requires_guest_name": True,
+            "message": "A similar reservation code exists, but the provided guest name does not sound close enough to the Guesty name. Ask again or escalate to a human advisor.",
+        }
+    return None
+
+
 def guesty_caller_reservation_context(phone_number: object) -> dict:
     clean_phone = normalize_phone_number(phone_number)
     digits = digits_only(clean_phone)
@@ -1275,49 +1498,29 @@ def guesty_caller_reservation_context(phone_number: object) -> dict:
             "caller_phone": mask_phone_number(clean_phone),
         }
 
-    search_values = []
-    if len(digits) >= 10:
-        search_values.append(digits[-10:])
-    search_values.append(clean_phone)
-    if clean_phone.startswith("+1") and len(digits) == 11:
-        search_values.append(digits[-10:])
-
-    seen_values: set[str] = set()
-    for value in search_values:
-        if not value or value in seen_values:
+    filter_sets = [[{"operator": "$contains", "field": "guest.phone", "value": value}] for value in phone_search_values(clean_phone)]
+    payloads = guesty_reservation_filter_payloads(filter_sets, per_query_limit=5)
+    merged = merge_reservation_payloads(payloads, limit=25)
+    for reservation in guesty_result_items(merged):
+        guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
+        if not phone_matches(clean_phone, guest.get("phone")):
             continue
-        seen_values.add(value)
-        filters = [{"operator": "$contains", "field": "guest.phone", "value": value}]
-        try:
-            payload = guesty_reservations(limit=5, filters=json.dumps(filters, separators=(",", ":")))
-        except Exception as exc:
-            return {
-                "ok": False,
-                "matched": False,
-                "reason": "guesty_lookup_failed",
-                "error": str(exc),
-                "caller_phone": mask_phone_number(clean_phone),
-            }
-        for reservation in guesty_result_items(payload):
-            guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
-            if not phone_matches(clean_phone, guest.get("phone")):
-                continue
-            summary = guesty_reservation_safe_summary(reservation)
-            return {
-                "ok": True,
-                "matched": True,
-                "caller_phone": mask_phone_number(clean_phone),
-                "guest_phone_matches_caller": True,
-                "guest_name": guest.get("fullName") or "",
-                "guest_email": guest.get("email") or "",
-                "guest_phone": guest.get("phone") or "",
-                "reservation": summary,
-                "validation_hint": (
-                    "Caller ID matched the Guesty guest phone. This may count as the phone detail "
-                    "when the guest also provides and confirms their reservation code, but still do "
-                    "not reveal access codes or exact stay details without the required validation."
-                ),
-            }
+        summary = guesty_reservation_safe_summary(reservation)
+        return {
+            "ok": True,
+            "matched": True,
+            "caller_phone": mask_phone_number(clean_phone),
+            "guest_phone_matches_caller": True,
+            "guest_name": guest.get("fullName") or "",
+            "guest_email": guest.get("email") or "",
+            "guest_phone": guest.get("phone") or "",
+            "reservation": summary,
+            "validation_hint": (
+                "Caller ID matched the Guesty guest phone. This may count as the phone detail "
+                "when the guest also provides and confirms their reservation code, but still do "
+                "not reveal access codes or exact stay details without the required validation."
+            ),
+        }
 
     return {
         "ok": True,
@@ -1345,6 +1548,9 @@ def guesty_confirm_reservation(arguments: dict) -> dict:
         }
 
     reservation = reservations[0]
+    fuzzy_validation = fuzzy_code_name_validation_payload(payload, reservation, arguments, code, "guesty_confirm_reservation")
+    if fuzzy_validation:
+        return fuzzy_validation
     validation = guesty_validation_result(reservation, arguments)
     if not validation["safe_to_share_basic_details"]:
         return {
@@ -1385,6 +1591,9 @@ def guesty_confirmed_stay_details(arguments: dict) -> dict:
         }
 
     reservation = reservations[0]
+    fuzzy_validation = fuzzy_code_name_validation_payload(payload, reservation, arguments, code, "guesty_confirmed_stay_details")
+    if fuzzy_validation:
+        return fuzzy_validation
     validation = guesty_validation_result(reservation, arguments)
     if not validation["safe_to_share_basic_details"]:
         return {
