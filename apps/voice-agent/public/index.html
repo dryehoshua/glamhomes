@@ -170,7 +170,7 @@
     }
 
     .calls-layout {
-      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      grid-template-columns: 1fr;
       gap: 18px;
     }
 
@@ -1630,6 +1630,10 @@
         grid-template-columns: 1fr;
       }
 
+      .calls-layout .call-inbox {
+        order: -1;
+      }
+
       .calls-layout .analytics-dashboard {
         max-height: none;
         overflow: visible;
@@ -1741,19 +1745,28 @@
 
       .call-inbox-actions {
         width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
         justify-content: stretch;
       }
 
       .call-search {
         width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .call-search input {
         width: 100%;
       }
 
+      .call-search .secondary {
+        grid-column: 1 / -1;
+      }
+
       .thread-filters {
         width: 100%;
+        max-width: 100%;
         overflow-x: auto;
       }
 
