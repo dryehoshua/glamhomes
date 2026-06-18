@@ -182,6 +182,13 @@ Guesty and property links:
   similar to what the guest said, do not reject it. Ask whose name the
   reservation is under; if the spoken name sounds at least 80% similar to the
   Guesty guest name, continue.
+- Caller ID may match an old Guesty profile. If caller ID matches only a past or
+  cancelled reservation, greet the caller by name and say welcome back, but do
+  not treat that reservation as active. Offer help with feedback, their previous
+  experience, or a forgotten item. If they ask about another reservation, ask
+  for the reservation code like a normal call.
+- If caller ID matches an active or upcoming confirmed reservation, tell them you
+  see a confirmed reservation and offer concierge help for that stay.
 - For reservation confirmation, prefer guesty_confirm_reservation. During
   code-only testing, the reservation code alone is enough for basic booking
   details and internal stay details.
@@ -1442,6 +1449,85 @@ def guesty_reservation_safe_summary(reservation: dict) -> dict:
     }
 
 
+def parse_guesty_date(value: object) -> Optional[date]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    normalized = text.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).date()
+    except ValueError:
+        pass
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(text[:10], fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def reservation_status_text(reservation: dict) -> str:
+    return str(reservation.get("status") or "").strip().lower()
+
+
+def reservation_is_cancelled(reservation: dict) -> bool:
+    status = reservation_status_text(reservation)
+    return "cancel" in status or status in {"canceled", "cancelled", "declined"}
+
+
+def reservation_check_in_date(reservation: dict) -> Optional[date]:
+    return parse_guesty_date(reservation.get("checkInDateLocalized") or reservation.get("checkIn"))
+
+
+def reservation_check_out_date(reservation: dict) -> Optional[date]:
+    return parse_guesty_date(reservation.get("checkOutDateLocalized") or reservation.get("checkOut"))
+
+
+def reservation_caller_context_state(reservation: dict, today: Optional[date] = None) -> str:
+    today = today or date.today()
+    if reservation_is_cancelled(reservation):
+        return "cancelled"
+    check_out = reservation_check_out_date(reservation)
+    if check_out and check_out < today:
+        return "past"
+    return "active_or_upcoming"
+
+
+def active_reservation_sort_key(reservation: dict) -> tuple[int, int]:
+    today = date.today()
+    check_in = reservation_check_in_date(reservation)
+    check_out = reservation_check_out_date(reservation)
+    if check_in and check_out and check_in <= today <= check_out:
+        return (0, 0)
+    target = check_in or check_out
+    if target:
+        return (1, abs((target - today).days))
+    return (2, 999999)
+
+
+def inactive_reservation_sort_key(reservation: dict) -> tuple[int, int]:
+    check_out = reservation_check_out_date(reservation)
+    if check_out:
+        return (0, -check_out.toordinal())
+    check_in = reservation_check_in_date(reservation)
+    if check_in:
+        return (1, -check_in.toordinal())
+    return (2, -999999)
+
+
+def select_caller_context_reservation(reservations: list[dict]) -> tuple[Optional[dict], str]:
+    active = [reservation for reservation in reservations if reservation_caller_context_state(reservation) == "active_or_upcoming"]
+    if active:
+        active.sort(key=active_reservation_sort_key)
+        return active[0], "active_or_upcoming"
+    inactive = list(reservations)
+    inactive.sort(key=inactive_reservation_sort_key)
+    if inactive:
+        selected = inactive[0]
+        return selected, reservation_caller_context_state(selected)
+    return None, "none"
+
+
 def fuzzy_code_requires_name(payload: object) -> bool:
     return isinstance(payload, dict) and bool(payload.get("fuzzy_code_lookup") and payload.get("requires_guest_name_confirmation"))
 
@@ -1501,25 +1587,46 @@ def guesty_caller_reservation_context(phone_number: object) -> dict:
     filter_sets = [[{"operator": "$contains", "field": "guest.phone", "value": value}] for value in phone_search_values(clean_phone)]
     payloads = guesty_reservation_filter_payloads(filter_sets, per_query_limit=5)
     merged = merge_reservation_payloads(payloads, limit=25)
+    matches = []
     for reservation in guesty_result_items(merged):
         guest = reservation.get("guest") if isinstance(reservation.get("guest"), dict) else {}
         if not phone_matches(clean_phone, guest.get("phone")):
             continue
-        summary = guesty_reservation_safe_summary(reservation)
+        matches.append(reservation)
+
+    selected, context_state = select_caller_context_reservation(matches)
+    if selected:
+        guest = selected.get("guest") if isinstance(selected.get("guest"), dict) else {}
+        summary = guesty_reservation_safe_summary(selected)
+        has_active_reservation = context_state == "active_or_upcoming"
+        if has_active_reservation:
+            validation_hint = (
+                "Caller ID matched an active or upcoming Guesty reservation. Greet the caller by "
+                "the registered first name if available, say you see a confirmed reservation on "
+                "file, and offer concierge help for that stay. If the caller asks about this stay, "
+                "you may use the reservation context and Guesty tools without asking for email or phone."
+            )
+        else:
+            validation_hint = (
+                "Caller ID matched only a past or cancelled Guesty reservation. Greet the caller by "
+                "the registered first name if available and say welcome back, but do not treat this "
+                "reservation as active. Offer help with feedback, their previous experience, or a "
+                "forgotten item. If they ask about another reservation, ask for the reservation code "
+                "like a normal call."
+            )
         return {
             "ok": True,
             "matched": True,
             "caller_phone": mask_phone_number(clean_phone),
+            "reservation_context_state": context_state,
+            "has_active_reservation": has_active_reservation,
+            "matched_reservation_count": len(matches),
             "guest_phone_matches_caller": True,
             "guest_name": guest.get("fullName") or "",
             "guest_email": guest.get("email") or "",
             "guest_phone": guest.get("phone") or "",
             "reservation": summary,
-            "validation_hint": (
-                "Caller ID matched the Guesty guest phone. This may count as the phone detail "
-                "when the guest also provides and confirms their reservation code, but still do "
-                "not reveal access codes or exact stay details without the required validation."
-            ),
+            "validation_hint": validation_hint,
         }
 
     return {

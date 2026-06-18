@@ -48,15 +48,32 @@ def session_update(call_sid: str, caller: str, called: str, caller_context: dict
     elif caller_context.get("matched"):
         reservation = caller_context.get("reservation") if isinstance(caller_context.get("reservation"), dict) else {}
         guest_name = str(caller_context.get("guest_name") or "").strip()
-        caller_context_instruction = (
+        context_state = str(caller_context.get("reservation_context_state") or "").strip()
+        has_active_reservation = bool(caller_context.get("has_active_reservation"))
+        base_context = (
             "\nCaller ID lookup: matched a Guesty reservation for this caller phone."
             f"\nRegistered guest name: {guest_name or 'unknown'}."
             f"\nMatched reservation code for Guesty tool use: {reservation.get('confirmation_code') or 'unknown'}."
             f"\nProperty on file: {reservation.get('listing_title') or 'unknown'}."
-            "\nDuring current testing, treat this as recognized caller context. Greet the caller by the registered guest first name if available."
-            "\nIf the caller asks about this stay, you may use the reservation context and Guesty tools without asking for email or phone."
-            "\nIf the guest provides a reservation code, repeat it back once, call Guesty immediately, confirm whether it exists, and say whose name it is under."
+            f"\nReservation status: {reservation.get('status') or 'unknown'}."
+            f"\nReservation dates: {reservation.get('check_in') or 'unknown'} to {reservation.get('check_out') or 'unknown'}."
         )
+        if has_active_reservation:
+            caller_context_instruction = (
+                base_context
+                + "\nCaller ID state: active_or_upcoming."
+                + "\nGreet the caller by the registered guest first name if available, say you see a confirmed reservation on file, and offer concierge help for that stay."
+                + "\nIf the caller asks about this stay, you may use the reservation context and Guesty tools without asking for email or phone."
+                + "\nIf the guest provides a reservation code, repeat it back once, call Guesty immediately, confirm whether it exists, and say whose name it is under."
+            )
+        else:
+            caller_context_instruction = (
+                base_context
+                + f"\nCaller ID state: {context_state or 'past_or_inactive'}."
+                + "\nThis matched reservation is past or cancelled. Do not treat it as an active stay and do not imply they currently have a confirmed reservation."
+                + "\nGreet the caller by the registered guest first name if available and say welcome back. Offer help with feedback from their previous experience or with a forgotten item."
+                + "\nIf the caller asks about another reservation or an upcoming stay, ask for their reservation code like a normal call."
+            )
     else:
         caller_context_instruction = "\nCaller ID lookup: no matching Guesty reservation was found for the caller phone."
     instructions = (
