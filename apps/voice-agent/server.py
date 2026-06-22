@@ -51,6 +51,7 @@ DEFAULT_VOICE = os.environ.get("OPENAI_REALTIME_VOICE", "ash")
 OPENAI_ALLOWED_VOICES = {"alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"}
 VAPI_DEFAULT_ASSISTANT_ID = os.environ.get("VAPI_ASSISTANT_ID", "a551072d-9b5d-4089-b01b-ccde2db3f656")
 VAPI_API_BASE = os.environ.get("VAPI_API_BASE", "https://api.vapi.ai").rstrip("/")
+VAPI_WEBSOCKET_HEALTH_HOST = os.environ.get("VAPI_WEBSOCKET_HEALTH_HOST", "phone-call-websocket.aws-us-west-2-backend-production3.vapi.ai")
 ALLOWED_VOICES = OPENAI_ALLOWED_VOICES | {"vapi:riley"}
 TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+17864813013")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://glamhomes.aipeople.app").rstrip("/")
@@ -2268,6 +2269,23 @@ def monitor_port_check(label: str, port: int) -> dict:
         return {"label": label, "ok": False, "state": "down", "detail": f"127.0.0.1:{port} unreachable: {exc}"}
 
 
+def monitor_tcp_host_check(label: str, host: str, port: int = 443, timeout: float = 1.5) -> dict:
+    started = time.monotonic()
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            latency_ms = int((time.monotonic() - started) * 1000)
+            return {"label": label, "ok": True, "state": "ok", "detail": f"{host}:{port}", "latency_ms": latency_ms}
+    except OSError as exc:
+        return {"label": label, "ok": False, "state": "down", "detail": f"{host}:{port} unreachable: {exc}"}
+
+
+def monitor_active_voice_connectivity() -> dict:
+    engine = active_voice_engine()
+    if engine == "vapi":
+        return monitor_tcp_host_check("Voice provider network", VAPI_WEBSOCKET_HEALTH_HOST)
+    return monitor_tcp_host_check("Voice provider network", "api.openai.com")
+
+
 def monitor_http_probe(label: str, url: str, timeout: float = 2.5) -> dict:
     started = time.monotonic()
     req = request.Request(url, method="GET", headers={"Accept": "application/json", "User-Agent": "GlamHomesMonitor/1.0"})
@@ -2291,9 +2309,9 @@ def normalize_monitor_url(value: object) -> str:
     return str(value or "").strip().rstrip("/")
 
 
-def monitor_twilio_number(expected: dict[str, str]) -> dict:
+def monitor_twilio_number(expected: dict[str, str], timeout: int = 12) -> dict:
     phone_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
-    payload = twilio_api_get("IncomingPhoneNumbers.json", {"PhoneNumber": phone_number, "PageSize": "1"})
+    payload = twilio_api_get("IncomingPhoneNumbers.json", {"PhoneNumber": phone_number, "PageSize": "1"}, timeout=timeout)
     records = payload.get("incoming_phone_numbers") or []
     if not records:
         return {"ok": False, "state": "down", "phone_number": phone_number, "detail": "Number was not found in this Twilio account."}
@@ -2367,7 +2385,12 @@ def build_twilio_monitor(deep: bool = True) -> dict:
     app_port = int(os.environ.get("PORT", str(PORT)))
     media_port = int(os.environ.get("TWILIO_MEDIA_PORT", "8877"))
     proxy_port = int(os.environ.get("GLAM_PROXY_PORT", "8890"))
+    voice_engine = active_voice_engine()
     openai_ready = bool(openai_api_key())
+    vapi_ready = vapi_configured()
+    voice_config_ready = vapi_ready if voice_engine == "vapi" else openai_ready
+    voice_connectivity = monitor_active_voice_connectivity()
+    voice_engine_ready = voice_config_ready and bool(voice_connectivity.get("ok"))
     guesty_ready = guesty_configured()
     twilio_ready = twilio_configured()
     local_services = {
@@ -2418,11 +2441,12 @@ def build_twilio_monitor(deep: bool = True) -> dict:
             "detail": expected["sms_webhook_url"],
         },
         {
-            "label": "OpenAI Realtime",
-            "ok": openai_ready,
-            "state": "ok" if openai_ready else "down",
-            "detail": os.environ.get("OPENAI_REALTIME_MODEL", REALTIME_MODEL),
+            "label": "Voice engine",
+            "ok": voice_config_ready,
+            "state": "ok" if voice_config_ready else "down",
+            "detail": f"{voice_engine}: {active_voice_id()}",
         },
+        voice_connectivity,
         {
             "label": "Guesty bridge",
             "ok": guesty_ready,
@@ -2440,7 +2464,7 @@ def build_twilio_monitor(deep: bool = True) -> dict:
             local_services["public_proxy"]["ok"],
             public_health["ok"],
             bool((twilio_number.get("checks") or {}).get("voice")),
-            openai_ready,
+            voice_engine_ready,
         ]
     )
     sms_active = all(
@@ -2477,7 +2501,12 @@ def build_twilio_public_health() -> dict:
     app_port = int(os.environ.get("PORT", str(PORT)))
     media_port = int(os.environ.get("TWILIO_MEDIA_PORT", "8877"))
     proxy_port = int(os.environ.get("GLAM_PROXY_PORT", "8890"))
+    voice_engine = active_voice_engine()
     openai_ready = bool(openai_api_key())
+    vapi_ready = vapi_configured()
+    voice_config_ready = vapi_ready if voice_engine == "vapi" else openai_ready
+    voice_connectivity = monitor_active_voice_connectivity()
+    voice_engine_ready = voice_config_ready and bool(voice_connectivity.get("ok"))
     twilio_ready = twilio_configured()
     local_services = {
         "backend": monitor_port_check("Backend API", app_port),
@@ -2489,7 +2518,7 @@ def build_twilio_public_health() -> dict:
     twilio_api_ok = False
     if twilio_ready:
         try:
-            twilio_number = monitor_twilio_number(expected)
+            twilio_number = monitor_twilio_number(expected, timeout=2)
             twilio_api_ok = True
         except Exception:
             twilio_number = {"ok": False, "state": "warn", "checks": {}, "detail": "Twilio API check unavailable."}
@@ -2504,7 +2533,7 @@ def build_twilio_public_health() -> dict:
             public_health["ok"],
             twilio_ready,
             voice_webhook_ok,
-            openai_ready,
+            voice_engine_ready,
         ]
     )
     sms_active = all(
@@ -2524,7 +2553,8 @@ def build_twilio_public_health() -> dict:
         {"label": "Twilio number", "ok": bool(twilio_number.get("ok")), "state": twilio_number.get("state", "warn"), "detail": "Configured" if twilio_number.get("ok") else "Check unavailable"},
         {"label": "Voice webhook", "ok": voice_webhook_ok, "state": "ok" if voice_webhook_ok else "warn", "detail": "Configured"},
         {"label": "SMS webhook", "ok": sms_webhook_ok, "state": "ok" if sms_webhook_ok else "warn", "detail": "Configured"},
-        {"label": "OpenAI Realtime", "ok": openai_ready, "state": "ok" if openai_ready else "down", "detail": os.environ.get("OPENAI_REALTIME_MODEL", REALTIME_MODEL)},
+        {"label": "Voice engine", "ok": voice_config_ready, "state": "ok" if voice_config_ready else "down", "detail": f"{voice_engine}: {active_voice_id()}"},
+        voice_connectivity,
     ]
     return {
         "ok": voice_active and sms_active,
