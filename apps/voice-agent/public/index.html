@@ -1186,6 +1186,59 @@
       gap: 10px;
     }
 
+    .analytics-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .analytics-table-card {
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf8;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .analytics-table-card h3 {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .analytics-table {
+      display: grid;
+      gap: 6px;
+      max-height: 150px;
+      overflow: auto;
+    }
+
+    .analytics-row {
+      min-height: 34px;
+      border: 1px solid rgba(223, 212, 189, 0.72);
+      border-radius: 8px;
+      padding: 6px 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255, 248, 235, 0.58);
+      font-size: 12px;
+    }
+
+    .analytics-row strong {
+      overflow-wrap: anywhere;
+    }
+
+    .analytics-row span {
+      color: var(--muted);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
     .chart-card {
       min-height: 178px;
       border: 1px solid var(--line);
@@ -1404,6 +1457,39 @@
       overflow-wrap: anywhere;
     }
 
+    .call-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .call-badge {
+      border: 1px solid rgba(200, 155, 60, 0.36);
+      border-radius: 999px;
+      padding: 2px 6px;
+      background: #fff8eb;
+      color: #6b5732;
+      font-size: 10px;
+      line-height: 1.2;
+      font-weight: 780;
+    }
+
+    .call-badge.escalation,
+    .call-badge.abandoned,
+    .call-badge.missed {
+      border-color: rgba(236, 106, 94, 0.42);
+      background: #fff0ee;
+      color: #8c342d;
+    }
+
+    .call-badge.repeat,
+    .call-badge.same_topic {
+      border-color: rgba(240, 191, 73, 0.44);
+      background: #fff5d9;
+      color: #7b5a10;
+    }
+
     .transcript-panel {
       min-height: 0;
       display: grid;
@@ -1414,9 +1500,17 @@
     .transcript-header {
       min-height: 52px;
       padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .transcript-title {
+      min-width: 0;
       display: grid;
       gap: 4px;
-      border-bottom: 1px solid var(--line);
     }
 
     .transcript-header strong {
@@ -1428,6 +1522,35 @@
       color: var(--muted);
       font-size: 12px;
       overflow-wrap: anywhere;
+    }
+
+    .transcript-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      flex: 0 0 auto;
+    }
+
+    .transcript-mode {
+      min-height: 28px;
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 820;
+      white-space: nowrap;
+    }
+
+    .transcript-mode.active {
+      background: #f8ead0;
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.26);
     }
 
     .transcript-messages {
@@ -1626,6 +1749,10 @@
         grid-template-columns: 1fr;
       }
 
+      .analytics-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
       .call-inbox-layout {
         grid-template-columns: 1fr;
       }
@@ -1738,6 +1865,10 @@
         grid-template-columns: 1fr;
       }
 
+      .analytics-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
       .call-inbox-header {
         align-items: flex-start;
         flex-direction: column;
@@ -1789,6 +1920,19 @@
 
       .transcript-bubble {
         max-width: 94%;
+      }
+
+      .transcript-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .transcript-toggle {
+        width: 100%;
+      }
+
+      .transcript-mode {
+        flex: 1 1 0;
       }
 
       .message {
@@ -2048,6 +2192,24 @@
             <h3>Pipeline mix</h3>
             <div class="chart-box"><canvas id="mixChart"></canvas></div>
           </div>
+          <div class="chart-card">
+            <h3>Calls by day and hour</h3>
+            <div class="chart-box"><canvas id="hourHeatmapChart"></canvas></div>
+          </div>
+        </div>
+        <div class="analytics-detail-grid" aria-label="Operational analytics tables">
+          <div class="analytics-table-card">
+            <h3>Escalations by reason</h3>
+            <div class="analytics-table" id="escalationTable">
+              <div class="analytics-row"><strong>No escalation data</strong><span>--</span></div>
+            </div>
+          </div>
+          <div class="analytics-table-card">
+            <h3>SMS sent</h3>
+            <div class="analytics-table" id="smsTable">
+              <div class="analytics-row"><strong>No SMS data</strong><span>--</span></div>
+            </div>
+          </div>
         </div>
         <div class="keyword-panel">
           <h3>Frequent concepts</h3>
@@ -2192,8 +2354,12 @@
     let analyticsRangeMode = "week";
     let topicChart = null;
     let mixChart = null;
+    let hourHeatmapChart = null;
     let lastMetrics = {};
     let lastCallData = {};
+    let transcriptViewMode = "clean";
+    let lastTranscriptSummary = {};
+    let lastTranscriptEvents = [];
     const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
     const dashboardKeyStorage = "glamHomesDashboardKey";
     let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
@@ -2506,6 +2672,15 @@
       return Number.isFinite(number) ? number.toFixed(number % 1 ? 1 : 0) + "%" : "--";
     }
 
+    function formatDuration(seconds) {
+      const value = Number(seconds || 0);
+      if (!Number.isFinite(value) || value <= 0) return "--";
+      const mins = Math.floor(value / 60);
+      const secs = Math.round(value % 60);
+      if (mins <= 0) return secs + "s";
+      return mins + "m " + String(secs).padStart(2, "0") + "s";
+    }
+
     function isoDateInput(date) {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -2591,8 +2766,10 @@
     function destroyCharts() {
       if (topicChart) topicChart.destroy();
       if (mixChart) mixChart.destroy();
+      if (hourHeatmapChart) hourHeatmapChart.destroy();
       topicChart = null;
       mixChart = null;
+      hourHeatmapChart = null;
     }
 
     function renderCharts(metrics = {}, data = {}) {
@@ -2601,7 +2778,8 @@
       if (!window.Chart || !$("callsView").classList.contains("active")) return;
       const topicCanvas = $("topicChart");
       const mixCanvas = $("mixChart");
-      if (!topicCanvas || !mixCanvas) return;
+      const heatmapCanvas = $("hourHeatmapChart");
+      if (!topicCanvas || !mixCanvas || !heatmapCanvas) return;
       destroyCharts();
       const theme = chartTheme();
       const topics = Array.isArray(metrics.topics) && metrics.topics.length
@@ -2661,6 +2839,120 @@
           },
         },
       });
+
+      const dayIndex = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      const heatRows = Array.isArray(metrics.calls_by_day_hour) ? metrics.calls_by_day_hour : [];
+      const maxHeat = Math.max(1, ...heatRows.map((item) => Number(item.count || 0)));
+      const heatData = heatRows.map((item) => ({
+        x: Number(item.hour || 0),
+        y: dayIndex[item.day] ?? 0,
+        r: 5 + (Number(item.count || 0) / maxHeat) * 14,
+        count: Number(item.count || 0),
+        label: item.label || "",
+      }));
+      hourHeatmapChart = new Chart(heatmapCanvas, {
+        type: "bubble",
+        data: {
+          datasets: [{
+            label: "Calls",
+            data: heatData.length ? heatData : [{ x: 12, y: 3, r: 5, count: 0, label: "No calls" }],
+            backgroundColor: heatData.length ? "rgba(200, 155, 60, 0.62)" : "rgba(111, 102, 88, 0.28)",
+            borderColor: theme.goldDeep,
+            borderWidth: 1,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (item) => " " + (item.raw.label || "") + " · " + item.raw.count + " calls",
+              },
+            },
+          },
+          scales: {
+            x: {
+              min: 0,
+              max: 23,
+              ticks: { stepSize: 3, color: theme.muted, callback: (value) => value + ":00" },
+              grid: { color: "rgba(223, 212, 189, 0.32)" },
+            },
+            y: {
+              min: -0.5,
+              max: 6.5,
+              ticks: {
+                stepSize: 1,
+                color: theme.muted,
+                callback: (value) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][value] || "",
+              },
+              grid: { color: "rgba(223, 212, 189, 0.32)" },
+            },
+          },
+        },
+      });
+    }
+
+    function labelFromSnake(value) {
+      return String(value || "other")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+    }
+
+    function smsTypeLabel(value) {
+      const labels = {
+        property_link: "Property links",
+        stay_details: "Stay details",
+        human_handoff: "Human alerts",
+        caller_confirmation: "Caller confirmations",
+        inbound_sms: "Inbound SMS",
+        sms: "Other SMS",
+      };
+      return labels[value] || labelFromSnake(value);
+    }
+
+    function renderAnalyticsTable(id, rows, emptyLabel, labelGetter, valueGetter) {
+      const table = $(id);
+      if (!table) return;
+      table.innerHTML = "";
+      const records = Array.isArray(rows) ? rows : [];
+      if (!records.length) {
+        const empty = document.createElement("div");
+        empty.className = "analytics-row";
+        empty.innerHTML = "<strong></strong><span>--</span>";
+        empty.querySelector("strong").textContent = emptyLabel;
+        table.appendChild(empty);
+        return;
+      }
+      for (const row of records.slice(0, 8)) {
+        const item = document.createElement("div");
+        item.className = "analytics-row";
+        const label = document.createElement("strong");
+        label.textContent = labelGetter(row);
+        const value = document.createElement("span");
+        value.textContent = valueGetter(row);
+        item.appendChild(label);
+        item.appendChild(value);
+        table.appendChild(item);
+      }
+    }
+
+    function renderOperationalTables(metrics = {}) {
+      renderAnalyticsTable(
+        "escalationTable",
+        metrics.escalations_by_reason || [],
+        "No escalation data",
+        (row) => labelFromSnake(row.reason_category),
+        (row) => (row.count || 0) + " calls",
+      );
+      renderAnalyticsTable(
+        "smsTable",
+        (metrics.sms_events || []).filter((event) => event.sms_type !== "inbound_sms"),
+        "No SMS data",
+        (row) => smsTypeLabel(row.sms_type) + (row.to ? " · " + row.to : ""),
+        (row) => row.preview || row.status || "--",
+      );
     }
 
     function renderKpis(metrics = {}, data = {}) {
@@ -2688,6 +2980,31 @@
           value: metrics.human_handoffs ?? 0,
           detail: formatPct(metrics.handoff_rate_pct) + " handoff rate",
         },
+        {
+          label: "First call resolution",
+          value: formatPct(metrics.fcr_pct),
+          detail: (metrics.fcr_resolved_calls ?? 0) + " of " + (metrics.fcr_eligible_calls ?? 0) + " eligible",
+        },
+        {
+          label: "Avg resolution",
+          value: formatDuration(metrics.avg_resolution_seconds),
+          detail: "Start to end or transfer",
+        },
+        {
+          label: "Repeat contact",
+          value: formatPct(metrics.repeat_contact_rate_pct),
+          detail: (metrics.repeat_contacts ?? 0) + " repeat · " + (metrics.same_topic_repeats ?? 0) + " same topic",
+        },
+        {
+          label: "Missed / abandoned",
+          value: (metrics.missed_calls ?? 0) + " / " + (metrics.abandoned_calls ?? 0),
+          detail: "Telephony status and short unresolved calls",
+        },
+        {
+          label: "SMS sent",
+          value: metrics.sms_sent ?? 0,
+          detail: "Guest and advisor messages",
+        },
       ];
       grid.innerHTML = "";
       for (const row of rows) {
@@ -2712,6 +3029,8 @@
           ["Tool actions", metrics.tool_actions ?? 0],
           ["Guest turns", metrics.guest_messages ?? 0],
           ["Avg messages", metrics.avg_messages_per_call ?? 0],
+          ["Same-topic repeats", metrics.same_topic_repeats ?? 0],
+          ["Abandoned", metrics.abandoned_calls ?? 0],
         ];
         secondary.innerHTML = "";
         for (const [labelText, valueText] of secondaryRows) {
@@ -2756,17 +3075,21 @@
       if (activePhone) scopeParts.push("Phone " + activePhone);
       if (activeQuery) scopeParts.push(activeQuery);
       $("analyticsScope").textContent = scopeParts.join(" · ");
+      renderOperationalTables(metrics);
       renderCharts(metrics, data);
     }
 
     function clearTranscript(title, detail) {
       $("transcriptHeader").innerHTML = "";
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "transcript-title";
       const heading = document.createElement("strong");
       heading.textContent = title;
       const sub = document.createElement("span");
       sub.textContent = detail;
-      $("transcriptHeader").appendChild(heading);
-      $("transcriptHeader").appendChild(sub);
+      titleWrap.appendChild(heading);
+      titleWrap.appendChild(sub);
+      $("transcriptHeader").appendChild(titleWrap);
       $("transcriptMessages").innerHTML = "";
       const bubble = document.createElement("div");
       bubble.className = "transcript-bubble system";
@@ -2778,6 +3101,44 @@
       bubble.appendChild(speaker);
       bubble.appendChild(body);
       $("transcriptMessages").appendChild(bubble);
+    }
+
+    function setTranscriptMode(mode) {
+      transcriptViewMode = mode === "technical" ? "technical" : "clean";
+      renderTranscript(lastTranscriptSummary, lastTranscriptEvents);
+    }
+
+    function transcriptRowsForMode(events) {
+      const rows = Array.isArray(events) ? events : [];
+      if (transcriptViewMode === "technical") return rows;
+      return rows.filter((event) => ["guest", "concierge"].includes(event.role) && String(event.text || "").trim());
+    }
+
+    function renderTranscriptHeader(summary) {
+      $("transcriptHeader").innerHTML = "";
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "transcript-title";
+      const heading = document.createElement("strong");
+      heading.textContent = callTitle(summary || {});
+      const sub = document.createElement("span");
+      const calls = Number(summary?.call_count || 0);
+      const topic = summary?.primary_topic && summary.primary_topic !== "Unclassified" ? " · " + summary.primary_topic : "";
+      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "") + topic;
+      titleWrap.appendChild(heading);
+      titleWrap.appendChild(sub);
+
+      const toggle = document.createElement("div");
+      toggle.className = "transcript-toggle";
+      for (const [mode, label] of [["clean", "Clean chat"], ["technical", "Technical"]]) {
+        const button = document.createElement("button");
+        button.className = "transcript-mode" + (transcriptViewMode === mode ? " active" : "");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", () => setTranscriptMode(mode));
+        toggle.appendChild(button);
+      }
+      $("transcriptHeader").appendChild(titleWrap);
+      $("transcriptHeader").appendChild(toggle);
     }
 
     function callerDisplayName(call) {
@@ -2830,29 +3191,47 @@
         const detail = document.createElement("span");
         detail.className = "call-item-time";
         detail.textContent = compactDate(callerLastSpoke(thread));
+        const badges = document.createElement("span");
+        badges.className = "call-badges";
+        const badgeRows = Array.isArray(thread.badges) ? thread.badges : [];
+        for (const badge of badgeRows.slice(0, 4)) {
+          const chip = document.createElement("span");
+          chip.className = "call-badge " + String(badge.type || "topic").replace(/[^a-z0-9_-]/gi, "");
+          chip.textContent = badge.label + (Number(badge.count || 0) > 1 ? " " + badge.count : "");
+          badges.appendChild(chip);
+        }
 
         button.appendChild(title);
         button.appendChild(number);
         button.appendChild(detail);
+        if (badges.children.length) button.appendChild(badges);
         button.addEventListener("click", () => openCallThread(thread.thread_id));
         list.appendChild(button);
       }
     }
 
     function renderTranscript(summary, events) {
-      $("transcriptHeader").innerHTML = "";
-      const heading = document.createElement("strong");
-      heading.textContent = callTitle(summary || {});
-      const sub = document.createElement("span");
-      const calls = Number(summary?.call_count || 0);
-      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "");
-      $("transcriptHeader").appendChild(heading);
-      $("transcriptHeader").appendChild(sub);
+      lastTranscriptSummary = summary || {};
+      lastTranscriptEvents = Array.isArray(events) ? events : [];
+      renderTranscriptHeader(summary || {});
 
       const feed = $("transcriptMessages");
       feed.innerHTML = "";
-      const rows = Array.isArray(events) ? events : [];
+      const rows = transcriptRowsForMode(events);
       if (!rows.length) {
+        if (transcriptViewMode === "clean" && Array.isArray(events) && events.length) {
+          const bubble = document.createElement("div");
+          bubble.className = "transcript-bubble system";
+          const speaker = document.createElement("span");
+          speaker.className = "transcript-speaker";
+          speaker.textContent = "System";
+          const body = document.createElement("span");
+          body.textContent = "No guest/concierge messages in clean chat. Switch to Technical for system and tool events.";
+          bubble.appendChild(speaker);
+          bubble.appendChild(body);
+          feed.appendChild(bubble);
+          return;
+        }
         clearTranscript("No transcript yet", "This call has Twilio metadata, but no local conversation transcript has been saved yet.");
         return;
       }

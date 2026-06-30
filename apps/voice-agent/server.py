@@ -441,6 +441,21 @@ CALL_STOPWORDS = {
     "gracias",
 }
 
+HANDOFF_REASON_CATEGORIES = {
+    "guest_requested_human",
+    "missing_information",
+    "unsupported_request",
+    "operational_request",
+    "access_issue",
+    "maintenance",
+    "policy_exception",
+    "emergency",
+    "ai_failure",
+    "other",
+}
+
+REPEAT_CONTACT_WINDOW_SECONDS = 48 * 60 * 60
+
 
 REALTIME_TOOLS = [
     {
@@ -621,6 +636,7 @@ REALTIME_TOOLS = [
             "type": "object",
             "properties": {
                 "reason": {"type": "string", "description": "Short reason for human handoff."},
+                "reason_category": {"type": "string", "description": "Structured handoff category: guest_requested_human, missing_information, unsupported_request, operational_request, access_issue, maintenance, policy_exception, emergency, ai_failure, or other."},
                 "summary": {"type": "string", "description": "Concise call summary for the human agent."},
                 "guest_name": {"type": "string", "description": "Guest name if known."},
                 "reservation_code": {"type": "string", "description": "Reservation confirmation code if known."},
@@ -640,6 +656,7 @@ REALTIME_TOOLS = [
             "type": "object",
             "properties": {
                 "reason": {"type": "string", "description": "Short transfer reason."},
+                "reason_category": {"type": "string", "description": "Structured transfer category: guest_requested_human, missing_information, unsupported_request, operational_request, access_issue, maintenance, policy_exception, emergency, ai_failure, or other."},
                 "summary": {"type": "string", "description": "Concise call summary for the human agent."},
                 "guest_name": {"type": "string", "description": "Guest name if known."},
                 "reservation_code": {"type": "string", "description": "Reservation confirmation code if known."},
@@ -2843,6 +2860,235 @@ def merge_counts(target: dict[str, int], source: dict[str, int]) -> None:
         target[key] = target.get(key, 0) + value
 
 
+def seconds_between(start: object, end: object) -> int:
+    start_ts = transcript_sort_key(start)
+    end_ts = transcript_sort_key(end)
+    if not start_ts or not end_ts or end_ts < start_ts:
+        return 0
+    return int(round(end_ts - start_ts))
+
+
+def parse_duration_seconds(value: object) -> int:
+    try:
+        return max(0, int(float(str(value or "").strip() or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def primary_topic_from_events(events: list[dict]) -> str:
+    conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
+    text_blob = transcript_text_blob(conversation_events)
+    hits = call_topic_hits(text_blob)
+    return hits[0] if hits else "Unclassified"
+
+
+def handoff_reason_category(value: object, reason: object = "") -> str:
+    clean = str(value or "").strip().lower()
+    if clean in HANDOFF_REASON_CATEGORIES:
+        return clean
+    text = compact_text(reason).lower()
+    if any(token in text for token in ("human", "person", "representative", "agent", "asesor", "persona")):
+        return "guest_requested_human"
+    if any(token in text for token in ("missing", "not found", "no encontre", "no encontr", "unavailable", "empty")):
+        return "missing_information"
+    if any(token in text for token in ("access", "door", "lock", "code", "clave", "entrada")):
+        return "access_issue"
+    if any(token in text for token in ("maintenance", "broken", "repair", "ac", "air", "water", "electric", "mantenimiento")):
+        return "maintenance"
+    if any(token in text for token in ("refund", "cancel", "discount", "pet", "party", "late checkout", "early check")):
+        return "policy_exception"
+    if any(token in text for token in ("emergency", "urgent", "safety", "seguridad", "emergencia")):
+        return "emergency"
+    if any(token in text for token in ("unsupported", "unknown", "cannot", "can't", "no puedo")):
+        return "unsupported_request"
+    return "other"
+
+
+def sms_type_from_kind(kind: object) -> str:
+    clean = str(kind or "").strip().lower()
+    if "stay_details" in clean:
+        return "stay_details"
+    if "human_handoff_confirmation" in clean:
+        return "caller_confirmation"
+    if "human_handoff" in clean:
+        return "human_handoff"
+    if "inbound" in clean:
+        return "inbound_sms"
+    if "outbound" in clean or "property" in clean:
+        return "property_link"
+    return "sms"
+
+
+def sms_preview(value: object, limit: int = 140) -> str:
+    text = compact_text(value)
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def sms_events_from_call(call_sid: str, events: list[dict]) -> list[dict]:
+    rows = []
+    for event in events:
+        channel = str(event.get("channel") or "").lower()
+        kind = str(event.get("kind") or "").lower()
+        if "sms" not in channel and "sms" not in kind:
+            continue
+        metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+        body = str(metadata.get("body_preview") or metadata.get("sms_preview") or event.get("text") or "")
+        rows.append(
+            {
+                "call_sid": call_sid,
+                "timestamp": event.get("timestamp", ""),
+                "sms_type": str(metadata.get("sms_type") or sms_type_from_kind(kind)),
+                "message_sid": str(metadata.get("message_sid") or ""),
+                "to": str(metadata.get("to") or metadata.get("caller_number") or metadata.get("support_number") or ""),
+                "from": str(metadata.get("from") or os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER)),
+                "status": str(metadata.get("status") or ("dry_run" if metadata.get("dry_run") else "sent")),
+                "preview": sms_preview(body),
+                "protected": True,
+            }
+        )
+    return rows
+
+
+def call_has_handoff(events: list[dict]) -> bool:
+    for event in events:
+        kind = str(event.get("kind") or "").lower()
+        if "human_handoff" in kind or "human_transfer" in kind:
+            return True
+    return False
+
+
+def handoff_reason_rows(call_sid: str, events: list[dict]) -> list[dict]:
+    rows = []
+    for event in events:
+        kind = str(event.get("kind") or "").lower()
+        if "human_handoff" not in kind and "human_transfer" not in kind:
+            continue
+        metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+        reason = str(metadata.get("reason") or event.get("text") or "").strip()
+        category = handoff_reason_category(metadata.get("reason_category"), reason)
+        rows.append(
+            {
+                "call_sid": call_sid,
+                "timestamp": event.get("timestamp", ""),
+                "kind": kind,
+                "reason": reason,
+                "reason_category": category,
+            }
+        )
+    return rows
+
+
+def call_resolution_seconds(call: dict, events: list[dict]) -> int:
+    duration = parse_duration_seconds(call.get("duration"))
+    if duration:
+        return duration
+    timestamps = [event.get("timestamp") for event in events if event.get("timestamp")]
+    if not timestamps:
+        return 0
+    start = min(timestamps, key=transcript_sort_key)
+    end_candidates = [
+        event.get("timestamp")
+        for event in events
+        if "human_transfer" in str(event.get("kind") or "").lower() and event.get("timestamp")
+    ]
+    end = min(end_candidates, key=transcript_sort_key) if end_candidates else max(timestamps, key=transcript_sort_key)
+    return seconds_between(start, end)
+
+
+def call_status_text(call: dict) -> str:
+    return str(call.get("status") or "").strip().lower()
+
+
+def call_is_missed(call: dict) -> bool:
+    status = call_status_text(call)
+    return status in {"busy", "failed", "no-answer", "canceled", "cancelled"}
+
+
+def call_is_abandoned(call: dict, events: list[dict], guest_messages: int, concierge_messages: int) -> bool:
+    if call_is_missed(call):
+        return False
+    duration = call_resolution_seconds(call, events)
+    if not call.get("has_transcript") and call_status_text(call) in {"completed", "transcript", ""}:
+        return True
+    if guest_messages == 0 and concierge_messages == 0 and call_status_text(call) in {"completed", "transcript", ""}:
+        return True
+    return bool(duration and duration < 15 and guest_messages <= 1 and concierge_messages == 0)
+
+
+def analyze_call(call: dict, events: list[dict]) -> dict:
+    roles = [transcript_event_role(event) for event in events]
+    guest_messages = sum(1 for role in roles if role == "guest")
+    concierge_messages = sum(1 for role in roles if role == "concierge")
+    tool_actions = sum(1 for role in roles if role == "tool")
+    sms_rows = sms_events_from_call(str(call.get("call_sid") or ""), events)
+    handoff_rows = handoff_reason_rows(str(call.get("call_sid") or ""), events)
+    missed = call_is_missed(call)
+    abandoned = call_is_abandoned(call, events, guest_messages, concierge_messages)
+    return {
+        "call_sid": str(call.get("call_sid") or ""),
+        "phone": str(call.get("from") or "").strip(),
+        "topic": primary_topic_from_events(events),
+        "started_at": call.get("started_at") or call.get("last_at") or "",
+        "last_at": call.get("last_at") or call.get("started_at") or "",
+        "resolution_seconds": call_resolution_seconds(call, events),
+        "guest_messages": guest_messages,
+        "concierge_messages": concierge_messages,
+        "tool_actions": tool_actions,
+        "sms_events": sms_rows,
+        "handoffs": handoff_rows,
+        "has_handoff": bool(handoff_rows) or call_has_handoff(events),
+        "missed": missed,
+        "abandoned": abandoned,
+        "eligible_for_fcr": bool(call.get("has_transcript")) and not missed and not abandoned,
+        "repeat_contact": False,
+        "same_topic_repeat": False,
+        "repeated_later_same_topic": False,
+    }
+
+
+def call_events_for_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict[str, list[dict]]:
+    events_by_sid: dict[str, list[dict]] = {}
+    for call in calls:
+        call_sid = str(call.get("call_sid") or "")
+        path = path_by_sid.get(call_sid)
+        events_by_sid[call_sid] = read_transcript_events(path, maximum=1000) if path else []
+    return events_by_sid
+
+
+def mark_repeat_contacts(analyses: list[dict]) -> None:
+    by_phone: dict[str, list[dict]] = {}
+    for analysis in analyses:
+        phone_digits = digits_only(analysis.get("phone"))
+        if phone_digits:
+            by_phone.setdefault(phone_digits, []).append(analysis)
+    for rows in by_phone.values():
+        rows.sort(key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
+        for index, row in enumerate(rows):
+            row_ts = transcript_sort_key(row.get("started_at") or row.get("last_at"))
+            for previous in rows[:index]:
+                previous_ts = transcript_sort_key(previous.get("started_at") or previous.get("last_at"))
+                if row_ts and previous_ts and 0 <= row_ts - previous_ts <= REPEAT_CONTACT_WINDOW_SECONDS:
+                    row["repeat_contact"] = True
+                    if row.get("topic") == previous.get("topic") and row.get("topic") != "Unclassified":
+                        row["same_topic_repeat"] = True
+                        previous["repeated_later_same_topic"] = True
+            for later in rows[index + 1 :]:
+                later_ts = transcript_sort_key(later.get("started_at") or later.get("last_at"))
+                if row_ts and later_ts and 0 <= later_ts - row_ts <= REPEAT_CONTACT_WINDOW_SECONDS:
+                    if row.get("topic") == later.get("topic") and row.get("topic") != "Unclassified":
+                        row["repeated_later_same_topic"] = True
+
+
+def hour_bucket_from_timestamp(value: object) -> tuple[str, int, str]:
+    parsed = parse_any_datetime(value)
+    if not parsed:
+        return ("Unknown", -1, "Unknown")
+    local_dt = datetime.fromtimestamp(parsed.timestamp())
+    return (local_dt.strftime("%a"), int(local_dt.hour), local_dt.strftime("%a %H:00"))
+
+
 def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
     unique_callers = {str(call.get("from") or "") for call in calls if str(call.get("from") or "").strip()}
     with_transcript = sum(1 for call in calls if call.get("has_transcript"))
@@ -2854,11 +3100,19 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
     guest_messages = 0
     concierge_messages = 0
     booking_intent_calls = 0
+    resolution_seconds: list[int] = []
+    sms_events: list[dict] = []
+    sms_by_type: dict[str, int] = {}
+    escalations_by_reason: dict[str, int] = {}
+    calls_by_day_hour: dict[tuple[str, int], dict] = {}
 
+    events_by_sid = call_events_for_metrics(calls, path_by_sid)
+    analyses = []
     for call in calls:
         call_sid = str(call.get("call_sid") or "")
-        path = path_by_sid.get(call_sid)
-        events = read_transcript_events(path, maximum=1000) if path else []
+        events = events_by_sid.get(call_sid, [])
+        analysis = analyze_call(call, events)
+        analyses.append(analysis)
         conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
         text_blob = transcript_text_blob(conversation_events)
         hits = call_topic_hits(text_blob)
@@ -2867,19 +3121,38 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         if "Booking intent" in hits:
             booking_intent_calls += 1
         merge_counts(top_terms, token_counts_from_text(text_blob))
-        for event in events:
-            role = transcript_event_role(event)
-            kind = str(event.get("kind") or "").lower()
-            if role == "guest":
-                guest_messages += 1
-            elif role == "concierge":
-                concierge_messages += 1
-            elif role == "tool":
-                tool_actions += 1
-            if "human_handoff" in kind:
-                human_handoffs += 1
+        guest_messages += int(analysis.get("guest_messages") or 0)
+        concierge_messages += int(analysis.get("concierge_messages") or 0)
+        tool_actions += int(analysis.get("tool_actions") or 0)
+        if analysis.get("has_handoff"):
+            human_handoffs += 1
+        if int(analysis.get("resolution_seconds") or 0):
+            resolution_seconds.append(int(analysis.get("resolution_seconds") or 0))
+        for sms_event in analysis.get("sms_events") or []:
+            sms_events.append(sms_event)
+            sms_type = str(sms_event.get("sms_type") or "sms")
+            sms_by_type[sms_type] = sms_by_type.get(sms_type, 0) + 1
+        for handoff in analysis.get("handoffs") or []:
+            category = str(handoff.get("reason_category") or "other")
+            escalations_by_reason[category] = escalations_by_reason.get(category, 0) + 1
+        day, hour, label = hour_bucket_from_timestamp(call.get("started_at") or call.get("last_at"))
+        if hour >= 0:
+            bucket = calls_by_day_hour.setdefault((day, hour), {"day": day, "hour": hour, "label": label, "count": 0})
+            bucket["count"] += 1
+
+    mark_repeat_contacts(analyses)
 
     total_calls = len(calls)
+    repeat_contacts = sum(1 for analysis in analyses if analysis.get("repeat_contact"))
+    same_topic_repeats = sum(1 for analysis in analyses if analysis.get("same_topic_repeat"))
+    missed_calls = sum(1 for analysis in analyses if analysis.get("missed"))
+    abandoned_calls = sum(1 for analysis in analyses if analysis.get("abandoned"))
+    eligible_fcr = [analysis for analysis in analyses if analysis.get("eligible_for_fcr")]
+    resolved_first_contact = [
+        analysis
+        for analysis in eligible_fcr
+        if not analysis.get("has_handoff") and not analysis.get("repeated_later_same_topic")
+    ]
     topic_rows = [
         {"label": label, "count": count}
         for label, count in sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)
@@ -2901,6 +3174,26 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         "avg_messages_per_call": round(total_messages / total_calls, 1) if total_calls else 0,
         "transcript_coverage_pct": round((with_transcript / total_calls) * 100, 1) if total_calls else 0,
         "handoff_rate_pct": round((human_handoffs / total_calls) * 100, 1) if total_calls else 0,
+        "fcr_pct": round((len(resolved_first_contact) / len(eligible_fcr)) * 100, 1) if eligible_fcr else 0,
+        "fcr_resolved_calls": len(resolved_first_contact),
+        "fcr_eligible_calls": len(eligible_fcr),
+        "avg_resolution_seconds": round(sum(resolution_seconds) / len(resolution_seconds), 1) if resolution_seconds else 0,
+        "repeat_contacts": repeat_contacts,
+        "repeat_contact_rate_pct": round((repeat_contacts / total_calls) * 100, 1) if total_calls else 0,
+        "same_topic_repeats": same_topic_repeats,
+        "missed_calls": missed_calls,
+        "abandoned_calls": abandoned_calls,
+        "sms_sent": len([event for event in sms_events if event.get("sms_type") != "inbound_sms"]),
+        "sms_by_type": [
+            {"type": key, "count": value}
+            for key, value in sorted(sms_by_type.items(), key=lambda item: item[1], reverse=True)
+        ],
+        "sms_events": sorted(sms_events, key=lambda item: transcript_sort_key(item.get("timestamp")), reverse=True)[:40],
+        "escalations_by_reason": [
+            {"reason_category": key, "count": value}
+            for key, value in sorted(escalations_by_reason.items(), key=lambda item: item[1], reverse=True)
+        ],
+        "calls_by_day_hour": sorted(calls_by_day_hour.values(), key=lambda item: (item["day"], item["hour"])),
         "topics": topic_rows,
         "top_terms": top_term_rows,
     }
@@ -3098,6 +3391,47 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
     last_sorted = sorted(last_values, key=transcript_sort_key)
     first_sorted = sorted(first_values, key=transcript_sort_key)
     relevance_score = sum(call_relevance_score(call, path_by_sid) for call in calls)
+    analyses = []
+    for call in calls:
+        call_sid = str(call.get("call_sid") or "")
+        path = path_by_sid.get(call_sid)
+        events = read_transcript_events(path, maximum=1000) if path else []
+        analyses.append(analyze_call(call, events))
+    mark_repeat_contacts(analyses)
+    topic_counts: dict[str, int] = {}
+    sms_count = 0
+    escalation_count = 0
+    repeat_count = 0
+    same_topic_count = 0
+    missed_count = 0
+    abandoned_count = 0
+    for analysis in analyses:
+        topic = str(analysis.get("topic") or "Unclassified")
+        topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        sms_count += len([event for event in (analysis.get("sms_events") or []) if event.get("sms_type") != "inbound_sms"])
+        escalation_count += len(analysis.get("handoffs") or [])
+        repeat_count += 1 if analysis.get("repeat_contact") else 0
+        same_topic_count += 1 if analysis.get("same_topic_repeat") else 0
+        missed_count += 1 if analysis.get("missed") else 0
+        abandoned_count += 1 if analysis.get("abandoned") else 0
+    primary_topic = "Unclassified"
+    if topic_counts:
+        primary_topic = sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)[0][0]
+    badges = []
+    if repeat_count:
+        badges.append({"type": "repeat", "label": "Repeat contact", "count": repeat_count})
+    if same_topic_count:
+        badges.append({"type": "same_topic", "label": "Same topic repeat", "count": same_topic_count})
+    if escalation_count:
+        badges.append({"type": "escalation", "label": "Escalated", "count": escalation_count})
+    if sms_count:
+        badges.append({"type": "sms", "label": "SMS", "count": sms_count})
+    if missed_count:
+        badges.append({"type": "missed", "label": "Missed", "count": missed_count})
+    if abandoned_count:
+        badges.append({"type": "abandoned", "label": "Abandoned", "count": abandoned_count})
+    if primary_topic and primary_topic != "Unclassified":
+        badges.append({"type": "topic", "label": primary_topic, "count": topic_counts.get(primary_topic, 0)})
     return {
         "thread_id": thread_id,
         "phone": str(latest.get("from") or "").strip(),
@@ -3111,6 +3445,14 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         "interaction_count": message_count + len(calls),
         "relevance_score": relevance_score,
         "has_transcript": any(call.get("has_transcript") for call in calls),
+        "primary_topic": primary_topic,
+        "repeat_contacts": repeat_count,
+        "same_topic_repeats": same_topic_count,
+        "sms_sent": sms_count,
+        "escalation_count": escalation_count,
+        "missed_calls": missed_count,
+        "abandoned_calls": abandoned_count,
+        "badges": badges,
         "latest_call_sid": latest.get("call_sid", ""),
         "call_sids": [call.get("call_sid", "") for call in ordered if call.get("call_sid")],
     }
@@ -3316,7 +3658,16 @@ def twilio_send_property_link_sms(arguments: Optional[dict] = None) -> dict:
         f"SMS sent to {to_number}: {body}" if not dry_run else f"SMS dry run to {to_number}: {body}",
         channel="twilio_sms",
         kind="outbound_sms",
-        metadata={"listing_id": row["listing_id"], "platform": platform, "message_sid": payload.get("sid", ""), "dry_run": dry_run},
+        metadata={
+            "sms_type": "property_link",
+            "listing_id": row["listing_id"],
+            "platform": platform,
+            "message_sid": payload.get("sid", ""),
+            "to": to_number,
+            "from": from_number,
+            "body_preview": sms_preview(body),
+            "dry_run": dry_run,
+        },
     )
     return {
         "ok": True,
@@ -3404,9 +3755,12 @@ def twilio_send_stay_details_sms(arguments: Optional[dict] = None) -> dict:
         channel="twilio_sms",
         kind="stay_details_sms",
         metadata={
+            "sms_type": "stay_details",
             "message_sid": payload.get("sid", ""),
             "reservation_code": confirmation_code,
             "to": to_number,
+            "from": from_number,
+            "body_preview": sms_preview(body),
             "dry_run": dry_run,
             "missing_critical_fields": stay_details.get("missing_critical_fields", []),
         },
@@ -3435,6 +3789,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
     reason = truncate_sms_part(arguments.get("reason"), 180)
     if not reason:
         raise ValueError("Missing handoff reason.")
+    reason_category = handoff_reason_category(arguments.get("reason_category"), reason)
     summary = truncate_sms_part(arguments.get("summary") or arguments.get("problem"), 260)
     guest_name = truncate_sms_part(arguments.get("guest_name"), 80)
     reservation_code = truncate_sms_part(arguments.get("reservation_code"), 80)
@@ -3453,6 +3808,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
     parts = [
         "GLAM Concierge human attention required.",
         f"Urgency: {urgency}",
+        f"Category: {reason_category}",
         f"Reason: {reason}",
     ]
     if summary:
@@ -3482,10 +3838,17 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
         channel="twilio_sms",
         kind="human_handoff_sms",
         metadata={
+            "sms_type": "human_handoff",
             "message_sid": payload.get("sid", ""),
             "support_number": support_number,
+            "to": support_number,
+            "from": from_number,
             "caller_number": caller_number,
             "urgency": urgency,
+            "reason": reason,
+            "reason_category": reason_category,
+            "summary": summary,
+            "body_preview": sms_preview(body),
             "dry_run": dry_run,
         },
     )
@@ -3504,7 +3867,15 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
             f"Caller handoff confirmation SMS sent to {caller_number}" if not dry_run else f"Caller handoff confirmation SMS dry run to {caller_number}",
             channel="twilio_sms",
             kind="human_handoff_confirmation_sms",
-            metadata={"message_sid": caller_message_sid, "caller_number": caller_number, "dry_run": dry_run},
+            metadata={
+                "sms_type": "caller_confirmation",
+                "message_sid": caller_message_sid,
+                "caller_number": caller_number,
+                "to": caller_number,
+                "from": from_number,
+                "body_preview": sms_preview(caller_confirmation_body),
+                "dry_run": dry_run,
+            },
         )
 
     return {
@@ -3516,6 +3887,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
         "caller_number": caller_number,
         "caller_confirmation_message_sid": caller_message_sid,
         "caller_confirmation_body": caller_confirmation_body,
+        "reason_category": reason_category,
         "body": body,
     }
 
@@ -3525,6 +3897,7 @@ def twilio_transfer_call_to_human(arguments: Optional[dict] = None) -> dict:
     reason = truncate_sms_part(arguments.get("reason"), 180)
     if not reason:
         raise ValueError("Missing transfer reason.")
+    reason_category = handoff_reason_category(arguments.get("reason_category"), reason)
     call_sid = str(arguments.get("call_sid") or "").strip()
     if not call_sid:
         raise ValueError("Missing call_sid for live transfer.")
@@ -3552,7 +3925,13 @@ def twilio_transfer_call_to_human(arguments: Optional[dict] = None) -> dict:
         f"Call transfer initiated to {support_number}" if not dry_run else f"Call transfer dry run to {support_number}",
         channel="twilio",
         kind="human_transfer",
-        metadata={"support_number": support_number, "twilio_status": payload.get("status", ""), "dry_run": dry_run},
+        metadata={
+            "support_number": support_number,
+            "twilio_status": payload.get("status", ""),
+            "reason": reason,
+            "reason_category": reason_category,
+            "dry_run": dry_run,
+        },
     )
     return {
         "ok": True,
@@ -4213,7 +4592,13 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 params.get("Body") or "(sin texto)",
                 channel="twilio_sms",
                 kind="inbound_sms",
-                metadata={"from": params.get("From", ""), "to": params.get("To", ""), "message_sid": message_sid},
+                metadata={
+                    "sms_type": "inbound_sms",
+                    "from": params.get("From", ""),
+                    "to": params.get("To", ""),
+                    "message_sid": message_sid,
+                    "body_preview": sms_preview(params.get("Body") or ""),
+                },
             )
             write_text(self, '<?xml version="1.0" encoding="UTF-8"?><Response></Response>', content_type="text/xml; charset=utf-8")
             return
