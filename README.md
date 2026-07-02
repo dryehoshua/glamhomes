@@ -68,6 +68,10 @@ El plan de acceso Guesty, booking flow y ticket de soporte quedo en
 El mapa de capacidades reales probadas con Guesty quedo en
 `docs/09-guesty-api-capabilities-map.md`.
 
+El manual operativo ejecutivo del concierge, paneles, analytics, seguridad,
+SMS, escalaciones y plan de verificacion quedo en
+`docs/11-glam-homes-concierge-operating-manual.md`.
+
 El mapa actualizable de links publicos de propiedades quedo en
 `documentacion/10-mapa-links-propiedades.md` y los exports estan en `data/`.
 

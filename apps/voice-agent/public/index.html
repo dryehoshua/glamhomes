@@ -1132,6 +1132,64 @@
       gap: 6px;
     }
 
+    .analytics-priority-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .priority-card {
+      min-height: 86px;
+      border: 1px solid rgba(223, 212, 189, 0.84);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf8;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+      box-shadow: inset 3px 0 0 rgba(200, 155, 60, 0.46);
+    }
+
+    .priority-card.alert {
+      background: #fff4f1;
+      border-color: rgba(204, 83, 58, 0.4);
+      box-shadow: inset 3px 0 0 rgba(204, 83, 58, 0.74);
+    }
+
+    .priority-card.good {
+      background: #f3fbf1;
+      border-color: rgba(72, 143, 79, 0.36);
+      box-shadow: inset 3px 0 0 rgba(72, 143, 79, 0.72);
+    }
+
+    .priority-card.watch {
+      background: #fff9eb;
+      border-color: rgba(204, 156, 47, 0.36);
+      box-shadow: inset 3px 0 0 rgba(204, 156, 47, 0.72);
+    }
+
+    .priority-card strong {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .priority-card span {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 850;
+      line-height: 1.05;
+      overflow-wrap: anywhere;
+    }
+
+    .priority-card small {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
     .mini-metric {
       min-height: 36px;
       border: 1px solid rgba(223, 212, 189, 0.78);
@@ -2008,11 +2066,13 @@
 
       .analytics-layout .kpi-grid,
       .analytics-layout .analytics-secondary,
+      .analytics-layout .analytics-priority-grid,
       .analytics-layout .analytics-detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .chart-grid {
+      .chart-grid,
+      .analytics-layout .chart-grid {
         grid-template-columns: 1fr;
       }
 
@@ -2111,7 +2171,8 @@
       .monitor-grid,
       .monitor-events,
       .kpi-grid,
-      .chart-grid {
+      .chart-grid,
+      .analytics-layout .chart-grid {
         grid-template-columns: 1fr;
       }
 
@@ -2153,6 +2214,7 @@
       .analytics-detail-grid,
       .analytics-layout .kpi-grid,
       .analytics-layout .analytics-secondary,
+      .analytics-layout .analytics-priority-grid,
       .analytics-layout .analytics-detail-grid {
         grid-template-columns: 1fr;
       }
@@ -2503,6 +2565,12 @@
           <div class="mini-metric"><strong>Tool actions</strong><span>--</span></div>
           <div class="mini-metric"><strong>Guest turns</strong><span>--</span></div>
           <div class="mini-metric"><strong>Avg messages</strong><span>--</span></div>
+        </div>
+        <div class="analytics-priority-grid" id="analyticsPriorityGrid" aria-label="Operations priorities">
+          <div class="priority-card"><strong>Priority queue</strong><span>--</span><small>Calls needing review</small></div>
+          <div class="priority-card"><strong>Repeat issue</strong><span>--</span><small>Same subtopic callbacks</small></div>
+          <div class="priority-card"><strong>VIP pipeline</strong><span>--</span><small>Influencer or VIP signals</small></div>
+          <div class="priority-card"><strong>Quality signal</strong><span>--</span><small>Guest praise captured</small></div>
         </div>
         <div class="chart-grid" aria-label="Call center charts">
           <div class="chart-card">
@@ -3376,6 +3444,60 @@
       );
     }
 
+    function renderPriorityGrid(metrics = {}) {
+      const grid = $("analyticsPriorityGrid");
+      if (!grid) return;
+      const subtopics = Array.isArray(metrics.subtopics) ? metrics.subtopics : [];
+      const topRepeat = subtopics.find((item) => Number(item.repeat_count || 0) > 0) || {};
+      const attentionCount = Number(metrics.attention_calls || 0);
+      const sameSubtopicRepeats = Number(metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0);
+      const influencerCalls = Number(metrics.influencer_calls || 0);
+      const praiseCalls = Number(metrics.praise_calls || 0);
+      const rows = [
+        {
+          label: "Priority queue",
+          value: attentionCount,
+          detail: attentionCount ? "Review red conversations first" : "No red conversations in range",
+          tone: attentionCount ? "alert" : "",
+        },
+        {
+          label: "Repeat issue",
+          value: sameSubtopicRepeats,
+          detail: topRepeat.label
+            ? topRepeat.label + " · " + (topRepeat.repeat_count || 0) + " repeats"
+            : "No same-subtopic callbacks",
+          tone: sameSubtopicRepeats ? "watch" : "",
+        },
+        {
+          label: "VIP pipeline",
+          value: influencerCalls,
+          detail: (metrics.influencer_callers || 0) + " unique influencer callers",
+          tone: influencerCalls ? "watch" : "",
+        },
+        {
+          label: "Quality signal",
+          value: praiseCalls,
+          detail: praiseCalls ? "Positive guest sentiment captured" : "No praise calls in range",
+          tone: praiseCalls ? "good" : "",
+        },
+      ];
+      grid.innerHTML = "";
+      for (const row of rows) {
+        const card = document.createElement("div");
+        card.className = "priority-card" + (row.tone ? " " + row.tone : "");
+        const label = document.createElement("strong");
+        label.textContent = row.label;
+        const value = document.createElement("span");
+        value.textContent = row.value;
+        const detail = document.createElement("small");
+        detail.textContent = row.detail;
+        card.appendChild(label);
+        card.appendChild(value);
+        card.appendChild(detail);
+        grid.appendChild(card);
+      }
+    }
+
     function renderKpis(metrics = {}, data = {}) {
       const grid = $("kpiGrid");
       lastMetrics = metrics || {};
@@ -3519,6 +3641,7 @@
       if (activePhone) scopeParts.push("Phone " + activePhone);
       if (activeQuery) scopeParts.push(activeQuery);
       $("analyticsScope").textContent = scopeParts.join(" · ");
+      renderPriorityGrid(metrics);
       renderOperationalTables(metrics);
       renderCharts(metrics, data);
     }
