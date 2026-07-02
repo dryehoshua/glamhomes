@@ -3159,16 +3159,22 @@ def sms_events_from_call(call_sid: str, events: list[dict]) -> list[dict]:
             continue
         metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
         body = str(metadata.get("body_preview") or metadata.get("sms_preview") or event.get("text") or "")
+        body_to_match = re.search(r"\bSMS sent to\s+([+\d][+\d\s().-]{6,})\s*:", body, flags=re.I)
+        body_preview = re.sub(r"^\s*SMS sent to\s+[+\d][+\d\s().-]{6,}\s*:\s*", "", body, flags=re.I)
+        to_number = str(metadata.get("to") or metadata.get("caller_number") or metadata.get("support_number") or "").strip()
+        if not to_number and body_to_match:
+            to_number = compact_text(body_to_match.group(1))
         rows.append(
             {
                 "call_sid": call_sid,
                 "timestamp": event.get("timestamp", ""),
                 "sms_type": str(metadata.get("sms_type") or sms_type_from_kind(kind)),
                 "message_sid": str(metadata.get("message_sid") or ""),
-                "to": str(metadata.get("to") or metadata.get("caller_number") or metadata.get("support_number") or ""),
+                "to": to_number,
                 "from": str(metadata.get("from") or os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER)),
                 "status": str(metadata.get("status") or ("dry_run" if metadata.get("dry_run") else "sent")),
-                "preview": sms_preview(body),
+                "preview": sms_preview(body_preview),
+                "direction": "inbound" if str(metadata.get("sms_type") or sms_type_from_kind(kind)) == "inbound_sms" else "outbound",
                 "protected": True,
             }
         )
@@ -3866,6 +3872,7 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
     ordered_calls = sorted(calls, key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
     events: list[dict] = []
     call_analyses: list[dict] = []
+    sms_events: list[dict] = []
     for call in ordered_calls:
         call_sid = str(call.get("call_sid") or "")
         marker_time = call.get("started_at") or call.get("last_at") or ""
@@ -3883,6 +3890,7 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
         path = path_by_sid.get(call_sid)
         raw_events = read_transcript_events(path, maximum=1000) if path else []
         analysis = analyze_call(call, raw_events)
+        sms_events.extend(analysis.get("sms_events") or [])
         call_analyses.append(
             {
                 "call_sid": call_sid,
@@ -3922,6 +3930,7 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
         "summary": build_call_thread_summary(clean_thread_id, calls, path_by_sid),
         "calls": ordered_calls,
         "call_analyses": call_analyses,
+        "sms_events": sorted(sms_events, key=lambda item: transcript_sort_key(item.get("timestamp"))),
         "events": events,
         "start": compact_text(start),
         "end": compact_text(end),

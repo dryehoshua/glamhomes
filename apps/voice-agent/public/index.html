@@ -700,11 +700,19 @@
     .calls-layout > .protected-content {
       min-width: 0;
       display: grid;
-      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      grid-template-columns: 1fr;
       gap: 18px;
       align-items: stretch;
       min-height: min(760px, calc(100vh - 178px));
       max-height: calc(100vh - 156px);
+    }
+
+    .analytics-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: stretch;
     }
 
     .security-layout > .protected-content {
@@ -1317,20 +1325,124 @@
 
     .call-inbox-header {
       padding: 13px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 12px;
       border-bottom: 1px solid var(--line);
       background: #fffaf0;
     }
 
-    .call-inbox-actions {
+    .call-inbox-title {
+      min-width: 0;
       display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .call-inbox-status {
+      display: inline-flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
+    }
+
+    .call-inbox-actions {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.4fr) auto minmax(320px, 1fr);
+      align-items: end;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .call-filter-block {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+
+    .filter-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 820;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .call-range-filters {
+      justify-content: flex-start;
+    }
+
+    .call-range-filter {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .call-range-filter.active {
+      background: #f8ead0;
+      color: var(--ink);
+      border-color: rgba(200, 155, 60, 0.52);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .call-custom-range {
+      justify-content: flex-start;
+    }
+
+    .call-custom-range input {
+      width: 168px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .call-inbox-actions .thread-filters {
+      align-self: end;
+    }
+
+    .call-inbox-actions .call-search {
+      justify-self: end;
+    }
+
+    .call-search {
+      display: grid;
+      grid-template-columns: minmax(130px, 0.9fr) minmax(160px, 1.1fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .call-search input {
+      width: 100%;
+    }
+
+    .call-search .secondary {
+      white-space: nowrap;
+    }
+
+    .thread-filters {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      flex-wrap: wrap;
     }
 
     .call-inbox-auth {
@@ -1358,16 +1470,6 @@
       border-color: var(--gold);
     }
 
-    .thread-filters {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 3px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fffdf8;
-    }
-
     .thread-filter {
       min-height: 30px;
       border: 0;
@@ -1386,15 +1488,7 @@
       box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.32);
     }
 
-    .call-search {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
     .call-search input {
-      width: min(230px, 30vw);
       height: 34px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1413,7 +1507,7 @@
     .call-inbox-layout {
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
     }
 
     .call-list {
@@ -1508,7 +1602,7 @@
     .transcript-panel {
       min-height: 0;
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
       background: linear-gradient(180deg, #fffdf8, #fff8eb);
     }
 
@@ -1555,6 +1649,35 @@
       border-radius: 8px;
       background: #fffdf8;
       flex: 0 0 auto;
+    }
+
+    .call-detail-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf0;
+      overflow-x: auto;
+    }
+
+    .call-detail-tab {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 11px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 820;
+      white-space: nowrap;
+    }
+
+    .call-detail-tab.active {
+      background: #f8ead0;
+      color: var(--ink);
+      border-color: rgba(200, 155, 60, 0.52);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
     }
 
     .transcript-mode {
@@ -1625,6 +1748,18 @@
     .transcript-bubble.tool {
       border-color: #d5b66d;
       background: #fff4d7;
+    }
+
+    .transcript-bubble.sms-outbound {
+      justify-self: end;
+      background: #e9f6ef;
+      border-color: rgba(36, 90, 70, 0.28);
+    }
+
+    .transcript-bubble.sms-inbound {
+      justify-self: start;
+      background: #ffffff;
+      border-color: var(--line);
     }
 
     .transcript-speaker {
@@ -1802,13 +1937,27 @@
 
       .call-list,
       .calls-layout .call-list {
-        max-height: 190px;
+        max-height: 260px;
         border-right: 0;
         border-bottom: 1px solid var(--line);
       }
 
       .calls-layout .transcript-messages {
-        max-height: 520px;
+        min-height: 460px;
+        max-height: 620px;
+      }
+
+      .call-inbox-actions {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+
+      .call-inbox-actions .call-search {
+        justify-self: stretch;
+      }
+
+      .call-custom-range input {
+        flex: 1 1 168px;
       }
     }
 
@@ -1908,7 +2057,15 @@
 
       .call-inbox-header {
         align-items: flex-start;
+      }
+
+      .call-inbox-title {
         flex-direction: column;
+      }
+
+      .call-inbox-status {
+        width: 100%;
+        justify-content: space-between;
       }
 
       .call-inbox-actions {
@@ -1921,7 +2078,7 @@
       .call-search {
         width: 100%;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: 1fr;
       }
 
       .call-search input {
@@ -1936,6 +2093,30 @@
         width: 100%;
         max-width: 100%;
         overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .call-range-filters {
+        width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .call-range-filter {
+        flex: 0 0 auto;
+      }
+
+      .call-custom-range {
+        width: 100%;
+      }
+
+      .call-custom-range input {
+        width: 100%;
+      }
+
+      .transcript-header {
+        align-items: flex-start;
+        flex-direction: column;
       }
 
       .thread-filter {
@@ -2278,12 +2459,32 @@
       <div class="protected-content">
       <div class="call-inbox" aria-label="Call inbox">
         <div class="call-inbox-header">
-          <div>
+          <div class="call-inbox-title">
+            <div>
             <p class="eyebrow">Call center memory</p>
             <h2>Conversation Inbox</h2>
+            </div>
+            <div class="call-inbox-status">
+              <span class="pill" id="callInboxState">Local conversations</span>
+              <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
+            </div>
           </div>
           <div class="call-inbox-actions">
-            <span class="pill" id="callInboxState">Local conversations</span>
+            <div class="call-filter-block">
+              <span class="filter-label">Time range</span>
+              <div class="range-filters call-range-filters" aria-label="Call inbox range">
+                <button class="call-range-filter active" type="button" data-range="today">Today</button>
+                <button class="call-range-filter" type="button" data-range="week">7 days</button>
+                <button class="call-range-filter" type="button" data-range="month">30 days</button>
+                <button class="call-range-filter" type="button" data-range="all">All</button>
+                <button class="call-range-filter" type="button" data-range="custom">Custom</button>
+              </div>
+              <div class="custom-range call-custom-range" id="callCustomRangeControls" style="display: none;">
+                <input id="callRangeStart" type="datetime-local" aria-label="Call start date and time">
+                <input id="callRangeEnd" type="datetime-local" aria-label="Call end date and time">
+                <button class="secondary compact" id="applyCallRange" type="button">Apply</button>
+              </div>
+            </div>
             <div class="thread-filters" aria-label="Conversation sorting">
               <button class="thread-filter active" type="button" data-sort="recent">Recent</button>
               <button class="thread-filter" type="button" data-sort="relevant">Relevant</button>
@@ -2295,7 +2496,6 @@
               <input id="callSearch" type="search" autocomplete="off" placeholder="Name or keyword">
               <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
             </div>
-            <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
           </div>
         </div>
         <div class="call-inbox-layout">
@@ -2306,6 +2506,11 @@
             <div class="transcript-header" id="transcriptHeader">
               <strong>Select a conversation</strong>
               <span>Each phone number keeps one continuous history.</span>
+            </div>
+            <div class="call-detail-tabs" id="callDetailTabs" aria-label="Call detail views">
+              <button class="call-detail-tab active" type="button" data-mode="clean">Chat</button>
+              <button class="call-detail-tab" type="button" data-mode="sms">SMS</button>
+              <button class="call-detail-tab" type="button" data-mode="technical">Technical</button>
             </div>
             <div class="transcript-messages" id="transcriptMessages">
               <div class="transcript-bubble system">
@@ -2417,6 +2622,7 @@
     let transcriptViewMode = "clean";
     let lastTranscriptSummary = {};
     let lastTranscriptEvents = [];
+    let lastSmsEvents = [];
     const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
     const dashboardKeyStorage = "glamHomesDashboardKey";
     let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
@@ -3157,6 +3363,7 @@
 
     function clearTranscript(title, detail) {
       $("transcriptHeader").innerHTML = "";
+      renderCallDetailTabs();
       const titleWrap = document.createElement("div");
       titleWrap.className = "transcript-title";
       const heading = document.createElement("strong");
@@ -3180,13 +3387,20 @@
     }
 
     function setTranscriptMode(mode) {
-      transcriptViewMode = mode === "technical" ? "technical" : "clean";
-      renderTranscript(lastTranscriptSummary, lastTranscriptEvents);
+      transcriptViewMode = ["technical", "sms"].includes(mode) ? mode : "clean";
+      renderTranscript(lastTranscriptSummary, lastTranscriptEvents, lastSmsEvents);
+    }
+
+    function renderCallDetailTabs() {
+      for (const button of document.querySelectorAll(".call-detail-tab")) {
+        button.classList.toggle("active", button.dataset.mode === transcriptViewMode);
+      }
     }
 
     function transcriptRowsForMode(events) {
       const rows = Array.isArray(events) ? events : [];
       if (transcriptViewMode === "technical") return rows;
+      if (transcriptViewMode === "sms") return [];
       return rows.filter((event) => ["guest", "concierge"].includes(event.role) && String(event.text || "").trim());
     }
 
@@ -3217,18 +3431,7 @@
         titleWrap.appendChild(chips);
       }
 
-      const toggle = document.createElement("div");
-      toggle.className = "transcript-toggle";
-      for (const [mode, label] of [["clean", "Clean chat"], ["technical", "Technical"]]) {
-        const button = document.createElement("button");
-        button.className = "transcript-mode" + (transcriptViewMode === mode ? " active" : "");
-        button.type = "button";
-        button.textContent = label;
-        button.addEventListener("click", () => setTranscriptMode(mode));
-        toggle.appendChild(button);
-      }
       $("transcriptHeader").appendChild(titleWrap);
-      $("transcriptHeader").appendChild(toggle);
     }
 
     function callerDisplayName(call) {
@@ -3300,10 +3503,58 @@
       }
     }
 
-    function renderTranscript(summary, events) {
+    function renderSmsMessages(summary, smsEvents) {
+      renderTranscriptHeader(summary || {});
+      renderCallDetailTabs();
+      const feed = $("transcriptMessages");
+      feed.innerHTML = "";
+      const rows = Array.isArray(smsEvents) ? smsEvents : [];
+      if (!rows.length) {
+        const bubble = document.createElement("div");
+        bubble.className = "transcript-bubble system";
+        const speaker = document.createElement("span");
+        speaker.className = "transcript-speaker";
+        speaker.textContent = "SMS";
+        const body = document.createElement("span");
+        body.textContent = "No SMS messages logged for this conversation.";
+        bubble.appendChild(speaker);
+        bubble.appendChild(body);
+        feed.appendChild(bubble);
+        return;
+      }
+      for (const event of rows) {
+        const inbound = event.direction === "inbound" || event.sms_type === "inbound_sms";
+        const bubble = document.createElement("div");
+        bubble.className = "transcript-bubble " + (inbound ? "sms-inbound" : "sms-outbound");
+        const speaker = document.createElement("span");
+        speaker.className = "transcript-speaker";
+        speaker.textContent = inbound ? "Guest SMS" : smsTypeLabel(event.sms_type || "sms");
+        const body = document.createElement("span");
+        body.textContent = event.preview || "(no SMS body preview)";
+        const time = document.createElement("span");
+        time.className = "transcript-time";
+        const route = inbound
+          ? ((event.from || "?") + " -> " + (event.to || "?"))
+          : ((event.from || "?") + " -> " + (event.to || "?"));
+        time.textContent = compactDate(event.timestamp) + " · " + (event.status || "sent") + " · " + route;
+        bubble.appendChild(speaker);
+        bubble.appendChild(body);
+        bubble.appendChild(time);
+        feed.appendChild(bubble);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function renderTranscript(summary, events, smsEvents = lastSmsEvents) {
       lastTranscriptSummary = summary || {};
       lastTranscriptEvents = Array.isArray(events) ? events : [];
+      lastSmsEvents = Array.isArray(smsEvents) ? smsEvents : [];
+      if (transcriptViewMode === "sms") {
+        renderSmsMessages(summary || {}, lastSmsEvents);
+        return;
+      }
       renderTranscriptHeader(summary || {});
+      renderCallDetailTabs();
 
       const feed = $("transcriptMessages");
       feed.innerHTML = "";
@@ -3366,7 +3617,7 @@
           throw new Error("Enter the dashboard key to open caller history.");
         }
         if (!response.ok) throw new Error(data.error || "Conversation unavailable");
-        renderTranscript(data.summary || {}, data.events || []);
+        renderTranscript(data.summary || {}, data.events || [], data.sms_events || []);
       } catch (error) {
         clearTranscript("Conversation unavailable", error.message);
       }
@@ -3454,12 +3705,10 @@
       refreshCallInbox(true);
     }
 
-    function setAnalyticsRange(mode) {
+    function setAnalyticsRange(mode, source = "analytics") {
       analyticsRangeMode = ["today", "week", "month", "all", "custom"].includes(mode) ? mode : "today";
-      for (const button of document.querySelectorAll(".range-filter")) {
-        button.classList.toggle("active", button.dataset.range === analyticsRangeMode);
-      }
-      $("customRangeControls").style.display = analyticsRangeMode === "custom" ? "inline-flex" : "none";
+      if (analyticsRangeMode === "custom") syncCustomRangeInputs(source);
+      updateRangeControls();
       selectedThreadId = "";
       refreshCallInbox(true);
     }
@@ -3468,6 +3717,29 @@
       const now = new Date();
       $("rangeStart").value = isoDateTimeInput(startOfLocalDay(now));
       $("rangeEnd").value = isoDateTimeInput(now);
+      $("callRangeStart").value = $("rangeStart").value;
+      $("callRangeEnd").value = $("rangeEnd").value;
+    }
+
+    function syncCustomRangeInputs(source) {
+      if (source === "calls") {
+        $("rangeStart").value = $("callRangeStart").value;
+        $("rangeEnd").value = $("callRangeEnd").value;
+      } else {
+        $("callRangeStart").value = $("rangeStart").value;
+        $("callRangeEnd").value = $("rangeEnd").value;
+      }
+    }
+
+    function updateRangeControls() {
+      for (const button of document.querySelectorAll(".range-filter")) {
+        button.classList.toggle("active", button.dataset.range === analyticsRangeMode);
+      }
+      for (const button of document.querySelectorAll(".call-range-filter")) {
+        button.classList.toggle("active", button.dataset.range === analyticsRangeMode);
+      }
+      $("customRangeControls").style.display = analyticsRangeMode === "custom" ? "inline-flex" : "none";
+      $("callCustomRangeControls").style.display = analyticsRangeMode === "custom" ? "inline-flex" : "none";
     }
 
     function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
@@ -3919,7 +4191,8 @@
     $("saveReservationValidation").onclick = saveReservationValidation;
     $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("clearCallSearch").onclick = clearCallSearch;
-    $("applyRange").onclick = () => setAnalyticsRange("custom");
+    $("applyRange").onclick = () => setAnalyticsRange("custom", "analytics");
+    $("applyCallRange").onclick = () => setAnalyticsRange("custom", "calls");
     $("callSearch").addEventListener("input", scheduleCallSearch);
     $("callPhoneSearch").addEventListener("input", scheduleCallSearch);
     for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
@@ -3957,7 +4230,13 @@
       button.addEventListener("click", () => setCallSortMode(button.dataset.sort));
     }
     for (const button of document.querySelectorAll(".range-filter")) {
-      button.addEventListener("click", () => setAnalyticsRange(button.dataset.range));
+      button.addEventListener("click", () => setAnalyticsRange(button.dataset.range, "analytics"));
+    }
+    for (const button of document.querySelectorAll(".call-range-filter")) {
+      button.addEventListener("click", () => setAnalyticsRange(button.dataset.range, "calls"));
+    }
+    for (const button of document.querySelectorAll(".call-detail-tab")) {
+      button.addEventListener("click", () => setTranscriptMode(button.dataset.mode));
     }
 
     window.addEventListener("beforeunload", () => {
@@ -3972,6 +4251,7 @@
     loadEmergencyContact();
     loadReservationValidation();
     initializeAnalyticsRangeInputs();
+    updateRangeControls();
     updateCallInboxAuth(false);
     refreshTwilioMonitor();
     refreshCallInbox();
