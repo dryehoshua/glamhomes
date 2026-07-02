@@ -385,6 +385,197 @@ CALL_TOPIC_KEYWORDS = {
     },
 }
 
+CALL_SUBTOPIC_KEYWORDS = {
+    "Reservation lookup": {
+        "reservation",
+        "confirmation",
+        "confirmation code",
+        "booking code",
+        "codigo",
+        "código",
+        "reserva",
+    },
+    "Availability / extension": {
+        "available",
+        "availability",
+        "extend",
+        "extension",
+        "extra night",
+        "late checkout",
+        "early check",
+        "disponible",
+        "extender",
+    },
+    "Pricing / payment": {
+        "price",
+        "pricing",
+        "quote",
+        "payment",
+        "deposit",
+        "refund",
+        "charge",
+        "invoice",
+        "balance",
+        "precio",
+        "pago",
+        "reembolso",
+    },
+    "Check-in instructions": {
+        "check in",
+        "check-in",
+        "arrival",
+        "arrive",
+        "instructions",
+        "entrada",
+        "llegada",
+    },
+    "Access / door code": {
+        "door",
+        "code",
+        "lock",
+        "key",
+        "gate",
+        "access",
+        "clave",
+        "puerta",
+        "cerradura",
+        "acceso",
+    },
+    "WiFi / internet": {
+        "wifi",
+        "wi-fi",
+        "internet",
+        "ssid",
+        "network",
+        "password",
+        "stayfi",
+        "contraseña",
+    },
+    "Address / directions": {
+        "address",
+        "direction",
+        "directions",
+        "location",
+        "map",
+        "ubicacion",
+        "ubicación",
+        "direccion",
+        "dirección",
+    },
+    "Amenities / property details": {
+        "amenity",
+        "amenities",
+        "pool",
+        "parking",
+        "bedroom",
+        "bathroom",
+        "kitchen",
+        "jacuzzi",
+        "amenidades",
+        "alberca",
+        "estacionamiento",
+    },
+    "House rules / policy": {
+        "rules",
+        "policy",
+        "pet",
+        "smoking",
+        "party",
+        "visitors",
+        "noise",
+        "reglas",
+        "mascota",
+        "fiesta",
+        "ruido",
+    },
+    "Maintenance": {
+        "maintenance",
+        "broken",
+        "repair",
+        "leak",
+        "ac",
+        "air conditioning",
+        "water",
+        "electric",
+        "mantenimiento",
+        "roto",
+        "reparar",
+    },
+    "Housekeeping / supplies": {
+        "towel",
+        "towels",
+        "cleaning",
+        "clean",
+        "linen",
+        "trash",
+        "toallas",
+        "limpieza",
+        "sabanas",
+        "sábanas",
+    },
+    "Human advisor": {
+        "human",
+        "agent",
+        "representative",
+        "manager",
+        "person",
+        "callback",
+        "asesor",
+        "persona",
+    },
+    "Complaint / feedback": {
+        "complaint",
+        "feedback",
+        "bad",
+        "issue",
+        "problem",
+        "not happy",
+        "queja",
+        "problema",
+    },
+    "Lost and found": {
+        "lost",
+        "forgot",
+        "left",
+        "object",
+        "item",
+        "perdi",
+        "perdí",
+        "olvide",
+        "olvidé",
+    },
+}
+
+RESOLUTION_POSITIVE_TERMS = {
+    "resolved",
+    "that helps",
+    "perfect",
+    "great",
+    "thank you",
+    "thanks",
+    "got it",
+    "understood",
+    "all set",
+    "solved",
+    "listo",
+    "perfecto",
+    "gracias",
+    "entendido",
+}
+
+RESOLUTION_NEGATIVE_TERMS = {
+    "still",
+    "again",
+    "not working",
+    "doesn't work",
+    "did not work",
+    "no funciona",
+    "sigue",
+    "otra vez",
+    "aun",
+    "aún",
+}
+
 CALL_STOPWORDS = {
     "about",
     "after",
@@ -2845,6 +3036,15 @@ def call_topic_hits(text: str) -> list[str]:
     return hits
 
 
+def call_subtopic_hits(text: str) -> list[str]:
+    lowered = text.lower()
+    hits = []
+    for label, keywords in CALL_SUBTOPIC_KEYWORDS.items():
+        if any(keyword in lowered for keyword in keywords):
+            hits.append(label)
+    return hits
+
+
 def token_counts_from_text(text: str) -> dict[str, int]:
     counts: dict[str, int] = {}
     for token in re.findall(r"[A-Za-z][A-Za-z']{3,}", text.lower()):
@@ -2880,6 +3080,30 @@ def primary_topic_from_events(events: list[dict]) -> str:
     text_blob = transcript_text_blob(conversation_events)
     hits = call_topic_hits(text_blob)
     return hits[0] if hits else "Unclassified"
+
+
+def call_subtopics_from_events(events: list[dict]) -> list[str]:
+    conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
+    text_blob = transcript_text_blob(conversation_events)
+    return call_subtopic_hits(text_blob)
+
+
+def resolution_status_from_call(call: dict, events: list[dict], has_handoff: bool, missed: bool, abandoned: bool) -> str:
+    if missed:
+        return "missed"
+    if abandoned:
+        return "abandoned"
+    if has_handoff:
+        return "escalated"
+    conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
+    text_blob = transcript_text_blob(conversation_events).lower()
+    if any(term in text_blob for term in RESOLUTION_NEGATIVE_TERMS):
+        return "unresolved_signal"
+    if any(term in text_blob for term in RESOLUTION_POSITIVE_TERMS):
+        return "resolved_signal"
+    if call.get("has_transcript"):
+        return "resolved_candidate"
+    return "unknown"
 
 
 def handoff_reason_category(value: object, reason: object = "") -> str:
@@ -3026,10 +3250,16 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
     handoff_rows = handoff_reason_rows(str(call.get("call_sid") or ""), events)
     missed = call_is_missed(call)
     abandoned = call_is_abandoned(call, events, guest_messages, concierge_messages)
+    has_handoff = bool(handoff_rows) or call_has_handoff(events)
+    subtopics = call_subtopics_from_events(events)
     return {
         "call_sid": str(call.get("call_sid") or ""),
         "phone": str(call.get("from") or "").strip(),
         "topic": primary_topic_from_events(events),
+        "subtopics": subtopics,
+        "issue_count": len(subtopics),
+        "multi_issue": len(subtopics) > 1,
+        "resolution_status": resolution_status_from_call(call, events, has_handoff, missed, abandoned),
         "started_at": call.get("started_at") or call.get("last_at") or "",
         "last_at": call.get("last_at") or call.get("started_at") or "",
         "resolution_seconds": call_resolution_seconds(call, events),
@@ -3038,13 +3268,16 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
         "tool_actions": tool_actions,
         "sms_events": sms_rows,
         "handoffs": handoff_rows,
-        "has_handoff": bool(handoff_rows) or call_has_handoff(events),
+        "has_handoff": has_handoff,
         "missed": missed,
         "abandoned": abandoned,
         "eligible_for_fcr": bool(call.get("has_transcript")) and not missed and not abandoned,
         "repeat_contact": False,
         "same_topic_repeat": False,
+        "same_subtopic_repeat": False,
+        "repeated_subtopics": [],
         "repeated_later_same_topic": False,
+        "repeated_later_subtopics": [],
     }
 
 
@@ -3071,12 +3304,20 @@ def mark_repeat_contacts(analyses: list[dict]) -> None:
                 previous_ts = transcript_sort_key(previous.get("started_at") or previous.get("last_at"))
                 if row_ts and previous_ts and 0 <= row_ts - previous_ts <= REPEAT_CONTACT_WINDOW_SECONDS:
                     row["repeat_contact"] = True
+                    shared_subtopics = sorted(set(row.get("subtopics") or []) & set(previous.get("subtopics") or []))
+                    if shared_subtopics:
+                        row["same_subtopic_repeat"] = True
+                        row["repeated_subtopics"] = sorted(set(row.get("repeated_subtopics") or []) | set(shared_subtopics))
+                        previous["repeated_later_subtopics"] = sorted(set(previous.get("repeated_later_subtopics") or []) | set(shared_subtopics))
                     if row.get("topic") == previous.get("topic") and row.get("topic") != "Unclassified":
                         row["same_topic_repeat"] = True
                         previous["repeated_later_same_topic"] = True
             for later in rows[index + 1 :]:
                 later_ts = transcript_sort_key(later.get("started_at") or later.get("last_at"))
                 if row_ts and later_ts and 0 <= later_ts - row_ts <= REPEAT_CONTACT_WINDOW_SECONDS:
+                    shared_subtopics = sorted(set(row.get("subtopics") or []) & set(later.get("subtopics") or []))
+                    if shared_subtopics:
+                        row["repeated_later_subtopics"] = sorted(set(row.get("repeated_later_subtopics") or []) | set(shared_subtopics))
                     if row.get("topic") == later.get("topic") and row.get("topic") != "Unclassified":
                         row["repeated_later_same_topic"] = True
 
@@ -3105,6 +3346,8 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
     sms_by_type: dict[str, int] = {}
     escalations_by_reason: dict[str, int] = {}
     calls_by_day_hour: dict[tuple[str, int], dict] = {}
+    issue_total = 0
+    multi_issue_calls = 0
 
     events_by_sid = call_events_for_metrics(calls, path_by_sid)
     analyses = []
@@ -3118,6 +3361,9 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         hits = call_topic_hits(text_blob)
         for hit in hits:
             topic_counts[hit] = topic_counts.get(hit, 0) + 1
+        issue_total += int(analysis.get("issue_count") or 0)
+        if analysis.get("multi_issue"):
+            multi_issue_calls += 1
         if "Booking intent" in hits:
             booking_intent_calls += 1
         merge_counts(top_terms, token_counts_from_text(text_blob))
@@ -3145,14 +3391,51 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
     total_calls = len(calls)
     repeat_contacts = sum(1 for analysis in analyses if analysis.get("repeat_contact"))
     same_topic_repeats = sum(1 for analysis in analyses if analysis.get("same_topic_repeat"))
+    same_subtopic_repeats = sum(1 for analysis in analyses if analysis.get("same_subtopic_repeat"))
     missed_calls = sum(1 for analysis in analyses if analysis.get("missed"))
     abandoned_calls = sum(1 for analysis in analyses if analysis.get("abandoned"))
     eligible_fcr = [analysis for analysis in analyses if analysis.get("eligible_for_fcr")]
     resolved_first_contact = [
         analysis
         for analysis in eligible_fcr
-        if not analysis.get("has_handoff") and not analysis.get("repeated_later_same_topic")
+        if not analysis.get("has_handoff") and not analysis.get("repeated_later_same_topic") and not analysis.get("repeated_later_subtopics")
     ]
+    subtopic_stats: dict[str, dict] = {}
+    for analysis in analyses:
+        duration = int(analysis.get("resolution_seconds") or 0)
+        for subtopic in analysis.get("subtopics") or ["Unclassified"]:
+            row = subtopic_stats.setdefault(
+                subtopic,
+                {
+                    "label": subtopic,
+                    "count": 0,
+                    "repeat_count": 0,
+                    "unresolved_count": 0,
+                    "escalated_count": 0,
+                    "multi_issue_count": 0,
+                    "duration_total": 0,
+                    "duration_count": 0,
+                },
+            )
+            row["count"] += 1
+            if analysis.get("same_subtopic_repeat") and subtopic in set(analysis.get("repeated_subtopics") or []):
+                row["repeat_count"] += 1
+            status = str(analysis.get("resolution_status") or "unknown")
+            if status in {"unresolved_signal", "abandoned", "missed", "unknown"}:
+                row["unresolved_count"] += 1
+            if status == "escalated":
+                row["escalated_count"] += 1
+            if analysis.get("multi_issue"):
+                row["multi_issue_count"] += 1
+            if duration:
+                row["duration_total"] += duration
+                row["duration_count"] += 1
+    subtopic_rows = []
+    for row in subtopic_stats.values():
+        duration_count = int(row.pop("duration_count") or 0)
+        duration_total = int(row.pop("duration_total") or 0)
+        row["avg_resolution_seconds"] = round(duration_total / duration_count, 1) if duration_count else 0
+        subtopic_rows.append(row)
     topic_rows = [
         {"label": label, "count": count}
         for label, count in sorted(topic_counts.items(), key=lambda item: item[1], reverse=True)
@@ -3181,6 +3464,10 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         "repeat_contacts": repeat_contacts,
         "repeat_contact_rate_pct": round((repeat_contacts / total_calls) * 100, 1) if total_calls else 0,
         "same_topic_repeats": same_topic_repeats,
+        "same_subtopic_repeats": same_subtopic_repeats,
+        "issues_detected": issue_total,
+        "multi_issue_calls": multi_issue_calls,
+        "multi_issue_rate_pct": round((multi_issue_calls / total_calls) * 100, 1) if total_calls else 0,
         "missed_calls": missed_calls,
         "abandoned_calls": abandoned_calls,
         "sms_sent": len([event for event in sms_events if event.get("sms_type") != "inbound_sms"]),
@@ -3195,6 +3482,7 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         ],
         "calls_by_day_hour": sorted(calls_by_day_hour.values(), key=lambda item: (item["day"], item["hour"])),
         "topics": topic_rows,
+        "subtopics": sorted(subtopic_rows, key=lambda item: (item.get("repeat_count", 0), item.get("count", 0)), reverse=True),
         "top_terms": top_term_rows,
     }
 
@@ -3399,19 +3687,34 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         analyses.append(analyze_call(call, events))
     mark_repeat_contacts(analyses)
     topic_counts: dict[str, int] = {}
+    subtopic_counts: dict[str, int] = {}
+    repeated_subtopic_counts: dict[str, int] = {}
+    resolution_counts: dict[str, int] = {}
     sms_count = 0
     escalation_count = 0
     repeat_count = 0
     same_topic_count = 0
+    same_subtopic_count = 0
     missed_count = 0
     abandoned_count = 0
+    issue_count = 0
+    multi_issue_count = 0
     for analysis in analyses:
         topic = str(analysis.get("topic") or "Unclassified")
         topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        status = str(analysis.get("resolution_status") or "unknown")
+        resolution_counts[status] = resolution_counts.get(status, 0) + 1
+        issue_count += int(analysis.get("issue_count") or 0)
+        multi_issue_count += 1 if analysis.get("multi_issue") else 0
+        for subtopic in analysis.get("subtopics") or ["Unclassified"]:
+            subtopic_counts[subtopic] = subtopic_counts.get(subtopic, 0) + 1
+        for subtopic in analysis.get("repeated_subtopics") or []:
+            repeated_subtopic_counts[subtopic] = repeated_subtopic_counts.get(subtopic, 0) + 1
         sms_count += len([event for event in (analysis.get("sms_events") or []) if event.get("sms_type") != "inbound_sms"])
         escalation_count += len(analysis.get("handoffs") or [])
         repeat_count += 1 if analysis.get("repeat_contact") else 0
         same_topic_count += 1 if analysis.get("same_topic_repeat") else 0
+        same_subtopic_count += 1 if analysis.get("same_subtopic_repeat") else 0
         missed_count += 1 if analysis.get("missed") else 0
         abandoned_count += 1 if analysis.get("abandoned") else 0
     primary_topic = "Unclassified"
@@ -3422,6 +3725,10 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         badges.append({"type": "repeat", "label": "Repeat contact", "count": repeat_count})
     if same_topic_count:
         badges.append({"type": "same_topic", "label": "Same topic repeat", "count": same_topic_count})
+    if same_subtopic_count:
+        badges.append({"type": "same_subtopic", "label": "Same subtopic repeat", "count": same_subtopic_count})
+    if multi_issue_count:
+        badges.append({"type": "multi_issue", "label": "Multiple issues", "count": multi_issue_count})
     if escalation_count:
         badges.append({"type": "escalation", "label": "Escalated", "count": escalation_count})
     if sms_count:
@@ -3446,8 +3753,23 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         "relevance_score": relevance_score,
         "has_transcript": any(call.get("has_transcript") for call in calls),
         "primary_topic": primary_topic,
+        "subtopics": [
+            {
+                "label": label,
+                "count": count,
+                "repeat_count": repeated_subtopic_counts.get(label, 0),
+            }
+            for label, count in sorted(subtopic_counts.items(), key=lambda item: (repeated_subtopic_counts.get(item[0], 0), item[1]), reverse=True)
+        ],
+        "resolution_counts": [
+            {"status": status, "count": count}
+            for status, count in sorted(resolution_counts.items(), key=lambda item: item[1], reverse=True)
+        ],
+        "issue_count": issue_count,
+        "multi_issue_calls": multi_issue_count,
         "repeat_contacts": repeat_count,
         "same_topic_repeats": same_topic_count,
+        "same_subtopic_repeats": same_subtopic_count,
         "sms_sent": sms_count,
         "escalation_count": escalation_count,
         "missed_calls": missed_count,
@@ -3543,6 +3865,7 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
         raise FileNotFoundError("Conversation thread not found in the selected date range.")
     ordered_calls = sorted(calls, key=lambda item: transcript_sort_key(item.get("started_at") or item.get("last_at")))
     events: list[dict] = []
+    call_analyses: list[dict] = []
     for call in ordered_calls:
         call_sid = str(call.get("call_sid") or "")
         marker_time = call.get("started_at") or call.get("last_at") or ""
@@ -3559,6 +3882,21 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
         )
         path = path_by_sid.get(call_sid)
         raw_events = read_transcript_events(path, maximum=1000) if path else []
+        analysis = analyze_call(call, raw_events)
+        call_analyses.append(
+            {
+                "call_sid": call_sid,
+                "phone": str(call.get("from") or "").strip(),
+                "started_at": call.get("started_at") or call.get("last_at") or "",
+                "topic": analysis.get("topic"),
+                "subtopics": analysis.get("subtopics") or [],
+                "issue_count": analysis.get("issue_count") or 0,
+                "multi_issue": bool(analysis.get("multi_issue")),
+                "resolution_status": analysis.get("resolution_status") or "unknown",
+                "resolution_seconds": analysis.get("resolution_seconds") or 0,
+                "has_handoff": bool(analysis.get("has_handoff")),
+            }
+        )
         if raw_events:
             events.extend(
                 normalize_thread_event(event, call_sid)
@@ -3578,10 +3916,12 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
                 }
             )
     events = sorted(events, key=lambda item: transcript_sort_key(item.get("timestamp")))
+    mark_repeat_contacts(call_analyses)
     return {
         "ok": True,
         "summary": build_call_thread_summary(clean_thread_id, calls, path_by_sid),
         "calls": ordered_calls,
+        "call_analyses": call_analyses,
         "events": events,
         "start": compact_text(start),
         "end": compact_text(end),

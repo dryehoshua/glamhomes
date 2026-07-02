@@ -169,6 +169,7 @@
       gap: 18px;
     }
 
+    .analytics-layout,
     .calls-layout {
       grid-template-columns: 1fr;
       gap: 18px;
@@ -1192,6 +1193,18 @@
       gap: 10px;
     }
 
+    .analytics-layout .kpi-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .analytics-layout .analytics-secondary {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .analytics-layout .analytics-detail-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .analytics-table-card {
       min-height: 132px;
       border: 1px solid var(--line);
@@ -1269,7 +1282,7 @@
       grid-template-rows: auto minmax(0, 1fr);
     }
 
-    .calls-layout .analytics-dashboard,
+    .analytics-layout .analytics-dashboard,
     .calls-layout .call-inbox {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1277,23 +1290,23 @@
       overflow: hidden;
     }
 
-    .calls-layout .analytics-dashboard {
+    .analytics-layout .analytics-dashboard {
       min-height: 0;
       border-bottom: 1px solid var(--line);
       overflow: auto;
       max-height: 100%;
     }
 
-    .calls-layout .chart-grid {
-      grid-template-columns: 1fr;
+    .analytics-layout .chart-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .calls-layout .chart-card {
-      min-height: 172px;
+    .analytics-layout .chart-card {
+      min-height: 210px;
     }
 
-    .calls-layout .chart-box {
-      min-height: 126px;
+    .analytics-layout .chart-box {
+      min-height: 158px;
     }
 
     .calls-layout .call-inbox {
@@ -1484,7 +1497,9 @@
     }
 
     .call-badge.repeat,
-    .call-badge.same_topic {
+    .call-badge.same_topic,
+    .call-badge.same_subtopic,
+    .call-badge.multi_issue {
       border-color: rgba(240, 191, 73, 0.44);
       background: #fff5d9;
       color: #7b5a10;
@@ -1511,6 +1526,13 @@
       min-width: 0;
       display: grid;
       gap: 4px;
+    }
+
+    .thread-issue-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: 100%;
     }
 
     .transcript-header strong {
@@ -1698,8 +1720,10 @@
       }
 
       .voice-layout,
+      .analytics-layout,
       .calls-layout,
       .security-layout,
+      .analytics-layout > .protected-content,
       .calls-layout > .protected-content,
       .security-layout > .protected-content {
         grid-template-columns: 1fr;
@@ -1745,11 +1769,21 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .analytics-layout .kpi-grid,
+      .analytics-layout .analytics-secondary,
+      .analytics-layout .analytics-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .chart-grid {
         grid-template-columns: 1fr;
       }
 
       .analytics-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .analytics-layout .analytics-detail-grid {
         grid-template-columns: 1fr;
       }
 
@@ -1761,7 +1795,7 @@
         order: -1;
       }
 
-      .calls-layout .analytics-dashboard {
+      .analytics-layout .analytics-dashboard {
         max-height: none;
         overflow: visible;
       }
@@ -1865,7 +1899,10 @@
         grid-template-columns: 1fr;
       }
 
-      .analytics-detail-grid {
+      .analytics-detail-grid,
+      .analytics-layout .kpi-grid,
+      .analytics-layout .analytics-secondary,
+      .analytics-layout .analytics-detail-grid {
         grid-template-columns: 1fr;
       }
 
@@ -1957,7 +1994,8 @@
 
   <nav class="app-tabs" aria-label="Dashboard sections">
     <button class="tab-button active" type="button" data-tab="voice" aria-selected="true">Voice Console</button>
-    <button class="tab-button" type="button" data-tab="calls" aria-selected="false">Calls & Analytics</button>
+    <button class="tab-button" type="button" data-tab="analytics" aria-selected="false">Analytics</button>
+    <button class="tab-button" type="button" data-tab="calls" aria-selected="false">Calls</button>
     <button class="tab-button" type="button" data-tab="security" aria-selected="false">Security</button>
   </nav>
 
@@ -2138,8 +2176,8 @@
     </section>
     </section>
 
-    <section class="tab-view calls-layout protected-view locked" id="callsView" aria-label="Calls and analytics">
-      <div class="dashboard-lock" id="callsLock">
+    <section class="tab-view analytics-layout protected-view locked" id="analyticsView" aria-label="Call analytics">
+      <div class="dashboard-lock" id="analyticsLock">
         <p class="eyebrow">Protected dashboard</p>
         <h2>Analytics Locked</h2>
         <span>Enter the dashboard password to unlock analytics, call memory, security controls, and protected phone data.</span>
@@ -2199,6 +2237,12 @@
         </div>
         <div class="analytics-detail-grid" aria-label="Operational analytics tables">
           <div class="analytics-table-card">
+            <h3>Subtopics and repeats</h3>
+            <div class="analytics-table" id="subtopicTable">
+              <div class="analytics-row"><strong>No subtopic data</strong><span>--</span></div>
+            </div>
+          </div>
+          <div class="analytics-table-card">
             <h3>Escalations by reason</h3>
             <div class="analytics-table" id="escalationTable">
               <div class="analytics-row"><strong>No escalation data</strong><span>--</span></div>
@@ -2218,7 +2262,20 @@
           </div>
         </div>
       </div>
+      </div>
+    </section>
 
+    <section class="tab-view calls-layout protected-view locked" id="callsView" aria-label="Call inbox">
+      <div class="dashboard-lock" id="callsLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Calls Locked</h2>
+        <span>Enter the dashboard password to unlock call memory, transcripts, phone filters, and customer issue history.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
       <div class="call-inbox" aria-label="Call inbox">
         <div class="call-inbox-header">
           <div>
@@ -2534,7 +2591,7 @@
     }
 
     function switchTab(tabName) {
-      const safeName = ["voice", "calls", "security"].includes(tabName) ? tabName : "voice";
+      const safeName = ["voice", "analytics", "calls", "security"].includes(tabName) ? tabName : "voice";
       for (const button of document.querySelectorAll(".tab-button")) {
         const isActive = button.dataset.tab === safeName;
         button.classList.toggle("active", isActive);
@@ -2543,7 +2600,7 @@
       for (const view of document.querySelectorAll(".tab-view")) {
         view.classList.toggle("active", view.id === safeName + "View");
       }
-      if (safeName === "calls") {
+      if (safeName === "analytics" || safeName === "calls") {
         window.setTimeout(() => {
           renderCharts(lastMetrics, lastCallData);
           if (!selectedThreadId) refreshCallInbox(false);
@@ -2775,7 +2832,7 @@
     function renderCharts(metrics = {}, data = {}) {
       lastMetrics = metrics || {};
       lastCallData = data || {};
-      if (!window.Chart || !$("callsView").classList.contains("active")) return;
+      if (!window.Chart || !$("analyticsView").classList.contains("active")) return;
       const topicCanvas = $("topicChart");
       const mixCanvas = $("mixChart");
       const heatmapCanvas = $("hourHeatmapChart");
@@ -2940,6 +2997,19 @@
 
     function renderOperationalTables(metrics = {}) {
       renderAnalyticsTable(
+        "subtopicTable",
+        metrics.subtopics || [],
+        "No subtopic data",
+        (row) => row.label || "Unclassified",
+        (row) => {
+          const pieces = [(row.count || 0) + " calls"];
+          if (row.repeat_count) pieces.push(row.repeat_count + " repeat");
+          if (row.escalated_count) pieces.push(row.escalated_count + " escalated");
+          if (row.avg_resolution_seconds) pieces.push(formatDuration(row.avg_resolution_seconds));
+          return pieces.join(" · ");
+        },
+      );
+      renderAnalyticsTable(
         "escalationTable",
         metrics.escalations_by_reason || [],
         "No escalation data",
@@ -2993,7 +3063,12 @@
         {
           label: "Repeat contact",
           value: formatPct(metrics.repeat_contact_rate_pct),
-          detail: (metrics.repeat_contacts ?? 0) + " repeat · " + (metrics.same_topic_repeats ?? 0) + " same topic",
+          detail: (metrics.repeat_contacts ?? 0) + " repeat · " + (metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0) + " same subtopic",
+        },
+        {
+          label: "Issues detected",
+          value: metrics.issues_detected ?? 0,
+          detail: (metrics.multi_issue_calls ?? 0) + " calls with multiple issues",
         },
         {
           label: "Missed / abandoned",
@@ -3029,7 +3104,8 @@
           ["Tool actions", metrics.tool_actions ?? 0],
           ["Guest turns", metrics.guest_messages ?? 0],
           ["Avg messages", metrics.avg_messages_per_call ?? 0],
-          ["Same-topic repeats", metrics.same_topic_repeats ?? 0],
+          ["Same-subtopic repeats", metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0],
+          ["Multi-issue calls", metrics.multi_issue_calls ?? 0],
           ["Abandoned", metrics.abandoned_calls ?? 0],
         ];
         secondary.innerHTML = "";
@@ -3123,9 +3199,23 @@
       const sub = document.createElement("span");
       const calls = Number(summary?.call_count || 0);
       const topic = summary?.primary_topic && summary.primary_topic !== "Unclassified" ? " · " + summary.primary_topic : "";
-      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "") + topic;
+      const issueText = summary?.issue_count ? " · " + summary.issue_count + " issues" : "";
+      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "") + issueText + topic;
       titleWrap.appendChild(heading);
       titleWrap.appendChild(sub);
+
+      const issueRows = Array.isArray(summary?.subtopics) ? summary.subtopics : [];
+      if (issueRows.length) {
+        const chips = document.createElement("div");
+        chips.className = "thread-issue-list";
+        for (const item of issueRows.slice(0, 5)) {
+          const chip = document.createElement("span");
+          chip.className = "call-badge " + (item.repeat_count ? "same_subtopic" : "topic");
+          chip.textContent = item.label + " " + item.count + (item.repeat_count ? " · repeat " + item.repeat_count : "");
+          chips.appendChild(chip);
+        }
+        titleWrap.appendChild(chips);
+      }
 
       const toggle = document.createElement("div");
       toggle.className = "transcript-toggle";
