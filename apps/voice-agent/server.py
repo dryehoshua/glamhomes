@@ -616,6 +616,64 @@ RESOLUTION_NEGATIVE_TERMS = {
     "aún",
 }
 
+AGGRESSIVE_OR_FRUSTRATED_TERMS = {
+    "angry",
+    "mad",
+    "furious",
+    "upset",
+    "terrible",
+    "awful",
+    "unacceptable",
+    "ridiculous",
+    "complaint",
+    "complain",
+    "supervisor",
+    "manager now",
+    "lawsuit",
+    "lawyer",
+    "refund now",
+    "this is unacceptable",
+    "i am upset",
+    "i'm upset",
+    "i am angry",
+    "i'm angry",
+    "enojado",
+    "enojada",
+    "molesto",
+    "molesta",
+    "furioso",
+    "furiosa",
+    "terrible",
+    "inaceptable",
+    "queja",
+    "demanda",
+    "abogado",
+}
+
+PRAISE_TERMS = {
+    "excellent service",
+    "amazing service",
+    "great service",
+    "you are amazing",
+    "you were amazing",
+    "very helpful",
+    "super helpful",
+    "thank you so much",
+    "really appreciate",
+    "love glam",
+    "perfect service",
+    "excelente servicio",
+    "muy amable",
+    "super amable",
+    "súper amable",
+    "muy atento",
+    "muy atenta",
+    "felicidades",
+    "los felicito",
+    "me ayudaste mucho",
+    "muchas gracias",
+}
+
 CALL_STOPWORDS = {
     "about",
     "after",
@@ -3181,6 +3239,21 @@ def call_has_influencer_signal(events: list[dict]) -> bool:
     return any(term in text_blob for term in INFLUENCER_TERMS)
 
 
+def call_conversation_flags(events: list[dict], resolution_status: str) -> dict:
+    conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
+    text_blob = transcript_text_blob(conversation_events).lower()
+    aggressive = any(term in text_blob for term in AGGRESSIVE_OR_FRUSTRATED_TERMS)
+    unresolved = resolution_status in {"unresolved_signal", "abandoned", "missed", "unknown"}
+    praised = any(term in text_blob for term in PRAISE_TERMS)
+    if aggressive:
+        return {"status": "attention", "note": "Aggressive or frustrated guest", "aggressive": True, "unresolved": unresolved, "praised": praised}
+    if unresolved:
+        return {"status": "attention", "note": "Unresolved issue signal", "aggressive": False, "unresolved": True, "praised": praised}
+    if praised:
+        return {"status": "praise", "note": "Guest praised the concierge", "aggressive": False, "unresolved": False, "praised": True}
+    return {"status": "neutral", "note": "", "aggressive": False, "unresolved": False, "praised": False}
+
+
 def resolution_status_from_call(call: dict, events: list[dict], has_handoff: bool, missed: bool, abandoned: bool) -> str:
     if missed:
         return "missed"
@@ -3354,6 +3427,8 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
     has_handoff = bool(handoff_rows) or call_has_handoff(events)
     subtopics = call_subtopics_from_events(events)
     influencer_signal = call_has_influencer_signal(events)
+    resolution_status = resolution_status_from_call(call, events, has_handoff, missed, abandoned)
+    conversation_flags = call_conversation_flags(events, resolution_status)
     return {
         "call_sid": str(call.get("call_sid") or ""),
         "phone": str(call.get("from") or "").strip(),
@@ -3362,7 +3437,12 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
         "issue_count": len(subtopics),
         "multi_issue": len(subtopics) > 1,
         "influencer_signal": influencer_signal,
-        "resolution_status": resolution_status_from_call(call, events, has_handoff, missed, abandoned),
+        "resolution_status": resolution_status,
+        "conversation_status": conversation_flags.get("status", "neutral"),
+        "conversation_note": conversation_flags.get("note", ""),
+        "aggressive_signal": bool(conversation_flags.get("aggressive")),
+        "unresolved_signal": bool(conversation_flags.get("unresolved")),
+        "praise_signal": bool(conversation_flags.get("praised")),
         "started_at": call.get("started_at") or call.get("last_at") or "",
         "last_at": call.get("last_at") or call.get("started_at") or "",
         "resolution_seconds": call_resolution_seconds(call, events),
@@ -3453,6 +3533,8 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
     multi_issue_calls = 0
     influencer_calls = 0
     influencer_callers: set[str] = set()
+    attention_calls = 0
+    praise_calls = 0
 
     events_by_sid = call_events_for_metrics(calls, path_by_sid)
     analyses = []
@@ -3474,6 +3556,10 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
             phone_digits = digits_only(analysis.get("phone"))
             if phone_digits:
                 influencer_callers.add(phone_digits)
+        if analysis.get("conversation_status") == "attention":
+            attention_calls += 1
+        if analysis.get("conversation_status") == "praise":
+            praise_calls += 1
         if "Booking intent" in hits:
             booking_intent_calls += 1
         merge_counts(top_terms, token_counts_from_text(text_blob))
@@ -3581,6 +3667,8 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         "influencer_calls": influencer_calls,
         "influencer_callers": len(influencer_callers),
         "influencer_rate_pct": round((influencer_calls / total_calls) * 100, 1) if total_calls else 0,
+        "attention_calls": attention_calls,
+        "praise_calls": praise_calls,
         "missed_calls": missed_calls,
         "abandoned_calls": abandoned_calls,
         "sms_sent": len([event for event in sms_events if event.get("sms_type") != "inbound_sms"]),
@@ -3813,6 +3901,10 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
     issue_count = 0
     multi_issue_count = 0
     influencer_count = 0
+    attention_count = 0
+    aggressive_count = 0
+    unresolved_signal_count = 0
+    praise_count = 0
     for analysis in analyses:
         topic = str(analysis.get("topic") or "Unclassified")
         topic_counts[topic] = topic_counts.get(topic, 0) + 1
@@ -3821,6 +3913,10 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         issue_count += int(analysis.get("issue_count") or 0)
         multi_issue_count += 1 if analysis.get("multi_issue") else 0
         influencer_count += 1 if analysis.get("influencer_signal") else 0
+        attention_count += 1 if analysis.get("conversation_status") == "attention" else 0
+        aggressive_count += 1 if analysis.get("aggressive_signal") else 0
+        unresolved_signal_count += 1 if analysis.get("unresolved_signal") else 0
+        praise_count += 1 if analysis.get("praise_signal") else 0
         for subtopic in analysis.get("subtopics") or ["Unclassified"]:
             subtopic_counts[subtopic] = subtopic_counts.get(subtopic, 0) + 1
         for subtopic in analysis.get("repeated_subtopics") or []:
@@ -3854,8 +3950,23 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         badges.append({"type": "missed", "label": "Missed", "count": missed_count})
     if abandoned_count:
         badges.append({"type": "abandoned", "label": "Abandoned", "count": abandoned_count})
+    if attention_count:
+        badges.append({"type": "attention", "label": "Needs attention", "count": attention_count})
+    elif praise_count:
+        badges.append({"type": "praise", "label": "Praise", "count": praise_count})
     if primary_topic and primary_topic != "Unclassified":
         badges.append({"type": "topic", "label": primary_topic, "count": topic_counts.get(primary_topic, 0)})
+    conversation_status = "attention" if attention_count else ("praise" if praise_count else "neutral")
+    conversation_note = ""
+    if attention_count:
+        if aggressive_count:
+            conversation_note = "Aggressive or frustrated guest"
+        elif unresolved_signal_count:
+            conversation_note = "Unresolved issue signal"
+        else:
+            conversation_note = "Needs attention"
+    elif praise_count:
+        conversation_note = "Guest praised the concierge"
     return {
         "thread_id": thread_id,
         "phone": str(latest.get("from") or "").strip(),
@@ -3886,6 +3997,12 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         "multi_issue_calls": multi_issue_count,
         "influencer": bool(influencer_count),
         "influencer_calls": influencer_count,
+        "conversation_status": conversation_status,
+        "conversation_note": conversation_note,
+        "attention_calls": attention_count,
+        "aggressive_calls": aggressive_count,
+        "unresolved_signal_calls": unresolved_signal_count,
+        "praise_calls": praise_count,
         "repeat_contacts": repeat_count,
         "same_topic_repeats": same_topic_count,
         "same_subtopic_repeats": same_subtopic_count,
@@ -4015,6 +4132,8 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
                 "multi_issue": bool(analysis.get("multi_issue")),
                 "influencer_signal": bool(analysis.get("influencer_signal")),
                 "resolution_status": analysis.get("resolution_status") or "unknown",
+                "conversation_status": analysis.get("conversation_status") or "neutral",
+                "conversation_note": analysis.get("conversation_note") or "",
                 "resolution_seconds": analysis.get("resolution_seconds") or 0,
                 "has_handoff": bool(analysis.get("has_handoff")),
             }

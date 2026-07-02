@@ -1542,6 +1542,26 @@
       box-shadow: inset 3px 0 0 var(--gold);
     }
 
+    .call-item.attention {
+      background: #fff0ee;
+      box-shadow: inset 4px 0 0 var(--red);
+    }
+
+    .call-item.attention.active {
+      background: #fff7f5;
+      box-shadow: inset 4px 0 0 var(--red), inset 0 0 0 1px rgba(163, 58, 45, 0.14);
+    }
+
+    .call-item.praise {
+      background: #f1f8f2;
+      box-shadow: inset 4px 0 0 var(--green);
+    }
+
+    .call-item.praise.active {
+      background: #f8fff8;
+      box-shadow: inset 4px 0 0 var(--green), inset 0 0 0 1px rgba(36, 90, 70, 0.14);
+    }
+
     .call-item-name {
       font-size: 14px;
       font-weight: 840;
@@ -1566,6 +1586,18 @@
       font-size: 12px;
       line-height: 1.25;
       overflow-wrap: anywhere;
+    }
+
+    .call-item-note {
+      color: #8c342d;
+      font-size: 11px;
+      font-weight: 820;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .call-item.praise .call-item-note {
+      color: #245a46;
     }
 
     .call-badges {
@@ -1593,10 +1625,17 @@
 
     .call-badge.escalation,
     .call-badge.abandoned,
-    .call-badge.missed {
+    .call-badge.missed,
+    .call-badge.attention {
       border-color: rgba(236, 106, 94, 0.42);
       background: #fff0ee;
       color: #8c342d;
+    }
+
+    .call-badge.praise {
+      border-color: rgba(36, 90, 70, 0.28);
+      background: #e9f6ef;
+      color: #245a46;
     }
 
     .call-badge.repeat,
@@ -3388,6 +3427,11 @@
           detail: (metrics.influencer_calls ?? 0) + " calls flagged",
         },
         {
+          label: "Needs attention",
+          value: metrics.attention_calls ?? 0,
+          detail: (metrics.praise_calls ?? 0) + " praise calls",
+        },
+        {
           label: "Missed / abandoned",
           value: (metrics.missed_calls ?? 0) + " / " + (metrics.abandoned_calls ?? 0),
           detail: "Telephony status and short unresolved calls",
@@ -3424,6 +3468,8 @@
           ["Same-subtopic repeats", metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0],
           ["Multi-issue calls", metrics.multi_issue_calls ?? 0],
           ["Influencer calls", metrics.influencer_calls ?? 0],
+          ["Needs attention", metrics.attention_calls ?? 0],
+          ["Praise", metrics.praise_calls ?? 0],
           ["Abandoned", metrics.abandoned_calls ?? 0],
         ];
         secondary.innerHTML = "";
@@ -3659,7 +3705,8 @@
       }
       for (const thread of threads) {
         const button = document.createElement("button");
-        button.className = "call-item" + (thread.thread_id === selectedThreadId ? " active" : "");
+        const statusClass = ["attention", "praise"].includes(thread.conversation_status) ? " " + thread.conversation_status : "";
+        button.className = "call-item" + statusClass + (thread.thread_id === selectedThreadId ? " active" : "");
         button.type = "button";
         button.dataset.threadId = thread.thread_id || "";
 
@@ -3681,6 +3728,9 @@
         const detail = document.createElement("span");
         detail.className = "call-item-time";
         detail.textContent = compactDate(callerLastSpoke(thread));
+        const note = document.createElement("span");
+        note.className = "call-item-note";
+        note.textContent = thread.conversation_note || "";
         const badges = document.createElement("span");
         badges.className = "call-badges";
         const badgeRows = Array.isArray(thread.badges) ? thread.badges : [];
@@ -3694,6 +3744,7 @@
         button.appendChild(title);
         button.appendChild(number);
         button.appendChild(detail);
+        if (note.textContent) button.appendChild(note);
         if (badges.children.length) button.appendChild(badges);
         button.addEventListener("click", () => openCallThread(thread.thread_id));
         list.appendChild(button);
