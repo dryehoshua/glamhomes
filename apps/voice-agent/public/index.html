@@ -1511,6 +1511,7 @@
       overflow: auto;
       display: grid;
       align-content: start;
+      grid-auto-rows: max-content;
       border-right: 1px solid var(--line);
       background: #fbf3df;
     }
@@ -1528,9 +1529,12 @@
       background: transparent;
       padding: 12px 14px;
       display: grid;
+      grid-auto-rows: max-content;
+      align-content: start;
       gap: 3px;
       text-align: left;
       color: var(--ink);
+      overflow: visible;
     }
 
     .call-item.active {
@@ -1543,6 +1547,10 @@
       font-weight: 840;
       line-height: 1.2;
       overflow-wrap: anywhere;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
     }
 
     .call-item-number {
@@ -1564,7 +1572,9 @@
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
-      margin-top: 2px;
+      margin-top: 4px;
+      padding-bottom: 2px;
+      min-height: 0;
     }
 
     .call-badge {
@@ -1576,6 +1586,9 @@
       font-size: 10px;
       line-height: 1.2;
       font-weight: 780;
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
     }
 
     .call-badge.escalation,
@@ -1593,6 +1606,19 @@
       border-color: rgba(240, 191, 73, 0.44);
       background: #fff5d9;
       color: #7b5a10;
+    }
+
+    .call-badge.influencer {
+      border-color: rgba(200, 155, 60, 0.62);
+      background: #fff1bd;
+      color: #74510b;
+    }
+
+    .vip-star {
+      color: var(--gold-deep);
+      font-size: 14px;
+      line-height: 1;
+      flex: 0 0 auto;
     }
 
     .transcript-panel {
@@ -2603,6 +2629,14 @@
             </div>
           </div>
           <div class="security-card">
+            <strong>VIP Reservations</strong>
+            <span id="vipReservationsState">Loading VIP reservations line...</span>
+            <div class="security-form">
+              <input id="vipReservationsPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
+              <button class="secondary compact" id="saveVipReservationsContact" type="button">Save number</button>
+            </div>
+          </div>
+          <div class="security-card">
             <strong>Current call rules</strong>
             <p>Use caller ID when it matches Guesty. With a reservation code, confirm the reservation and guest name, then answer directly from Guesty. Offer SMS to the caller number for useful details. Transfer live calls when a guest asks for a human.</p>
           </div>
@@ -2737,6 +2771,7 @@
       updateProtectedViews();
       if (clean) {
         loadEmergencyContact();
+        loadVipReservationsContact();
         loadReservationValidation();
         refreshCallInbox(true);
       }
@@ -2794,6 +2829,50 @@
         $("emergencyContactState").textContent = error.message;
       } finally {
         $("saveEmergencyContact").textContent = "Save number";
+      }
+    }
+
+    async function loadVipReservationsContact() {
+      try {
+        const { data } = await fetchJson("/api/vip-reservations-contact", { headers: callDataHeaders() });
+        const label = data.phone_number || data.masked_phone_number || "not configured";
+        $("vipReservationsState").textContent = "Current: " + label + (data.source ? " · " + data.source : "");
+        if (data.phone_number && !String(data.phone_number).includes("*")) {
+          $("vipReservationsPhone").value = data.phone_number;
+        } else if (!$("vipReservationsPhone").value) {
+          $("vipReservationsPhone").placeholder = data.masked_phone_number || "+525630907754";
+        }
+      } catch (error) {
+        $("vipReservationsState").textContent = "Could not load VIP Reservations number.";
+      }
+    }
+
+    async function saveVipReservationsContact() {
+      const phone = $("vipReservationsPhone").value.trim();
+      if (!dashboardUnlocked()) {
+        $("vipReservationsState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      if (!phone) {
+        $("vipReservationsState").textContent = "Enter phone number.";
+        return;
+      }
+      $("saveVipReservationsContact").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/vip-reservations-contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone_number: phone, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not save VIP Reservations number.");
+        }
+        $("vipReservationsPhone").value = data.phone_number || phone;
+        $("vipReservationsState").textContent = "Current: " + (data.phone_number || phone) + " · saved";
+      } catch (error) {
+        $("vipReservationsState").textContent = error.message;
+      } finally {
+        $("saveVipReservationsContact").textContent = "Save number";
       }
     }
 
@@ -3304,6 +3383,11 @@
           detail: (metrics.multi_issue_calls ?? 0) + " calls with multiple issues",
         },
         {
+          label: "Influencers",
+          value: metrics.influencer_callers ?? 0,
+          detail: (metrics.influencer_calls ?? 0) + " calls flagged",
+        },
+        {
           label: "Missed / abandoned",
           value: (metrics.missed_calls ?? 0) + " / " + (metrics.abandoned_calls ?? 0),
           detail: "Telephony status and short unresolved calls",
@@ -3339,6 +3423,7 @@
           ["Avg messages", metrics.avg_messages_per_call ?? 0],
           ["Same-subtopic repeats", metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0],
           ["Multi-issue calls", metrics.multi_issue_calls ?? 0],
+          ["Influencer calls", metrics.influencer_calls ?? 0],
           ["Abandoned", metrics.abandoned_calls ?? 0],
         ];
         secondary.innerHTML = "";
@@ -3580,7 +3665,16 @@
 
         const title = document.createElement("span");
         title.className = "call-item-name";
-        title.textContent = callerDisplayName(thread);
+        if (thread.influencer) {
+          const star = document.createElement("span");
+          star.className = "vip-star";
+          star.textContent = "★";
+          star.title = "Influencer / VIP Reservations";
+          title.appendChild(star);
+        }
+        const titleText = document.createElement("span");
+        titleText.textContent = callerDisplayName(thread);
+        title.appendChild(titleText);
         const number = document.createElement("span");
         number.className = "call-item-number";
         number.textContent = callerDisplayNumber(thread);
@@ -4296,6 +4390,7 @@
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
     $("saveEmergencyContact").onclick = saveEmergencyContact;
+    $("saveVipReservationsContact").onclick = saveVipReservationsContact;
     $("saveReservationValidation").onclick = saveReservationValidation;
     $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("clearCallSearch").onclick = clearCallSearch;
@@ -4357,6 +4452,7 @@
     loadVoiceConfig();
     updateProtectedViews();
     loadEmergencyContact();
+    loadVipReservationsContact();
     loadReservationValidation();
     initializeAnalyticsRangeInputs();
     updateRangeControls();

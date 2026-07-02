@@ -41,6 +41,7 @@ TRANSCRIPTS_DIR = PROJECT_ROOT / "transcripts"
 DATA_DIR = PROJECT_ROOT / "data"
 PROPERTY_LINKS_DB = DATA_DIR / "glam_homes_property_links.sqlite"
 EMERGENCY_CONTACT_PATH = DATA_DIR / "emergency_contact.json"
+VIP_RESERVATIONS_CONTACT_PATH = DATA_DIR / "vip_reservations_contact.json"
 VOICE_CONFIG_PATH = DATA_DIR / "voice_config.json"
 RESERVATION_VALIDATION_PATH = DATA_DIR / "reservation_validation.json"
 HOST = "127.0.0.1"
@@ -57,6 +58,7 @@ TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+17864813013")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://glamhomes.aipeople.app").rstrip("/")
 DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER = "+525630907754"
 HUMAN_SUPPORT_PHONE_NUMBER = os.environ.get("GLAM_HUMAN_SUPPORT_PHONE", DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER)
+VIP_RESERVATIONS_PHONE_NUMBER = os.environ.get("GLAM_VIP_RESERVATIONS_PHONE", DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER)
 EMERGENCY_CONTACT_ADMIN_PASSWORD = os.environ.get("GLAM_EMERGENCY_CONTACT_PASSWORD", "MosesGlam")
 
 
@@ -141,6 +143,11 @@ Safety and escalation:
   special services, extra towels, housekeeping requests, maintenance, access
   trouble, complaints, policy exceptions, transfers, or anything operational
   that Glam Homes staff must handle. Tell the guest clearly: "Of course, I will
+- If a caller says they are an influencer, content creator, have social media
+  followers, or ask for a collaboration, treat it as a VIP Reservations lead.
+  Collect their name, phone number, platform or handle if they volunteer it,
+  then send twilio_send_human_handoff_sms with reason_category
+  vip_reservations and a concise summary.
   notify a human advisor now." Include caller number, reservation code when
   known, and the concrete problem/request.
 - If the caller asks to be transferred to a human, use
@@ -544,6 +551,39 @@ CALL_SUBTOPIC_KEYWORDS = {
         "olvide",
         "olvidé",
     },
+    "Influencer / creator": {
+        "influencer",
+        "content creator",
+        "creator",
+        "instagram",
+        "tiktok",
+        "youtube",
+        "followers",
+        "following",
+        "collab",
+        "collaboration",
+        "sponsor",
+        "sponsored",
+        "social media",
+        "press trip",
+        "media kit",
+    },
+}
+
+INFLUENCER_TERMS = {
+    "influencer",
+    "content creator",
+    "creator",
+    "instagram",
+    "tiktok",
+    "youtube",
+    "followers",
+    "collab",
+    "collaboration",
+    "sponsored",
+    "social media",
+    "media kit",
+    "press trip",
 }
 
 RESOLUTION_POSITIVE_TERMS = {
@@ -640,6 +680,7 @@ HANDOFF_REASON_CATEGORIES = {
     "access_issue",
     "maintenance",
     "policy_exception",
+    "vip_reservations",
     "emergency",
     "ai_failure",
     "other",
@@ -827,7 +868,7 @@ REALTIME_TOOLS = [
             "type": "object",
             "properties": {
                 "reason": {"type": "string", "description": "Short reason for human handoff."},
-                "reason_category": {"type": "string", "description": "Structured handoff category: guest_requested_human, missing_information, unsupported_request, operational_request, access_issue, maintenance, policy_exception, emergency, ai_failure, or other."},
+                "reason_category": {"type": "string", "description": "Structured handoff category: guest_requested_human, missing_information, unsupported_request, operational_request, access_issue, maintenance, policy_exception, vip_reservations, emergency, ai_failure, or other."},
                 "summary": {"type": "string", "description": "Concise call summary for the human agent."},
                 "guest_name": {"type": "string", "description": "Guest name if known."},
                 "reservation_code": {"type": "string", "description": "Reservation confirmation code if known."},
@@ -847,7 +888,7 @@ REALTIME_TOOLS = [
             "type": "object",
             "properties": {
                 "reason": {"type": "string", "description": "Short transfer reason."},
-                "reason_category": {"type": "string", "description": "Structured transfer category: guest_requested_human, missing_information, unsupported_request, operational_request, access_issue, maintenance, policy_exception, emergency, ai_failure, or other."},
+                "reason_category": {"type": "string", "description": "Structured transfer category: guest_requested_human, missing_information, unsupported_request, operational_request, access_issue, maintenance, policy_exception, vip_reservations, emergency, ai_failure, or other."},
                 "summary": {"type": "string", "description": "Concise call summary for the human agent."},
                 "guest_name": {"type": "string", "description": "Guest name if known."},
                 "reservation_code": {"type": "string", "description": "Reservation confirmation code if known."},
@@ -2370,6 +2411,52 @@ def update_emergency_contact(phone_number: object, updated_by: object = "") -> d
     return emergency_contact_payload(reveal=True)
 
 
+def read_vip_reservations_contact_config() -> dict:
+    try:
+        payload = json.loads(VIP_RESERVATIONS_CONTACT_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def vip_reservations_number() -> str:
+    payload = read_vip_reservations_contact_config()
+    temporary = normalize_phone_number(payload.get("phone_number"))
+    if temporary:
+        return temporary
+    configured = normalize_phone_number(os.environ.get("GLAM_VIP_RESERVATIONS_PHONE", VIP_RESERVATIONS_PHONE_NUMBER))
+    return configured or DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER
+
+
+def vip_reservations_contact_payload(reveal: bool = False) -> dict:
+    config = read_vip_reservations_contact_config()
+    number = vip_reservations_number()
+    return {
+        "ok": True,
+        "phone_number": number if reveal else mask_phone_number(number),
+        "masked_phone_number": mask_phone_number(number),
+        "source": "temporary" if config.get("phone_number") else "env_or_default",
+        "updated_at": config.get("updated_at", ""),
+        "updated_by": config.get("updated_by", ""),
+    }
+
+
+def update_vip_reservations_contact(phone_number: object, updated_by: object = "") -> dict:
+    clean = normalize_phone_number(phone_number)
+    if not re.fullmatch(r"\+[1-9]\d{7,14}", clean):
+        raise ValueError("VIP Reservations phone number must be in E.164 format, for example +525630907754.")
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "phone_number": clean,
+        "updated_at": now_iso(),
+        "updated_by": truncate_sms_part(updated_by, 80),
+    }
+    VIP_RESERVATIONS_CONTACT_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return vip_reservations_contact_payload(reveal=True)
+
+
 def vapi_api_request(path: str, payload: dict) -> dict:
     api_key = vapi_api_key()
     if not api_key:
@@ -3088,6 +3175,12 @@ def call_subtopics_from_events(events: list[dict]) -> list[str]:
     return call_subtopic_hits(text_blob)
 
 
+def call_has_influencer_signal(events: list[dict]) -> bool:
+    conversation_events = [event for event in events if transcript_event_role(event) in {"guest", "concierge"}]
+    text_blob = transcript_text_blob(conversation_events).lower()
+    return any(term in text_blob for term in INFLUENCER_TERMS)
+
+
 def resolution_status_from_call(call: dict, events: list[dict], has_handoff: bool, missed: bool, abandoned: bool) -> str:
     if missed:
         return "missed"
@@ -3121,6 +3214,8 @@ def handoff_reason_category(value: object, reason: object = "") -> str:
         return "maintenance"
     if any(token in text for token in ("refund", "cancel", "discount", "pet", "party", "late checkout", "early check")):
         return "policy_exception"
+    if any(token in text for token in ("influencer", "content creator", "creator", "instagram", "tiktok", "youtube", "followers", "collab", "collaboration")):
+        return "vip_reservations"
     if any(token in text for token in ("emergency", "urgent", "safety", "seguridad", "emergencia")):
         return "emergency"
     if any(token in text for token in ("unsupported", "unknown", "cannot", "can't", "no puedo")):
@@ -3258,6 +3353,7 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
     abandoned = call_is_abandoned(call, events, guest_messages, concierge_messages)
     has_handoff = bool(handoff_rows) or call_has_handoff(events)
     subtopics = call_subtopics_from_events(events)
+    influencer_signal = call_has_influencer_signal(events)
     return {
         "call_sid": str(call.get("call_sid") or ""),
         "phone": str(call.get("from") or "").strip(),
@@ -3265,6 +3361,7 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
         "subtopics": subtopics,
         "issue_count": len(subtopics),
         "multi_issue": len(subtopics) > 1,
+        "influencer_signal": influencer_signal,
         "resolution_status": resolution_status_from_call(call, events, has_handoff, missed, abandoned),
         "started_at": call.get("started_at") or call.get("last_at") or "",
         "last_at": call.get("last_at") or call.get("started_at") or "",
@@ -3354,6 +3451,8 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
     calls_by_day_hour: dict[tuple[str, int], dict] = {}
     issue_total = 0
     multi_issue_calls = 0
+    influencer_calls = 0
+    influencer_callers: set[str] = set()
 
     events_by_sid = call_events_for_metrics(calls, path_by_sid)
     analyses = []
@@ -3370,6 +3469,11 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         issue_total += int(analysis.get("issue_count") or 0)
         if analysis.get("multi_issue"):
             multi_issue_calls += 1
+        if analysis.get("influencer_signal"):
+            influencer_calls += 1
+            phone_digits = digits_only(analysis.get("phone"))
+            if phone_digits:
+                influencer_callers.add(phone_digits)
         if "Booking intent" in hits:
             booking_intent_calls += 1
         merge_counts(top_terms, token_counts_from_text(text_blob))
@@ -3474,6 +3578,9 @@ def build_call_metrics(calls: list[dict], path_by_sid: dict[str, Path]) -> dict:
         "issues_detected": issue_total,
         "multi_issue_calls": multi_issue_calls,
         "multi_issue_rate_pct": round((multi_issue_calls / total_calls) * 100, 1) if total_calls else 0,
+        "influencer_calls": influencer_calls,
+        "influencer_callers": len(influencer_callers),
+        "influencer_rate_pct": round((influencer_calls / total_calls) * 100, 1) if total_calls else 0,
         "missed_calls": missed_calls,
         "abandoned_calls": abandoned_calls,
         "sms_sent": len([event for event in sms_events if event.get("sms_type") != "inbound_sms"]),
@@ -3705,6 +3812,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
     abandoned_count = 0
     issue_count = 0
     multi_issue_count = 0
+    influencer_count = 0
     for analysis in analyses:
         topic = str(analysis.get("topic") or "Unclassified")
         topic_counts[topic] = topic_counts.get(topic, 0) + 1
@@ -3712,6 +3820,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         resolution_counts[status] = resolution_counts.get(status, 0) + 1
         issue_count += int(analysis.get("issue_count") or 0)
         multi_issue_count += 1 if analysis.get("multi_issue") else 0
+        influencer_count += 1 if analysis.get("influencer_signal") else 0
         for subtopic in analysis.get("subtopics") or ["Unclassified"]:
             subtopic_counts[subtopic] = subtopic_counts.get(subtopic, 0) + 1
         for subtopic in analysis.get("repeated_subtopics") or []:
@@ -3735,6 +3844,8 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         badges.append({"type": "same_subtopic", "label": "Same subtopic repeat", "count": same_subtopic_count})
     if multi_issue_count:
         badges.append({"type": "multi_issue", "label": "Multiple issues", "count": multi_issue_count})
+    if influencer_count:
+        badges.append({"type": "influencer", "label": "Influencer", "count": influencer_count})
     if escalation_count:
         badges.append({"type": "escalation", "label": "Escalated", "count": escalation_count})
     if sms_count:
@@ -3773,6 +3884,8 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         ],
         "issue_count": issue_count,
         "multi_issue_calls": multi_issue_count,
+        "influencer": bool(influencer_count),
+        "influencer_calls": influencer_count,
         "repeat_contacts": repeat_count,
         "same_topic_repeats": same_topic_count,
         "same_subtopic_repeats": same_subtopic_count,
@@ -3900,6 +4013,7 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
                 "subtopics": analysis.get("subtopics") or [],
                 "issue_count": analysis.get("issue_count") or 0,
                 "multi_issue": bool(analysis.get("multi_issue")),
+                "influencer_signal": bool(analysis.get("influencer_signal")),
                 "resolution_status": analysis.get("resolution_status") or "unknown",
                 "resolution_seconds": analysis.get("resolution_seconds") or 0,
                 "has_handoff": bool(analysis.get("has_handoff")),
@@ -4145,7 +4259,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
     requested_service = truncate_sms_part(arguments.get("requested_service") or arguments.get("service_request"), 120)
     caller_number = str(arguments.get("phone_number") or arguments.get("caller_phone") or "").strip()
     called_number = str(arguments.get("called_number") or TWILIO_PHONE_NUMBER).strip()
-    support_number = emergency_support_number()
+    support_number = vip_reservations_number() if reason_category == "vip_reservations" else emergency_support_number()
     from_number = os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER).strip()
     call_sid = str(arguments.get("call_sid") or f"handoff-{int(time.time())}").strip()
     urgency = truncate_sms_part(arguments.get("urgency") or "normal", 40)
@@ -4155,7 +4269,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
         raise ValueError("Missing emergency support number.")
 
     parts = [
-        "GLAM Concierge human attention required.",
+        "GLAM Concierge VIP Reservations lead." if reason_category == "vip_reservations" else "GLAM Concierge human attention required.",
         f"Urgency: {urgency}",
         f"Category: {reason_category}",
         f"Reason: {reason}",
@@ -4190,6 +4304,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
             "sms_type": "human_handoff",
             "message_sid": payload.get("sid", ""),
             "support_number": support_number,
+            "vip_reservations": reason_category == "vip_reservations",
             "to": support_number,
             "from": from_number,
             "caller_number": caller_number,
@@ -4232,6 +4347,7 @@ def twilio_send_human_handoff_sms(arguments: Optional[dict] = None) -> dict:
         "dry_run": dry_run,
         "message_sid": payload.get("sid"),
         "support_number": support_number,
+        "vip_reservations": reason_category == "vip_reservations",
         "from": from_number,
         "caller_number": caller_number,
         "caller_confirmation_message_sid": caller_message_sid,
@@ -4644,6 +4760,7 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     "property_links_db": str(PROPERTY_LINKS_DB),
                     "twilio_phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
                     "emergency_support_number": mask_phone_number(emergency_support_number()),
+                    "vip_reservations_number": mask_phone_number(vip_reservations_number()),
                     "public_base_url": os.environ.get("PUBLIC_BASE_URL", PUBLIC_BASE_URL),
                     "transcripts_enabled": True,
                     "transcripts_dir": str(TRANSCRIPTS_DIR),
@@ -4662,6 +4779,10 @@ class ConciergeHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/emergency-contact":
             reveal = can_access_call_data(self) or emergency_admin_authorized(self)
             write_json(self, emergency_contact_payload(reveal=reveal))
+            return
+        if parsed.path == "/api/vip-reservations-contact":
+            reveal = can_access_call_data(self) or emergency_admin_authorized(self)
+            write_json(self, vip_reservations_contact_payload(reveal=reveal))
             return
         if parsed.path == "/api/twilio/monitor":
             if not is_local_dashboard_request(self):
@@ -4965,6 +5086,16 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     write_json(self, {"ok": False, "error": "Invalid emergency contact password."}, status=403)
                     return
                 write_json(self, update_emergency_contact(body.get("phone_number"), body.get("updated_by") or "dashboard"))
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
+        if parsed.path == "/api/vip-reservations-contact":
+            try:
+                body = json.loads(read_request_body(self).decode("utf-8") or "{}")
+                if not emergency_admin_authorized(self, body):
+                    write_json(self, {"ok": False, "error": "Invalid dashboard password."}, status=403)
+                    return
+                write_json(self, update_vip_reservations_contact(body.get("phone_number"), body.get("updated_by") or "dashboard"))
             except Exception as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return
