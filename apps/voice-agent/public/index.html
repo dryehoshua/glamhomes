@@ -1209,10 +1209,6 @@
       grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 
-    .analytics-layout .analytics-detail-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
     .analytics-table-card {
       min-height: 132px;
       border: 1px solid var(--line);
@@ -1602,7 +1598,7 @@
     .transcript-panel {
       min-height: 0;
       display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr);
+      grid-template-rows: auto auto auto minmax(0, 1fr);
       background: linear-gradient(180deg, #fffdf8, #fff8eb);
     }
 
@@ -1659,6 +1655,47 @@
       border-bottom: 1px solid var(--line);
       background: #fffaf0;
       overflow-x: auto;
+    }
+
+    .call-session-tabs {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fffdf8;
+      overflow-x: auto;
+    }
+
+    .call-session-tab {
+      min-width: 128px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: #fffaf0;
+      color: var(--ink);
+      display: grid;
+      gap: 3px;
+      text-align: left;
+      flex: 0 0 auto;
+    }
+
+    .call-session-tab.active {
+      border-color: rgba(200, 155, 60, 0.66);
+      background: #f8ead0;
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .call-session-tab strong {
+      font-size: 12px;
+      line-height: 1.15;
+    }
+
+    .call-session-tab span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
     }
 
     .call-detail-tab {
@@ -2429,12 +2466,6 @@
               <div class="analytics-row"><strong>No escalation data</strong><span>--</span></div>
             </div>
           </div>
-          <div class="analytics-table-card">
-            <h3>SMS sent</h3>
-            <div class="analytics-table" id="smsTable">
-              <div class="analytics-row"><strong>No SMS data</strong><span>--</span></div>
-            </div>
-          </div>
         </div>
         <div class="keyword-panel">
           <h3>Frequent concepts</h3>
@@ -2507,6 +2538,7 @@
               <strong>Select a conversation</strong>
               <span>Each phone number keeps one continuous history.</span>
             </div>
+            <div class="call-session-tabs" id="callSessionTabs" aria-label="Calls in this conversation"></div>
             <div class="call-detail-tabs" id="callDetailTabs" aria-label="Call detail views">
               <button class="call-detail-tab active" type="button" data-mode="clean">Chat</button>
               <button class="call-detail-tab" type="button" data-mode="sms">SMS</button>
@@ -2623,6 +2655,8 @@
     let lastTranscriptSummary = {};
     let lastTranscriptEvents = [];
     let lastSmsEvents = [];
+    let lastCallAnalyses = [];
+    let selectedCallSid = "";
     const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
     const dashboardKeyStorage = "glamHomesDashboardKey";
     let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
@@ -3222,13 +3256,6 @@
         (row) => labelFromSnake(row.reason_category),
         (row) => (row.count || 0) + " calls",
       );
-      renderAnalyticsTable(
-        "smsTable",
-        (metrics.sms_events || []).filter((event) => event.sms_type !== "inbound_sms"),
-        "No SMS data",
-        (row) => smsTypeLabel(row.sms_type) + (row.to ? " · " + row.to : ""),
-        (row) => row.preview || row.status || "--",
-      );
     }
 
     function renderKpis(metrics = {}, data = {}) {
@@ -3330,11 +3357,15 @@
 
       const chips = $("keywordList");
       chips.innerHTML = "";
+      const subtopics = Array.isArray(metrics.subtopics) ? metrics.subtopics : [];
       const topics = Array.isArray(metrics.topics) ? metrics.topics : [];
-      const terms = Array.isArray(metrics.top_terms) ? metrics.top_terms : [];
       const combined = [
-        ...topics.map((item) => ({ text: item.label + " · " + item.count })),
-        ...terms.slice(0, 10).map((item) => ({ text: item.term + " · " + item.count })),
+        ...subtopics.map((item) => ({
+          text: item.label + " · " + (item.count || 0) + (item.repeat_count ? " · repeat " + item.repeat_count : ""),
+        })),
+        ...topics
+          .filter((item) => !subtopics.some((subtopic) => subtopic.label === item.label))
+          .map((item) => ({ text: item.label + " · " + item.count })),
       ];
       if (!combined.length) {
         const empty = document.createElement("span");
@@ -3364,6 +3395,7 @@
     function clearTranscript(title, detail) {
       $("transcriptHeader").innerHTML = "";
       renderCallDetailTabs();
+      renderCallSessionTabs([]);
       const titleWrap = document.createElement("div");
       titleWrap.className = "transcript-title";
       const heading = document.createElement("strong");
@@ -3397,8 +3429,68 @@
       }
     }
 
+    function selectedCallLabel() {
+      if (!selectedCallSid) return "All calls";
+      const index = lastCallAnalyses.findIndex((call) => call.call_sid === selectedCallSid);
+      return index >= 0 ? "Call " + (index + 1) : "Selected call";
+    }
+
+    function renderCallSessionTabs(calls = []) {
+      const tabs = $("callSessionTabs");
+      if (!tabs) return;
+      tabs.innerHTML = "";
+      const records = Array.isArray(calls) ? calls : [];
+      if (!records.length) {
+        const empty = document.createElement("button");
+        empty.className = "call-session-tab active";
+        empty.type = "button";
+        empty.innerHTML = "<strong>All calls</strong><span>No call sessions loaded</span>";
+        tabs.appendChild(empty);
+        return;
+      }
+      if (records.length > 1) {
+        const allButton = document.createElement("button");
+        allButton.className = "call-session-tab" + (!selectedCallSid ? " active" : "");
+        allButton.type = "button";
+        const totalIssues = records.reduce((sum, call) => sum + Number(call.issue_count || 0), 0);
+        allButton.innerHTML = "<strong>All calls</strong><span></span>";
+        allButton.querySelector("span").textContent = records.length + " calls" + (totalIssues ? " · " + totalIssues + " issues" : "");
+        allButton.addEventListener("click", () => setSelectedCallSid(""));
+        tabs.appendChild(allButton);
+      }
+      records.forEach((call, index) => {
+        const button = document.createElement("button");
+        const callSid = String(call.call_sid || "");
+        button.className = "call-session-tab" + (selectedCallSid === callSid || (records.length === 1 && !selectedCallSid) ? " active" : "");
+        button.type = "button";
+        const title = document.createElement("strong");
+        title.textContent = "Call " + (index + 1);
+        const detail = document.createElement("span");
+        const parts = [compactDate(call.started_at)];
+        const subtopics = Array.isArray(call.subtopics) ? call.subtopics.filter(Boolean) : [];
+        if (subtopics.length) parts.push(subtopics.slice(0, 2).join(", "));
+        if (call.resolution_seconds) parts.push(formatDuration(call.resolution_seconds));
+        detail.textContent = parts.filter(Boolean).join(" · ") || compactSid(callSid);
+        button.appendChild(title);
+        button.appendChild(detail);
+        button.addEventListener("click", () => setSelectedCallSid(callSid));
+        tabs.appendChild(button);
+      });
+    }
+
+    function setSelectedCallSid(callSid) {
+      selectedCallSid = String(callSid || "");
+      renderTranscript(lastTranscriptSummary, lastTranscriptEvents, lastSmsEvents, lastCallAnalyses);
+    }
+
+    function rowsForSelectedCall(rows) {
+      const records = Array.isArray(rows) ? rows : [];
+      if (!selectedCallSid) return records;
+      return records.filter((row) => row.call_sid === selectedCallSid);
+    }
+
     function transcriptRowsForMode(events) {
-      const rows = Array.isArray(events) ? events : [];
+      const rows = rowsForSelectedCall(events);
       if (transcriptViewMode === "technical") return rows;
       if (transcriptViewMode === "sms") return [];
       return rows.filter((event) => ["guest", "concierge"].includes(event.role) && String(event.text || "").trim());
@@ -3411,14 +3503,25 @@
       const heading = document.createElement("strong");
       heading.textContent = callTitle(summary || {});
       const sub = document.createElement("span");
+      const selectedAnalysis = selectedCallSid
+        ? lastCallAnalyses.find((call) => call.call_sid === selectedCallSid)
+        : null;
       const calls = Number(summary?.call_count || 0);
       const topic = summary?.primary_topic && summary.primary_topic !== "Unclassified" ? " · " + summary.primary_topic : "";
       const issueText = summary?.issue_count ? " · " + summary.issue_count + " issues" : "";
-      sub.textContent = "Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "") + issueText + topic;
+      if (selectedAnalysis) {
+        const selectedIssues = Number(selectedAnalysis.issue_count || 0);
+        const selectedTopic = selectedAnalysis.topic && selectedAnalysis.topic !== "Unclassified" ? " · " + selectedAnalysis.topic : "";
+        sub.textContent = selectedCallLabel() + " · " + compactDate(selectedAnalysis.started_at) + (selectedIssues ? " · " + selectedIssues + " issues" : "") + selectedTopic;
+      } else {
+        sub.textContent = selectedCallLabel() + " · Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "") + issueText + topic;
+      }
       titleWrap.appendChild(heading);
       titleWrap.appendChild(sub);
 
-      const issueRows = Array.isArray(summary?.subtopics) ? summary.subtopics : [];
+      const issueRows = selectedAnalysis
+        ? (selectedAnalysis.subtopics || []).map((label) => ({ label, count: 1, repeat_count: 0 }))
+        : (Array.isArray(summary?.subtopics) ? summary.subtopics : []);
       if (issueRows.length) {
         const chips = document.createElement("div");
         chips.className = "thread-issue-list";
@@ -3505,10 +3608,11 @@
 
     function renderSmsMessages(summary, smsEvents) {
       renderTranscriptHeader(summary || {});
+      renderCallSessionTabs(lastCallAnalyses);
       renderCallDetailTabs();
       const feed = $("transcriptMessages");
       feed.innerHTML = "";
-      const rows = Array.isArray(smsEvents) ? smsEvents : [];
+      const rows = rowsForSelectedCall(smsEvents);
       if (!rows.length) {
         const bubble = document.createElement("div");
         bubble.className = "transcript-bubble system";
@@ -3545,15 +3649,18 @@
       feed.scrollTop = feed.scrollHeight;
     }
 
-    function renderTranscript(summary, events, smsEvents = lastSmsEvents) {
+    function renderTranscript(summary, events, smsEvents = lastSmsEvents, callAnalyses = lastCallAnalyses) {
       lastTranscriptSummary = summary || {};
       lastTranscriptEvents = Array.isArray(events) ? events : [];
       lastSmsEvents = Array.isArray(smsEvents) ? smsEvents : [];
+      lastCallAnalyses = Array.isArray(callAnalyses) ? callAnalyses : [];
+      if (selectedCallSid && !lastCallAnalyses.some((call) => call.call_sid === selectedCallSid)) selectedCallSid = "";
       if (transcriptViewMode === "sms") {
         renderSmsMessages(summary || {}, lastSmsEvents);
         return;
       }
       renderTranscriptHeader(summary || {});
+      renderCallSessionTabs(lastCallAnalyses);
       renderCallDetailTabs();
 
       const feed = $("transcriptMessages");
@@ -3599,6 +3706,7 @@
     async function openCallThread(threadId) {
       if (!threadId || !dashboardUnlocked()) return;
       selectedThreadId = threadId;
+      selectedCallSid = "";
       for (const item of document.querySelectorAll(".call-item")) {
         item.classList.toggle("active", item.dataset.threadId === threadId);
       }
@@ -3617,7 +3725,7 @@
           throw new Error("Enter the dashboard key to open caller history.");
         }
         if (!response.ok) throw new Error(data.error || "Conversation unavailable");
-        renderTranscript(data.summary || {}, data.events || [], data.sms_events || []);
+        renderTranscript(data.summary || {}, data.events || [], data.sms_events || [], data.call_analyses || []);
       } catch (error) {
         clearTranscript("Conversation unavailable", error.message);
       }
