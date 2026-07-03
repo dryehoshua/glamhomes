@@ -1711,6 +1711,12 @@
       color: #74510b;
     }
 
+    .call-badge.recording {
+      border-color: rgba(82, 96, 160, 0.3);
+      background: #eef1ff;
+      color: #3b436a;
+    }
+
     .vip-star {
       color: var(--gold-deep);
       font-size: 14px;
@@ -1920,6 +1926,59 @@
       justify-self: start;
       background: #ffffff;
       border-color: var(--line);
+    }
+
+    .audio-panel {
+      width: min(720px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fffdf8;
+      display: grid;
+      gap: 12px;
+    }
+
+    .audio-panel strong {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .audio-panel p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      margin: 0;
+    }
+
+    .audio-player {
+      width: 100%;
+    }
+
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .audio-controls label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 820;
+      text-transform: uppercase;
+    }
+
+    .audio-controls select {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 760;
     }
 
     .transcript-speaker {
@@ -2676,6 +2735,7 @@
               <button class="call-detail-tab active" type="button" data-mode="clean">Chat</button>
               <button class="call-detail-tab" type="button" data-mode="sms">SMS</button>
               <button class="call-detail-tab" type="button" data-mode="technical">Technical</button>
+              <button class="call-detail-tab" type="button" data-mode="audio">Audio</button>
             </div>
             <div class="transcript-messages" id="transcriptMessages">
               <div class="transcript-bubble system">
@@ -2798,6 +2858,8 @@
     let lastSmsEvents = [];
     let lastCallAnalyses = [];
     let selectedCallSid = "";
+    let currentAudioObjectUrl = "";
+    let audioLoadToken = 0;
     const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
     const dashboardKeyStorage = "glamHomesDashboardKey";
     let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
@@ -3673,7 +3735,7 @@
     }
 
     function setTranscriptMode(mode) {
-      transcriptViewMode = ["technical", "sms"].includes(mode) ? mode : "clean";
+      transcriptViewMode = ["technical", "sms", "audio"].includes(mode) ? mode : "clean";
       renderTranscript(lastTranscriptSummary, lastTranscriptEvents, lastSmsEvents);
     }
 
@@ -3917,14 +3979,138 @@
       feed.scrollTop = feed.scrollHeight;
     }
 
+    function selectedAudioCall() {
+      if (selectedCallSid) {
+        return lastCallAnalyses.find((call) => call.call_sid === selectedCallSid) || null;
+      }
+      if (lastCallAnalyses.length === 1) return lastCallAnalyses[0];
+      return null;
+    }
+
+    function clearAudioObjectUrl() {
+      if (currentAudioObjectUrl) {
+        URL.revokeObjectURL(currentAudioObjectUrl);
+        currentAudioObjectUrl = "";
+      }
+    }
+
+    function audioPanelMessage(title, message) {
+      const panel = document.createElement("div");
+      panel.className = "audio-panel";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const body = document.createElement("p");
+      body.textContent = message;
+      panel.appendChild(heading);
+      panel.appendChild(body);
+      return panel;
+    }
+
+    function renderAudioPlayer(summary) {
+      renderTranscriptHeader(summary || {});
+      renderCallSessionTabs(lastCallAnalyses);
+      renderCallDetailTabs();
+      clearAudioObjectUrl();
+      const token = ++audioLoadToken;
+      const feed = $("transcriptMessages");
+      feed.innerHTML = "";
+
+      const call = selectedAudioCall();
+      if (!call) {
+        feed.appendChild(audioPanelMessage("Select a call", "Choose Call 1, Call 2, or another session above to listen to its recording."));
+        return;
+      }
+
+      const recordings = Array.isArray(call.recordings) ? call.recordings.filter((row) => row.available) : [];
+      if (!call.has_recording || !recordings.length) {
+        feed.appendChild(audioPanelMessage("No recording yet", "This call does not have a Twilio recording available. New calls will show audio after Twilio finishes processing the recording."));
+        return;
+      }
+
+      const recording = recordings[0];
+      const panel = document.createElement("div");
+      panel.className = "audio-panel";
+      const heading = document.createElement("strong");
+      heading.textContent = "Call recording";
+      const details = document.createElement("p");
+      const detailParts = [selectedCallLabel(), compactDate(call.started_at)];
+      if (recording.duration) detailParts.push(recording.duration + "s");
+      details.textContent = detailParts.filter(Boolean).join(" · ");
+      const loading = document.createElement("p");
+      loading.textContent = "Loading protected Twilio audio...";
+      panel.appendChild(heading);
+      panel.appendChild(details);
+      panel.appendChild(loading);
+      feed.appendChild(panel);
+
+      const params = new URLSearchParams({ call_sid: call.call_sid || "" });
+      if (recording.recording_sid) params.set("recording_sid", recording.recording_sid);
+      fetch("/api/calls/recording-audio?" + params.toString(), { headers: callDataHeaders() })
+        .then(async (response) => {
+          if (!response.ok) {
+            let errorText = "Recording unavailable.";
+            try {
+              const data = await response.json();
+              errorText = data.error || errorText;
+            } catch (_error) {
+              errorText = response.statusText || errorText;
+            }
+            throw new Error(errorText);
+          }
+          return response.blob();
+        })
+        .then((blob) => {
+          if (token !== audioLoadToken) return;
+          clearAudioObjectUrl();
+          currentAudioObjectUrl = URL.createObjectURL(blob);
+          loading.remove();
+          const audio = document.createElement("audio");
+          audio.className = "audio-player";
+          audio.controls = true;
+          audio.preload = "metadata";
+          audio.src = currentAudioObjectUrl;
+          const controls = document.createElement("div");
+          controls.className = "audio-controls";
+          const label = document.createElement("label");
+          label.textContent = "Speed";
+          const speed = document.createElement("select");
+          for (const value of ["0.75", "1", "1.25", "1.5", "2"]) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value + "x";
+            if (value === "1") option.selected = true;
+            speed.appendChild(option);
+          }
+          speed.addEventListener("change", () => {
+            audio.playbackRate = Number(speed.value || 1);
+          });
+          controls.appendChild(label);
+          controls.appendChild(speed);
+          panel.appendChild(audio);
+          panel.appendChild(controls);
+        })
+        .catch((error) => {
+          if (token !== audioLoadToken) return;
+          loading.textContent = error.message || "Recording unavailable.";
+        });
+    }
+
     function renderTranscript(summary, events, smsEvents = lastSmsEvents, callAnalyses = lastCallAnalyses) {
       lastTranscriptSummary = summary || {};
       lastTranscriptEvents = Array.isArray(events) ? events : [];
       lastSmsEvents = Array.isArray(smsEvents) ? smsEvents : [];
       lastCallAnalyses = Array.isArray(callAnalyses) ? callAnalyses : [];
       if (selectedCallSid && !lastCallAnalyses.some((call) => call.call_sid === selectedCallSid)) selectedCallSid = "";
+      if (transcriptViewMode !== "audio") {
+        audioLoadToken += 1;
+        clearAudioObjectUrl();
+      }
       if (transcriptViewMode === "sms") {
         renderSmsMessages(summary || {}, lastSmsEvents);
+        return;
+      }
+      if (transcriptViewMode === "audio") {
+        renderAudioPlayer(summary || {});
         return;
       }
       renderTranscriptHeader(summary || {});

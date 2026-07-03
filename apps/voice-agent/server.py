@@ -46,6 +46,7 @@ VOICE_CONFIG_PATH = DATA_DIR / "voice_config.json"
 RESERVATION_VALIDATION_PATH = DATA_DIR / "reservation_validation.json"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PORT", "3000"))
+GLAM_RECORD_CALLS = os.environ.get("GLAM_RECORD_CALLS", "true").strip().lower() not in {"0", "false", "no", "off"}
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
 REALTIME_MODEL = os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime-2")
 DEFAULT_VOICE = os.environ.get("OPENAI_REALTIME_VOICE", "ash")
@@ -2618,6 +2619,28 @@ def twilio_api_get(path: str, params: Optional[dict[str, str]] = None, timeout: 
         raise RuntimeError(f"Twilio connection error: {exc.reason}") from exc
 
 
+def twilio_api_get_bytes(path: str, params: Optional[dict[str, str]] = None, timeout: int = 30) -> tuple[bytes, str]:
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
+    if not account_sid or not auth_token:
+        raise RuntimeError("Missing TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN credentials.")
+    query = f"?{parse.urlencode(params or {})}" if params else ""
+    auth = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
+    req = request.Request(
+        f"https://api.twilio.com/2010-04-01/Accounts/{parse.quote(account_sid)}/{path.lstrip('/')}{query}",
+        method="GET",
+        headers={"Authorization": f"Basic {auth}", "Accept": "audio/mpeg,audio/wav,application/octet-stream"},
+    )
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            return response.read(), response.headers.get("Content-Type", "audio/mpeg")
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Twilio HTTP {exc.code}: {detail}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"Twilio connection error: {exc.reason}") from exc
+
+
 def monitor_expected_urls() -> dict[str, str]:
     base_url = os.environ.get("PUBLIC_BASE_URL", PUBLIC_BASE_URL).strip().rstrip("/")
     return {
@@ -2750,6 +2773,33 @@ def monitor_recent_messages(limit: int = 5) -> list[dict]:
     return list(messages.values())[:limit]
 
 
+def twilio_recordings_for_call(call_sid: object, limit: int = 5) -> list[dict]:
+    clean_call_sid = str(call_sid or "").strip()
+    if not clean_call_sid or not twilio_configured():
+        return []
+    payload = twilio_api_get("Recordings.json", {"CallSid": clean_call_sid, "PageSize": str(limit)}, timeout=8)
+    rows = []
+    for recording in payload.get("recordings") or []:
+        recording_sid = str(recording.get("sid") or "")
+        if not recording_sid:
+            continue
+        rows.append(
+            {
+                "call_sid": clean_call_sid,
+                "timestamp": recording.get("date_created", ""),
+                "recording_sid": recording_sid,
+                "recording_url": recording.get("uri", ""),
+                "status": str(recording.get("status") or "completed"),
+                "duration": str(recording.get("duration") or ""),
+                "channels": str(recording.get("channels") or ""),
+                "source": "twilio_api",
+                "available": True,
+                "protected": True,
+            }
+        )
+    return rows
+
+
 def build_twilio_monitor(deep: bool = True) -> dict:
     expected = monitor_expected_urls()
     app_port = int(os.environ.get("PORT", str(PORT)))
@@ -2809,6 +2859,12 @@ def build_twilio_monitor(deep: bool = True) -> dict:
             "ok": bool((twilio_number.get("checks") or {}).get("sms")),
             "state": "ok" if (twilio_number.get("checks") or {}).get("sms") else "warn",
             "detail": expected["sms_webhook_url"],
+        },
+        {
+            "label": "Call recording",
+            "ok": GLAM_RECORD_CALLS,
+            "state": "ok" if GLAM_RECORD_CALLS else "warn",
+            "detail": "Enabled for new Twilio calls" if GLAM_RECORD_CALLS else "Disabled by GLAM_RECORD_CALLS",
         },
         {
             "label": "Voice engine",
@@ -2923,6 +2979,7 @@ def build_twilio_public_health() -> dict:
         {"label": "Twilio number", "ok": bool(twilio_number.get("ok")), "state": twilio_number.get("state", "warn"), "detail": "Configured" if twilio_number.get("ok") else "Check unavailable"},
         {"label": "Voice webhook", "ok": voice_webhook_ok, "state": "ok" if voice_webhook_ok else "warn", "detail": "Configured"},
         {"label": "SMS webhook", "ok": sms_webhook_ok, "state": "ok" if sms_webhook_ok else "warn", "detail": "Configured"},
+        {"label": "Call recording", "ok": GLAM_RECORD_CALLS, "state": "ok" if GLAM_RECORD_CALLS else "warn", "detail": "Enabled for new calls" if GLAM_RECORD_CALLS else "Disabled"},
         {"label": "Voice engine", "ok": voice_config_ready, "state": "ok" if voice_config_ready else "down", "detail": f"{voice_engine}: {active_voice_id()}"},
         voice_connectivity,
     ]
@@ -3318,6 +3375,33 @@ def sms_preview(value: object, limit: int = 140) -> str:
     return text[: max(0, limit - 3)].rstrip() + "..."
 
 
+def recording_events_from_call(call_sid: str, events: list[dict]) -> list[dict]:
+    rows = []
+    for event in events:
+        channel = str(event.get("channel") or "").lower()
+        kind = str(event.get("kind") or "").lower()
+        if "recording" not in channel and "recording" not in kind:
+            continue
+        metadata = event.get("metadata") if isinstance(event.get("metadata"), dict) else {}
+        recording_sid = str(metadata.get("RecordingSid") or metadata.get("recording_sid") or "").strip()
+        recording_url = str(metadata.get("RecordingUrl") or metadata.get("recording_url") or "").strip()
+        rows.append(
+            {
+                "call_sid": call_sid,
+                "timestamp": event.get("timestamp", ""),
+                "recording_sid": recording_sid,
+                "recording_url": recording_url,
+                "status": str(metadata.get("RecordingStatus") or metadata.get("recording_status") or "completed"),
+                "duration": str(metadata.get("RecordingDuration") or metadata.get("recording_duration") or ""),
+                "channels": str(metadata.get("RecordingChannels") or metadata.get("recording_channels") or ""),
+                "source": str(metadata.get("RecordingSource") or metadata.get("recording_source") or "twilio"),
+                "available": bool(recording_sid or recording_url),
+                "protected": True,
+            }
+        )
+    return rows
+
+
 def sms_events_from_call(call_sid: str, events: list[dict]) -> list[dict]:
     rows = []
     for event in events:
@@ -3421,6 +3505,7 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
     concierge_messages = sum(1 for role in roles if role == "concierge")
     tool_actions = sum(1 for role in roles if role == "tool")
     sms_rows = sms_events_from_call(str(call.get("call_sid") or ""), events)
+    recording_rows = recording_events_from_call(str(call.get("call_sid") or ""), events)
     handoff_rows = handoff_reason_rows(str(call.get("call_sid") or ""), events)
     missed = call_is_missed(call)
     abandoned = call_is_abandoned(call, events, guest_messages, concierge_messages)
@@ -3450,6 +3535,8 @@ def analyze_call(call: dict, events: list[dict]) -> dict:
         "concierge_messages": concierge_messages,
         "tool_actions": tool_actions,
         "sms_events": sms_rows,
+        "recordings": recording_rows,
+        "has_recording": any(row.get("available") for row in recording_rows),
         "handoffs": handoff_rows,
         "has_handoff": has_handoff,
         "missed": missed,
@@ -3905,6 +3992,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
     aggressive_count = 0
     unresolved_signal_count = 0
     praise_count = 0
+    recording_count = 0
     for analysis in analyses:
         topic = str(analysis.get("topic") or "Unclassified")
         topic_counts[topic] = topic_counts.get(topic, 0) + 1
@@ -3917,6 +4005,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         aggressive_count += 1 if analysis.get("aggressive_signal") else 0
         unresolved_signal_count += 1 if analysis.get("unresolved_signal") else 0
         praise_count += 1 if analysis.get("praise_signal") else 0
+        recording_count += 1 if analysis.get("has_recording") else 0
         for subtopic in analysis.get("subtopics") or ["Unclassified"]:
             subtopic_counts[subtopic] = subtopic_counts.get(subtopic, 0) + 1
         for subtopic in analysis.get("repeated_subtopics") or []:
@@ -3946,6 +4035,8 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         badges.append({"type": "escalation", "label": "Escalated", "count": escalation_count})
     if sms_count:
         badges.append({"type": "sms", "label": "SMS", "count": sms_count})
+    if recording_count:
+        badges.append({"type": "recording", "label": "Audio", "count": recording_count})
     if missed_count:
         badges.append({"type": "missed", "label": "Missed", "count": missed_count})
     if abandoned_count:
@@ -4007,6 +4098,7 @@ def build_call_thread_summary(thread_id: str, calls: list[dict], path_by_sid: Op
         "same_topic_repeats": same_topic_count,
         "same_subtopic_repeats": same_subtopic_count,
         "sms_sent": sms_count,
+        "recording_count": recording_count,
         "escalation_count": escalation_count,
         "missed_calls": missed_count,
         "abandoned_calls": abandoned_count,
@@ -4120,6 +4212,12 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
         path = path_by_sid.get(call_sid)
         raw_events = read_transcript_events(path, maximum=1000) if path else []
         analysis = analyze_call(call, raw_events)
+        recordings = analysis.get("recordings") or []
+        if not recordings:
+            try:
+                recordings = twilio_recordings_for_call(call_sid)
+            except Exception:
+                recordings = []
         sms_events.extend(analysis.get("sms_events") or [])
         call_analyses.append(
             {
@@ -4136,6 +4234,8 @@ def build_call_thread(thread_id: object, start: object = "", end: object = "") -
                 "conversation_note": analysis.get("conversation_note") or "",
                 "resolution_seconds": analysis.get("resolution_seconds") or 0,
                 "has_handoff": bool(analysis.get("has_handoff")),
+                "has_recording": bool(analysis.get("has_recording")) or any(row.get("available") for row in recordings),
+                "recordings": recordings,
             }
         )
         if raw_events:
@@ -4200,6 +4300,35 @@ def build_call_transcript(call_sid: object) -> dict:
             }
         )
     return {"ok": True, "summary": summary, "events": normalized, "generated_at": now_iso()}
+
+
+def latest_recording_for_call(call_sid: object) -> Optional[dict]:
+    clean_sid = str(call_sid or "").strip()
+    if not clean_sid:
+        return None
+    path = find_transcript_file(clean_sid)
+    if not path:
+        return None
+    events = read_transcript_events(path, maximum=1000)
+    recordings = recording_events_from_call(clean_sid, events)
+    available = [row for row in recordings if row.get("available")]
+    if not available:
+        return None
+    return sorted(available, key=lambda item: transcript_sort_key(item.get("timestamp")), reverse=True)[0]
+
+
+def twilio_recording_audio(recording_sid: object = "", call_sid: object = "") -> tuple[bytes, str, str]:
+    clean_recording_sid = str(recording_sid or "").strip()
+    if not clean_recording_sid and call_sid:
+        recording = latest_recording_for_call(call_sid)
+        clean_recording_sid = str((recording or {}).get("recording_sid") or "").strip()
+    if not clean_recording_sid and call_sid:
+        recordings = twilio_recordings_for_call(call_sid, limit=1)
+        clean_recording_sid = str((recordings[0] if recordings else {}).get("recording_sid") or "").strip()
+    if not clean_recording_sid:
+        raise FileNotFoundError("No Twilio recording is available for this call yet.")
+    body, content_type = twilio_api_get_bytes(f"Recordings/{parse.quote(clean_recording_sid)}.mp3", timeout=45)
+    return body, content_type or "audio/mpeg", clean_recording_sid
 
 
 def twilio_send_property_link_sms(arguments: Optional[dict] = None) -> dict:
@@ -4608,6 +4737,16 @@ def write_text(handler: BaseHTTPRequestHandler, text: str, status: int = 200, co
     handler.wfile.write(body)
 
 
+def write_binary(handler: BaseHTTPRequestHandler, body: bytes, status: int = 200, content_type: str = "application/octet-stream", extra_headers: Optional[dict[str, str]] = None) -> None:
+    handler.send_response(status)
+    handler.send_header("Content-Type", content_type)
+    handler.send_header("Content-Length", str(len(body)))
+    for key, value in (extra_headers or {}).items():
+        handler.send_header(str(key), str(value))
+    handler.end_headers()
+    handler.wfile.write(body)
+
+
 def content_type_for(path: Path) -> str:
     if path.suffix == ".html":
         return "text/html; charset=utf-8"
@@ -4725,11 +4864,22 @@ def twilio_voice_twiml(handler: BaseHTTPRequestHandler, params: dict[str, str]) 
         "Twilio sent an inbound call to the GLAM HOMES webhook.",
         channel="twilio",
         kind="call_start",
-        metadata={"from": from_number, "to": to_number, "stream_url": stream_url},
+        metadata={"from": from_number, "to": to_number, "stream_url": stream_url, "recording_enabled": GLAM_RECORD_CALLS},
     )
+    recording_twiml = ""
+    if GLAM_RECORD_CALLS:
+        recording_callback = f"{base_url}/twilio/recording"
+        recording_twiml = (
+            "<Start>"
+            f'<Recording recordingStatusCallback="{html_escape(recording_callback, quote=True)}" '
+            'recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed absent" '
+            'track="both" channels="dual" trim="do-not-trim" />'
+            "</Start>"
+        )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<Response>"
+        f"{recording_twiml}"
         "<Connect>"
         f'<Stream url="{html_escape(stream_url, quote=True)}">'
         f'<Parameter name="callSid" value="{html_escape(call_sid, quote=True)}" />'
@@ -4991,6 +5141,29 @@ class ConciergeHandler(BaseHTTPRequestHandler):
             except Exception as exc:
                 write_json(self, {"ok": False, "error": str(exc)}, status=500)
             return
+        if parsed.path == "/api/calls/recording-audio":
+            if not can_access_call_data(self):
+                write_json(self, protected_call_data_payload(), status=403)
+                return
+            params = parse.parse_qs(parsed.query)
+            call_sid = (params.get("call_sid") or params.get("sid") or [""])[0]
+            recording_sid = (params.get("recording_sid") or [""])[0]
+            try:
+                body, content_type, clean_recording_sid = twilio_recording_audio(recording_sid=recording_sid, call_sid=call_sid)
+                write_binary(
+                    self,
+                    body,
+                    content_type=content_type,
+                    extra_headers={
+                        "Cache-Control": "private, max-age=300",
+                        "Content-Disposition": f'inline; filename="{safe_filename_part(clean_recording_sid, fallback="recording")}.mp3"',
+                    },
+                )
+            except FileNotFoundError as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=404)
+            except Exception as exc:
+                write_json(self, {"ok": False, "error": str(exc)}, status=500)
+            return
         if parsed.path == "/twilio/health":
             base_url = handler_public_base_url(self)
             write_json(
@@ -5000,6 +5173,7 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                     "service": "glam-homes-twilio",
                     "phone_number": os.environ.get("TWILIO_PHONE_NUMBER", TWILIO_PHONE_NUMBER),
                     "twilio_configured": twilio_configured(),
+                    "recording_enabled": GLAM_RECORD_CALLS,
                     "media_stream_url": websocket_url_from_public_base(base_url),
                     "transcripts_dir": str(TRANSCRIPTS_DIR),
                 },
@@ -5171,6 +5345,21 @@ class ConciergeHandler(BaseHTTPRequestHandler):
                 metadata=params,
             )
             write_json(self, {"ok": True})
+            return
+        if parsed.path == "/twilio/recording":
+            params = read_form_body(self)
+            call_sid = params.get("CallSid") or params.get("callSid") or f"recording-{int(time.time())}"
+            recording_sid = params.get("RecordingSid") or ""
+            recording_status = params.get("RecordingStatus") or "completed"
+            append_transcript_event(
+                call_sid,
+                "System",
+                f"Twilio recording callback: {recording_status}",
+                channel="twilio_recording",
+                kind="recording_status",
+                metadata=params | {"recording_sid": recording_sid, "recording_status": recording_status},
+            )
+            write_json(self, {"ok": True, "recording_sid": recording_sid, "status": recording_status})
             return
         if parsed.path == "/twilio/sms":
             params = read_form_body(self)

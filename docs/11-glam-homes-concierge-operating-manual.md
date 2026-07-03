@@ -125,7 +125,7 @@ Critica de standard industrial:
 - Riesgo actual: demasiadas metricas sin jerarquia pueden ocultar la accion.
 - Mejora aplicada: agregar una capa de prioridades operativas encima de las
   graficas para que el manager vea primero alertas, repeticion, VIP y calidad.
-- Siguiente nivel: agregar CSAT post-call, audio recording con consentimiento,
+- Siguiente nivel: agregar CSAT post-call, politica formal de consentimiento,
   average speed of answer, service level y QA score automatizado por rubrica.
 
 Benchmarks de referencia:
@@ -161,6 +161,8 @@ Estructura:
 - Vista limpia: estilo chat, solo huesped e IA.
 - Vista tecnica: eventos, tool calls y resultados internos.
 - Vista SMS: mensajes enviados como chat telefonico.
+- Vista Audio: reproductor protegido de la grabacion Twilio por llamada, con
+  controles nativos para adelantar/regresar y selector de velocidad.
 
 Codigos visuales:
 
@@ -341,9 +343,11 @@ Reglas:
 - Transcripts contienen PII y deben quedarse fuera de Git.
 - El dashboard protegido no debe exponer telefonos, llamadas o configuracion sin
   password.
-- Audio recording no esta activado por defecto.
-- Si se activa grabacion en fase 2, requiere consentimiento y endpoint protegido
-  para reproducir audio.
+- Audio recording se controla con `GLAM_RECORD_CALLS`.
+- Cuando esta activo, Twilio inicia `<Start><Recording>` antes del stream de IA.
+- El panel reproduce el audio por endpoint protegido; no expone URLs publicas de
+  Twilio en el navegador.
+- Se debe validar el aviso de consentimiento de grabacion antes de produccion.
 
 ## 10. Human Verification Plan
 
@@ -386,8 +390,7 @@ Fase 1 completada / en curso:
 
 Fase 2 recomendada:
 
-- Audio recording con consentimiento.
-- Audio player protegido.
+- Validar consentimiento legal y locucion de grabacion.
 - Twilio abandoned/missed callbacks mas completos.
 - CSAT post-call via SMS.
 - QA score automatico por llamada.
