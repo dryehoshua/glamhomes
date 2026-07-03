@@ -4023,7 +4023,7 @@
 
       const recordings = Array.isArray(call.recordings) ? call.recordings.filter((row) => row.available) : [];
       if (!call.has_recording || !recordings.length) {
-        feed.appendChild(audioPanelMessage("No recording yet", "This call does not have a Twilio recording available. New calls will show audio after Twilio finishes processing the recording."));
+        feed.appendChild(audioPanelMessage("No Twilio recording found", "Twilio does not have an audio file for this CallSid. Past calls cannot be recovered unless they were recorded at call time; new calls will appear here after Twilio completes processing."));
         return;
       }
 

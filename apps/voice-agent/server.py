@@ -61,6 +61,7 @@ DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER = "+525630907754"
 HUMAN_SUPPORT_PHONE_NUMBER = os.environ.get("GLAM_HUMAN_SUPPORT_PHONE", DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER)
 VIP_RESERVATIONS_PHONE_NUMBER = os.environ.get("GLAM_VIP_RESERVATIONS_PHONE", DEFAULT_EMERGENCY_SUPPORT_PHONE_NUMBER)
 EMERGENCY_CONTACT_ADMIN_PASSWORD = os.environ.get("GLAM_EMERGENCY_CONTACT_PASSWORD", "MosesGlam")
+CALL_RECORDING_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 
 
 AGENT_INSTRUCTIONS = """
@@ -2800,6 +2801,74 @@ def twilio_recordings_for_call(call_sid: object, limit: int = 5) -> list[dict]:
     return rows
 
 
+def start_twilio_recording_fallback(call_sid: object, base_url: object) -> None:
+    clean_call_sid = str(call_sid or "").strip()
+    if not re.fullmatch(r"CA[0-9a-fA-F]{32}", clean_call_sid):
+        return
+    if not twilio_configured():
+        append_transcript_event(
+            clean_call_sid,
+            "System",
+            "Twilio recording fallback skipped: credentials unavailable.",
+            channel="twilio_recording",
+            kind="recording_fallback_skipped",
+            metadata={"call_sid": clean_call_sid},
+        )
+        return
+    time.sleep(2.0)
+    try:
+        existing = twilio_recordings_for_call(clean_call_sid, limit=3)
+        if any(str(row.get("status") or "").lower() not in {"absent", "deleted"} for row in existing):
+            append_transcript_event(
+                clean_call_sid,
+                "System",
+                "Twilio recording fallback skipped: recording already exists.",
+                channel="twilio_recording",
+                kind="recording_fallback_skipped",
+                metadata={"call_sid": clean_call_sid, "recording_count": len(existing)},
+            )
+            return
+        callback = f"{str(base_url or PUBLIC_BASE_URL).rstrip('/')}/twilio/recording"
+        result = twilio_api_request(
+            f"Calls/{parse.quote(clean_call_sid)}/Recordings.json",
+            {
+                "RecordingStatusCallback": callback,
+                "RecordingStatusCallbackMethod": "POST",
+                "RecordingStatusCallbackEvent": "in-progress completed absent",
+                "RecordingChannels": "dual",
+                "RecordingTrack": "both",
+                "Trim": "do-not-trim",
+            },
+        )
+        recording_sid = str(result.get("sid") or "")
+        append_transcript_event(
+            clean_call_sid,
+            "System",
+            "Twilio recording fallback started through the Recordings API.",
+            channel="twilio_recording",
+            kind="recording_fallback_started",
+            metadata={
+                "call_sid": clean_call_sid,
+                "recording_sid": recording_sid,
+                "recording_status": str(result.get("status") or ""),
+                "RecordingSid": recording_sid,
+                "RecordingStatus": str(result.get("status") or ""),
+                "RecordingDuration": str(result.get("duration") or ""),
+                "RecordingChannels": str(result.get("channels") or ""),
+                "RecordingSource": str(result.get("source") or "StartCallRecordingAPI"),
+            },
+        )
+    except Exception as exc:
+        append_transcript_event(
+            clean_call_sid,
+            "System",
+            f"Twilio recording fallback failed: {exc}",
+            channel="twilio_recording",
+            kind="recording_fallback_failed",
+            metadata={"call_sid": clean_call_sid, "error": str(exc)},
+        )
+
+
 def build_twilio_monitor(deep: bool = True) -> dict:
     expected = monitor_expected_urls()
     app_port = int(os.environ.get("PORT", str(PORT)))
@@ -4872,10 +4941,11 @@ def twilio_voice_twiml(handler: BaseHTTPRequestHandler, params: dict[str, str]) 
         recording_twiml = (
             "<Start>"
             f'<Recording recordingStatusCallback="{html_escape(recording_callback, quote=True)}" '
-            'recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed absent" '
+            'recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="in-progress completed absent" '
             'track="both" channels="dual" trim="do-not-trim" />'
             "</Start>"
         )
+        CALL_RECORDING_EXECUTOR.submit(start_twilio_recording_fallback, call_sid, base_url)
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         "<Response>"
