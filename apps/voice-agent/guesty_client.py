@@ -44,6 +44,14 @@ class GuestyError(RuntimeError):
     pass
 
 
+def request_timeout_seconds() -> float:
+    try:
+        timeout = float(os.environ.get("GUESTY_REQUEST_TIMEOUT_SECONDS", "10"))
+    except ValueError:
+        timeout = 10.0
+    return max(2.0, min(timeout, 30.0))
+
+
 def load_dotenv(path: Path = ENV_PATH) -> None:
     if not path.exists():
         return
@@ -68,7 +76,7 @@ def json_request(url: str, *, method: str = "GET", headers: dict[str, str] | Non
     request_headers = {"Accept": "application/json", **(headers or {})}
     req = request.Request(url, method=method, headers=request_headers, data=data)
     try:
-        with request.urlopen(req, timeout=30) as response:
+        with request.urlopen(req, timeout=request_timeout_seconds()) as response:
             body = response.read().decode("utf-8")
             return json.loads(body) if body else {}
     except error.HTTPError as exc:

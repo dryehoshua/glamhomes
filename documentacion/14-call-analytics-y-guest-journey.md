@@ -96,8 +96,10 @@ Objetivo: confirmar una reserva sin exponer datos sensibles.
 Datos a pedir:
 
 - Confirmation code.
-- Al menos un dato coincidente: telefono, email o nombre.
-- Si hay duda, pedir un segundo dato razonable.
+- En modo local actual `code_only`, repetir el codigo y confirmar antes de usar
+  herramientas.
+- Si el codigo viene ruidoso/aproximado por transcripcion telefonica, pedir
+  nombre y validar similitud antes de compartir datos.
 
 Puede compartir:
 
@@ -112,6 +114,9 @@ No compartir:
 - Datos de pago sensibles.
 - Direccion exacta si no corresponde.
 - Cambios o excepciones sin humano.
+
+Para detalles sensibles de estancia como direccion exacta, door code, Wi-Fi o
+instrucciones largas, usar Guesty como fuente de verdad y ofrecer SMS.
 
 ### 3. Pre-check-in welcome
 

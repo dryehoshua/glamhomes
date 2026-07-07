@@ -1,6 +1,6 @@
 # Guesty Confirmation And Human Handoff
 
-Fecha: 2026-06-09
+Fecha: 2026-07-06
 
 ## Estado actual
 
@@ -13,10 +13,13 @@ valido.
 - `guesty_status`: verifica credenciales y token Guesty.
 - `guesty_search_reservation`: busca reservas por codigo, telefono, email o
   nombre.
-- `guesty_confirm_reservation`: confirma una reserva de forma segura. Si solo
-  recibe el codigo, detecta si existe pero pide un dato adicional antes de
-  compartir fechas, propiedad o estado. Si el codigo y un dato del huesped
-  coinciden, devuelve detalles basicos.
+- `guesty_confirm_reservation`: confirma una reserva de forma segura. En modo
+  local `code_only` puede compartir datos basicos despues de confirmar el codigo.
+  Si el codigo fue transcrito de forma aproximada, requiere validar nombre con
+  similitud suficiente antes de compartir datos.
+- `guesty_confirmed_stay_details`: consulta detalles internos confirmados de
+  estancia, incluyendo direccion, horarios, amenities, custom fields, check-in,
+  door code, Wi-Fi/StayFi e instrucciones cuando Guesty los tiene poblados.
 - `guesty_get_reservation`: consulta una reserva por ID interno de Guesty.
 - `guesty_list_listings`: lista propiedades desde Guesty.
 - `guesty_available_listings`: consulta disponibilidad por fechas y numero de
@@ -26,8 +29,12 @@ valido.
 - `glam_search_public_property_links`: busca links publicos activos de Glam
   Homes, Airbnb, Booking o VRBO cuando existan en la base local.
 - `twilio_send_property_link_sms`: envia por SMS un link activo de propiedad.
+- `twilio_send_stay_details_sms`: envia detalles confirmados de estancia por
+  SMS despues de validar la reserva.
 - `twilio_send_human_handoff_sms`: manda SMS al contacto humano de soporte
   cuando el caller pide una persona o no quiere seguir con la IA.
+- `twilio_transfer_call_to_human`: intenta transferir una llamada Twilio activa
+  al contacto humano de soporte y tambien deja reporte por SMS.
 
 ## Limites actuales
 
@@ -50,19 +57,21 @@ y un nombre de validacion para probar la compuerta de seguridad.
 
 Flujo de prueba recomendado:
 
-1. Dar al concierge solo el codigo de confirmacion.
-2. Esperar que pida un segundo dato del huesped.
-3. Dar el nombre de validacion del perfil.
-4. Confirmar que responde solo detalles basicos y ofrece enviar la informacion
-   por SMS.
+1. Dar al concierge el codigo de confirmacion.
+2. Confirmar que el agente repite el codigo antes de usar herramientas.
+3. Confirmar que responde con datos basicos o detalles de estancia solo desde
+   Guesty.
+4. Confirmar que ofrece SMS para datos largos/sensibles como direccion,
+   check-in, Wi-Fi o instrucciones.
+5. Probar un codigo aproximado y validar que pida nombre si hay fuzzy match.
 
 ## Pruebas realizadas
 
 - Guesty live status: OK.
 - Confirmacion con codigo inexistente: OK, responde no encontrado.
-- Confirmacion con codigo real + nombre validado: OK, comparte estado, fechas y
-  propiedad basica.
+- Confirmacion con codigo real: OK en modo local `code_only`.
+- Confirmacion con codigo aproximado + nombre validado: OK para llamadas con
+  transcripcion ruidosa.
+- Detalles confirmados de estancia: OK cuando Guesty tiene fields poblados.
 - Handoff SMS dry-run: OK, genera cuerpo y evento de transcript.
-- Handoff SMS real a `+5230907754`: fallo Twilio `21211 Invalid 'To' Phone
-  Number`. Se necesita un numero E.164 completo y valido para dejar el handoff
-  enviando SMS reales.
+- Handoff/transfer humano: configurado para usar el contacto humano vigente.

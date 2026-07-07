@@ -30,6 +30,26 @@ Crear un agente capaz de atender llamadas entrantes y salientes relacionadas con
 - `.env.example`: plantilla de variables de entorno.
 - `apps/voice-agent/`: backend inicial y cliente Guesty de prueba.
 
+## Estado final y exportacion
+
+La guia de cierre del proyecto, exportacion de carpeta y politica GitHub esta en
+`documentacion/15-cierre-exportacion-github.md`.
+
+Para copiar el proyecto a otro entorno interno, copiar la carpeta completa
+`GLAM HOMES`. Para GitHub, mantener fuera los datos privados y secretos que ya
+estan cubiertos por `.gitignore`: `.env`, `.cache/`, `API Keys/`,
+`data/private/`, `transcripts/*` y `logs/`.
+
+La knowledge base conversacional de Guesty vive dentro de:
+
+```text
+data/private/guesty-conversations/GLAM HOMES KNOWLEDGE BASE
+```
+
+El agente de voz carga al iniciar el archivo
+`agent_runtime_best_practices.md` de esa knowledge base como entrenamiento
+operativo de runtime.
+
 ## Referencia Kim Live / BIFROST
 
 Se reviso la carpeta `/Users/dryehoshuapython/Documents/BIFROST`, especialmente el sistema `Kim Live`, porque ya contiene funciones de llamadas con Twilio que pueden ahorrar trabajo.

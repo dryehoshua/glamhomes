@@ -16,6 +16,10 @@ perder contexto.
   lectura.
 - El agente puede consultar reservas, listings, disponibilidad y calendario
   minificado desde Guesty.
+- El agente carga la knowledge base conversacional privada desde
+  `data/private/guesty-conversations/GLAM HOMES KNOWLEDGE BASE`.
+- El dashboard incluye inbox por numero, analytics, transcripts, selector de
+  voz, contacto de emergencia y modo de validacion de reserva.
 - Las acciones de escritura en Guesty, pagos y links de pago siguen bloqueadas
   por diseno hasta definir aprobaciones humanas.
 
@@ -32,6 +36,7 @@ perder contexto.
 
 - `documentacion/00-handoff-nuevo-agente.md`
 - `documentacion/11-twilio-cloudflare-runbook.md`
+- `documentacion/15-cierre-exportacion-github.md`
 - `docs/09-guesty-api-capabilities-map.md`
 - `docs/06-prompt-maestro-concierge-voz.md`
 - `data/guesty-property-links.csv`
@@ -65,3 +70,12 @@ https://theglamhomes.guestybookings.com/en/properties?minOccupancy=1
 ```
 
 Al 2026-05-19 devuelve 55 propiedades publicas.
+
+## Cierre y exportacion
+
+La guia final para copiar la carpeta completa, preparar GitHub y saber que datos
+son privados esta en:
+
+```text
+documentacion/15-cierre-exportacion-github.md
+```

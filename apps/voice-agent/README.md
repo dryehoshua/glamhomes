@@ -16,20 +16,35 @@ http://127.0.0.1:3000
 ```
 
 La interfaz `GLAM HOMES CONCIERGE` usa WebRTC con OpenAI Realtime y deja `Ash`
-como voz masculina por defecto. El idioma de producto es ingles por default.
-Para activar voz real, define `OPENAI_API_KEY` en `.env` o usa el API key
-guardado en Keychain por Codex/Kim Live.
+como voz por defecto. Tambien puede usar la opcion Twilio/Vapi `vapi:riley` si
+se configuran `VAPI_API_KEY` y `VAPI_ASSISTANT_ID`. El idioma de producto es
+ingles por default. Para activar voz real, define `OPENAI_API_KEY` en `.env` o
+usa el API key guardado en Keychain por Codex/Kim Live.
 
 El agente de voz ya tiene herramientas Guesty de solo lectura:
 
 - `guesty_status`
 - `guesty_search_reservation`
+- `guesty_confirm_reservation`
+- `guesty_confirmed_stay_details`
 - `guesty_get_reservation`
 - `guesty_list_listings`
 - `guesty_available_listings`
 - `guesty_listing_calendar`
 - `glam_search_public_property_links`
 - `twilio_send_property_link_sms`
+- `twilio_send_stay_details_sms`
+- `twilio_send_human_handoff_sms`
+- `twilio_transfer_call_to_human`
+
+Tambien carga una capa compacta de conocimiento operacional desde:
+
+```text
+data/private/guesty-conversations/GLAM HOMES KNOWLEDGE BASE/agent_runtime_best_practices.md
+```
+
+El endpoint `GET /api/status` muestra `knowledge_base_loaded=true` cuando esa
+capa esta activa.
 
 Mientras falten credenciales, el agente respondera que Guesty no esta configurado. Cuando existan `GUESTY_CLIENT_ID` y `GUESTY_CLIENT_SECRET`, las mismas herramientas empezaran a consultar Open API.
 
@@ -93,6 +108,12 @@ GET /api/guesty/reservation-by-code?code=GY-XXXX
 GET /api/guesty/reservation?id=<reservation_id>
 POST /api/guesty/tool
 GET /api/properties/search?query=Amazing&platform=direct&check_in=2026-06-10&check_out=2026-06-14&guests=4
+GET /api/status
+GET /api/calls/threads?limit=50&sort=recent
+GET /api/calls/thread?thread_id=phone:<digits>
+GET /api/voice-config
+GET /api/reservation-validation
+GET /api/emergency-contact
 ```
 
 ## Guesty CLI de prueba

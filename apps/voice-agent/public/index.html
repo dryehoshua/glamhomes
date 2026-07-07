@@ -34,16 +34,15 @@
 
     body {
       margin: 0;
-      height: 100vh;
-      height: 100dvh;
+      height: auto;
       min-height: 100vh;
       min-height: 100dvh;
-      overflow: hidden;
+      overflow: auto;
       color: var(--ink);
       background:
         linear-gradient(180deg, #fffaf0 0, #f7edda 44%, #eee1c5 100%);
       display: grid;
-      grid-template-rows: auto auto 1fr;
+      grid-template-rows: auto auto minmax(0, 1fr);
     }
 
     header {
@@ -120,6 +119,7 @@
       display: flex;
       align-items: end;
       gap: 8px;
+      overflow-x: auto;
       background: rgba(255, 253, 248, 0.86);
       border-bottom: 1px solid rgba(223, 212, 189, 0.72);
     }
@@ -151,13 +151,13 @@
     main {
       min-height: 0;
       padding: 18px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .tab-view {
       display: none;
       min-height: 0;
-      height: 100%;
+      height: auto;
     }
 
     .tab-view.active {
@@ -170,8 +170,14 @@
     }
 
     .calls-layout {
-      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      grid-template-columns: 1fr;
       gap: 18px;
+    }
+
+    .security-layout {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: start;
     }
 
     .panel {
@@ -185,7 +191,7 @@
 
     .control-panel {
       display: grid;
-      grid-template-rows: auto auto auto 1fr;
+      grid-template-rows: auto auto auto auto;
     }
 
     .stage {
@@ -527,6 +533,33 @@
       gap: 8px;
     }
 
+    .voice-panel[data-engine="standard"] .voice-option[data-engine="vapi"],
+    .voice-panel[data-engine="vapi"] .voice-option[data-engine="standard"],
+    .voice-panel[data-engine="standard"] .vapi-copy,
+    .voice-panel[data-engine="vapi"] .standard-copy {
+      display: none;
+    }
+
+    .voice-admin-lock {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff4d7;
+      color: #4d3b18;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .voice-admin-lock.hidden {
+      display: none;
+    }
+
+    .voice-admin-lock .dashboard-unlock {
+      width: 100%;
+    }
+
     .voice-option {
       min-height: 40px;
       border: 1px solid var(--line);
@@ -569,6 +602,157 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 1.38;
+    }
+
+    .note select,
+    .note input {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 9px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .security-panel {
+      width: 100%;
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .security-panel header {
+      min-height: auto;
+      padding: 0 0 12px;
+      display: grid;
+      gap: 5px;
+      background: transparent;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .security-panel header span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .security-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .security-card {
+      min-width: 0;
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      padding: 18px;
+      display: grid;
+      gap: 13px;
+      align-content: start;
+    }
+
+    .security-card strong {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .security-card span,
+    .security-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.38;
+      overflow-wrap: anywhere;
+    }
+
+    .security-form {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .security-card select,
+    .security-card input {
+      min-width: 0;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .protected-view.locked .protected-content {
+      display: none;
+    }
+
+    .calls-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      gap: 18px;
+      align-items: stretch;
+      min-height: min(760px, calc(100vh - 178px));
+      max-height: calc(100vh - 156px);
+    }
+
+    .security-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .dashboard-lock {
+      min-height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display: grid;
+      align-content: center;
+      justify-items: start;
+      gap: 14px;
+    }
+
+    .dashboard-lock.hidden {
+      display: none;
+    }
+
+    .dashboard-lock span {
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .dashboard-unlock {
+      width: min(420px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .dashboard-unlock input {
+      min-width: 0;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 11px;
+      font: inherit;
     }
 
     .chat-panel {
@@ -730,6 +914,58 @@
       font-size: 12px;
     }
 
+    .emergency-config {
+      border: 1px solid rgba(240, 207, 122, 0.28);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .emergency-config header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .emergency-config strong {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #e8d7a8;
+    }
+
+    .emergency-config span {
+      color: #d7c8a9;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .emergency-form {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) minmax(130px, 0.8fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .emergency-form input {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid rgba(240, 207, 122, 0.35);
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.09);
+      color: #fff8e8;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .emergency-form input::placeholder {
+      color: #bfae8c;
+    }
+
     .monitor-events {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -776,9 +1012,9 @@
     }
 
     .analytics-dashboard {
-      padding: 14px 18px;
+      padding: 12px 14px;
       display: grid;
-      gap: 12px;
+      gap: 10px;
       border-bottom: 1px solid var(--line);
       background: #fff8eb;
     }
@@ -801,7 +1037,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
@@ -833,7 +1069,7 @@
     }
 
     .custom-range input {
-      width: 136px;
+      width: 168px;
       height: 32px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -846,19 +1082,19 @@
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
 
     .kpi-card {
-      min-height: 82px;
+      min-height: 72px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 10px;
+      padding: 9px;
       background: #fffdf8;
       display: grid;
       align-content: space-between;
-      gap: 8px;
+      gap: 6px;
     }
 
     .kpi-card strong {
@@ -869,7 +1105,7 @@
     }
 
     .kpi-card span {
-      font-size: 24px;
+      font-size: 21px;
       font-weight: 850;
       line-height: 1;
       overflow-wrap: anywhere;
@@ -881,9 +1117,39 @@
       line-height: 1.25;
     }
 
+    .analytics-secondary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .mini-metric {
+      min-height: 36px;
+      border: 1px solid rgba(223, 212, 189, 0.78);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: rgba(255, 253, 248, 0.78);
+      display: grid;
+      gap: 2px;
+    }
+
+    .mini-metric strong {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .mini-metric span {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 820;
+      line-height: 1.1;
+    }
+
     .keyword-panel {
       display: grid;
-      gap: 8px;
+      gap: 7px;
     }
 
     .keyword-panel h3 {
@@ -895,18 +1161,20 @@
     .keyword-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 7px;
-      min-height: 32px;
+      gap: 6px;
+      min-height: 28px;
+      max-height: 74px;
+      overflow: auto;
     }
 
     .keyword-chip {
       min-height: 28px;
       border: 1px solid rgba(200, 155, 60, 0.38);
       border-radius: 999px;
-      padding: 5px 9px;
+      padding: 4px 8px;
       background: #fffdf8;
       color: #3f3321;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.2;
       max-width: 100%;
       overflow-wrap: anywhere;
@@ -919,14 +1187,14 @@
     }
 
     .chart-card {
-      min-height: 260px;
+      min-height: 178px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      padding: 12px;
+      padding: 10px;
       background: #fffdf8;
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
-      gap: 10px;
+      gap: 8px;
     }
 
     .chart-card h3 {
@@ -937,7 +1205,7 @@
 
     .chart-box {
       position: relative;
-      min-height: 210px;
+      min-height: 132px;
     }
 
     .call-inbox {
@@ -960,6 +1228,7 @@
       min-height: 0;
       border-bottom: 1px solid var(--line);
       overflow: auto;
+      max-height: 100%;
     }
 
     .calls-layout .chart-grid {
@@ -967,11 +1236,11 @@
     }
 
     .calls-layout .chart-card {
-      min-height: 230px;
+      min-height: 172px;
     }
 
     .calls-layout .chart-box {
-      min-height: 178px;
+      min-height: 126px;
     }
 
     .calls-layout .call-inbox {
@@ -1059,7 +1328,7 @@
     }
 
     .call-search input {
-      width: min(320px, 42vw);
+      width: min(230px, 30vw);
       height: 34px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -1078,12 +1347,11 @@
     .call-inbox-layout {
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+      grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
     }
 
     .call-list {
       min-height: 0;
-      max-height: 280px;
       overflow: auto;
       display: grid;
       align-content: start;
@@ -1307,10 +1575,15 @@
       }
 
       .voice-layout,
-      .calls-layout {
+      .calls-layout,
+      .security-layout,
+      .calls-layout > .protected-content,
+      .security-layout > .protected-content {
         grid-template-columns: 1fr;
         grid-template-rows: none;
         height: auto;
+        min-height: auto;
+        max-height: none;
       }
 
       .panel {
@@ -1336,6 +1609,15 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
+      .emergency-form {
+        grid-template-columns: 1fr;
+      }
+
+      .security-grid,
+      .security-form {
+        grid-template-columns: 1fr;
+      }
+
       .kpi-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -1348,7 +1630,12 @@
         grid-template-columns: 1fr;
       }
 
+      .calls-layout .call-inbox {
+        order: -1;
+      }
+
       .calls-layout .analytics-dashboard {
+        max-height: none;
         overflow: visible;
       }
 
@@ -1373,6 +1660,11 @@
       .app-tabs {
         padding: 8px 12px 0;
         overflow-x: auto;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--ink);
+        box-shadow: 0 8px 20px rgba(10, 8, 5, 0.18);
       }
 
       .tab-button {
@@ -1385,7 +1677,8 @@
       }
 
       .portrait-wrap,
-      .composer {
+      .composer,
+      .dashboard-unlock {
         grid-template-columns: 1fr;
       }
 
@@ -1394,9 +1687,12 @@
         height: 112px;
       }
 
-      .button-row,
-      .voice-list {
+      .button-row {
         grid-template-columns: 1fr;
+      }
+
+      .voice-list {
+        display: none;
       }
 
       .monitor-summary,
@@ -1438,6 +1734,10 @@
         flex: 1 1 130px;
       }
 
+      .analytics-secondary {
+        grid-template-columns: 1fr;
+      }
+
       .call-inbox-header {
         align-items: flex-start;
         flex-direction: column;
@@ -1445,19 +1745,28 @@
 
       .call-inbox-actions {
         width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
         justify-content: stretch;
       }
 
       .call-search {
         width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .call-search input {
         width: 100%;
       }
 
+      .call-search .secondary {
+        grid-column: 1 / -1;
+      }
+
       .thread-filters {
         width: 100%;
+        max-width: 100%;
         overflow-x: auto;
       }
 
@@ -1505,6 +1814,7 @@
   <nav class="app-tabs" aria-label="Dashboard sections">
     <button class="tab-button active" type="button" data-tab="voice" aria-selected="true">Voice Console</button>
     <button class="tab-button" type="button" data-tab="calls" aria-selected="false">Calls & Analytics</button>
+    <button class="tab-button" type="button" data-tab="security" aria-selected="false">Security</button>
   </nav>
 
   <main>
@@ -1519,7 +1829,7 @@
             <span class="avatar-mark">LIVE</span>
           </div>
           <div class="agent-meta">
-            <p class="agent-name">Male concierge</p>
+            <p class="agent-name">Concierge voice</p>
             <p class="status" id="statusText">Ready for local testing. Select a voice, then test voice or start voice.</p>
           </div>
         </div>
@@ -1544,22 +1854,50 @@
         <button class="danger" id="stopVoice" disabled>End session</button>
       </div>
 
-      <div class="voice-panel">
+      <div class="voice-panel" id="voicePanel" data-engine="standard">
+        <div class="voice-admin-lock" id="voiceLockNotice">
+          <span>Unlock dashboard controls to change the call voice.</span>
+          <div class="dashboard-unlock">
+            <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+            <button class="secondary compact dashboardUnlockButton" type="button">Unlock</button>
+          </div>
+        </div>
         <label>
-          GPT Calls voice
-          <select id="voiceSelect">
-            <option value="ash" selected>Ash - recommended male</option>
-            <option value="echo">Echo - clear male</option>
-            <option value="cedar">Cedar - deep male</option>
-            <option value="verse">Verse - energetic neutral</option>
-            <option value="marin">Marin - premium recommended</option>
+          Voice engine
+          <select id="voiceEngineSelect">
+            <option value="standard">Standard voices</option>
+            <option value="vapi">Vapi voices</option>
           </select>
         </label>
+        <label>
+          Active voice
+          <select id="voiceSelect">
+            <option value="ash" selected>Ash - warm masculine</option>
+            <option value="echo">Echo - clear masculine</option>
+            <option value="cedar">Cedar - calm masculine</option>
+            <option value="verse">Verse - conversational masculine</option>
+            <option value="marin">Marin - premium recommended</option>
+            <option value="coral">Coral - bright feminine</option>
+            <option value="shimmer">Shimmer - soft feminine</option>
+            <option value="sage">Sage - warm feminine</option>
+            <option value="alloy">Alloy - balanced neutral</option>
+            <option value="ballad">Ballad - expressive neutral</option>
+          </select>
+        </label>
+        <p class="hint standard-copy">Standard voices use the OpenAI/Twilio realtime flow for calls and browser testing.</p>
+        <p class="hint vapi-copy">Vapi voices switch live Twilio calls to the Vapi bridge. Browser voice testing remains available only for Standard voices.</p>
         <div class="voice-list" id="voiceButtons">
-          <button class="voice-option active" data-voice="ash">Ash</button>
-          <button class="voice-option" data-voice="echo">Echo</button>
-          <button class="voice-option" data-voice="cedar">Cedar</button>
-          <button class="voice-option" data-voice="verse">Verse</button>
+          <button class="voice-option active" data-engine="standard" data-voice="ash">Ash</button>
+          <button class="voice-option" data-engine="standard" data-voice="echo">Echo</button>
+          <button class="voice-option" data-engine="standard" data-voice="cedar">Cedar</button>
+          <button class="voice-option" data-engine="standard" data-voice="verse">Verse</button>
+          <button class="voice-option" data-engine="standard" data-voice="marin">Marin</button>
+          <button class="voice-option" data-engine="standard" data-voice="coral">Coral</button>
+          <button class="voice-option" data-engine="standard" data-voice="shimmer">Shimmer</button>
+          <button class="voice-option" data-engine="standard" data-voice="sage">Sage</button>
+          <button class="voice-option" data-engine="standard" data-voice="alloy">Alloy</button>
+          <button class="voice-option" data-engine="standard" data-voice="ballad">Ballad</button>
+          <button class="voice-option" data-engine="vapi" data-voice="vapi:riley">Riley / Elliot</button>
         </div>
         <p class="hint">To change voices after the concierge speaks, end the session and open a new one.</p>
       </div>
@@ -1591,7 +1929,7 @@
         </div>
         <div class="note">
           <strong>Brand</strong>
-          <span>Gold palette, premium tone, and male assistant for booking calls.</span>
+          <span>Gold palette, premium tone, and selectable concierge voices for booking calls.</span>
         </div>
       </div>
     </section>
@@ -1656,7 +1994,17 @@
     </section>
     </section>
 
-    <section class="tab-view calls-layout" id="callsView" aria-label="Calls and analytics">
+    <section class="tab-view calls-layout protected-view locked" id="callsView" aria-label="Calls and analytics">
+      <div class="dashboard-lock" id="callsLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Analytics Locked</h2>
+        <span>Enter the dashboard password to unlock analytics, call memory, security controls, and protected phone data.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
       <div class="analytics-dashboard" aria-label="Call center analytics">
         <div class="analytics-header">
           <div>
@@ -1674,8 +2022,8 @@
             <button class="range-filter" type="button" data-range="custom">Custom</button>
           </div>
           <div class="custom-range" id="customRangeControls" style="display: none;">
-            <input id="rangeStart" type="date" aria-label="Start date">
-            <input id="rangeEnd" type="date" aria-label="End date">
+            <input id="rangeStart" type="datetime-local" aria-label="Start date and time">
+            <input id="rangeEnd" type="datetime-local" aria-label="End date and time">
             <button class="secondary compact" id="applyRange" type="button">Apply</button>
           </div>
         </div>
@@ -1684,6 +2032,12 @@
           <div class="kpi-card"><strong>Prospects</strong><span>--</span><small>Booking intent detected</small></div>
           <div class="kpi-card"><strong>Coverage</strong><span>--</span><small>Calls with transcript</small></div>
           <div class="kpi-card"><strong>Human handoffs</strong><span>--</span><small>Escalations logged</small></div>
+        </div>
+        <div class="analytics-secondary" id="analyticsSecondary">
+          <div class="mini-metric"><strong>Unique callers</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Tool actions</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Guest turns</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Avg messages</strong><span>--</span></div>
         </div>
         <div class="chart-grid" aria-label="Call center charts">
           <div class="chart-card">
@@ -1718,12 +2072,9 @@
               <button class="thread-filter" type="button" data-sort="least">Least interaction</button>
             </div>
             <div class="call-search">
-              <input id="callSearch" type="search" autocomplete="off" placeholder="Search number, name, keyword">
+              <input id="callPhoneSearch" type="search" inputmode="tel" autocomplete="off" placeholder="Phone number">
+              <input id="callSearch" type="search" autocomplete="off" placeholder="Name or keyword">
               <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
-            </div>
-            <div class="call-inbox-auth" id="callInboxAuth">
-              <input id="callInboxKey" type="password" autocomplete="current-password" placeholder="Dashboard key">
-              <button class="secondary compact" id="unlockCalls" type="button">Unlock</button>
             </div>
             <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
           </div>
@@ -1746,13 +2097,84 @@
           </div>
         </div>
       </div>
+      </div>
+    </section>
+
+    <section class="tab-view security-layout protected-view locked" id="securityView" aria-label="Security settings">
+      <div class="dashboard-lock" id="securityLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Security Locked</h2>
+        <span>Enter the dashboard password once to unlock all admin controls.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
+      <section class="panel security-panel" aria-label="Reservation access settings">
+        <header>
+          <p class="eyebrow">Access controls</p>
+          <h2>Reservation Security</h2>
+          <span>Temporary testing can stay simple now, then move back to stricter checks later.</span>
+        </header>
+        <div class="security-card">
+          <strong>Reservation validation</strong>
+          <span id="reservationValidationState">Loading validation mode...</span>
+          <div class="security-form">
+            <select id="reservationValidationMode">
+              <option value="code_only">Code only: reservation unlocks details</option>
+              <option value="relaxed">Relaxed: reservation + similar name</option>
+              <option value="strict">Strict: confirmed code + matching detail</option>
+            </select>
+            <button class="secondary compact" id="saveReservationValidation" type="button">Save mode</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel security-panel" aria-label="Human support and SMS settings">
+        <header>
+          <p class="eyebrow">Human escalation</p>
+          <h2>Advisor SMS</h2>
+          <span>Human issues notify this number. Caller-facing SMS uses the number that called in.</span>
+        </header>
+        <div class="security-grid">
+          <div class="security-card">
+            <strong>Emergency advisor SMS</strong>
+            <span id="emergencyContactState">Loading emergency line...</span>
+            <div class="security-form">
+              <input id="emergencyPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
+              <button class="secondary compact" id="saveEmergencyContact" type="button">Save number</button>
+            </div>
+          </div>
+          <div class="security-card">
+            <strong>Current call rules</strong>
+            <p>Use caller ID when it matches Guesty. With a reservation code, confirm the reservation and guest name, then answer directly from Guesty. Offer SMS to the caller number for useful details. Transfer live calls when a guest asks for a human.</p>
+          </div>
+        </div>
+      </section>
+      </div>
     </section>
   </main>
 
   <script src="/vendor/chart.umd.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const voices = ["ash", "echo", "cedar", "verse", "marin", "alloy", "ballad", "coral", "sage", "shimmer"];
+    const voiceCatalog = [
+      { id: "ash", label: "Ash - warm masculine", engine: "standard" },
+      { id: "echo", label: "Echo - clear masculine", engine: "standard" },
+      { id: "cedar", label: "Cedar - calm masculine", engine: "standard" },
+      { id: "verse", label: "Verse - conversational masculine", engine: "standard" },
+      { id: "marin", label: "Marin - premium neutral", engine: "standard" },
+      { id: "coral", label: "Coral - bright feminine", engine: "standard" },
+      { id: "shimmer", label: "Shimmer - soft feminine", engine: "standard" },
+      { id: "sage", label: "Sage - warm feminine", engine: "standard" },
+      { id: "alloy", label: "Alloy - balanced neutral", engine: "standard" },
+      { id: "ballad", label: "Ballad - expressive neutral", engine: "standard" },
+      { id: "vapi:riley", label: "Riley / Elliot - Vapi voice", engine: "vapi" },
+    ];
+    const voices = voiceCatalog.map((voice) => voice.id);
+    const standardVoices = voiceCatalog.filter((voice) => voice.engine === "standard").map((voice) => voice.id);
+    const vapiVoices = voiceCatalog.filter((voice) => voice.engine === "vapi").map((voice) => voice.id);
     let peer = null;
     let channel = null;
     let micStream = null;
@@ -1764,6 +2186,7 @@
     let activeMode = "";
     let selectedThreadId = "";
     let callSearchQuery = "";
+    let callPhoneQuery = "";
     let callSearchTimer = null;
     let callSortMode = "recent";
     let analyticsRangeMode = "week";
@@ -1818,6 +2241,44 @@
       return dashboardKey ? { "X-Glam-Dashboard-Key": dashboardKey } : {};
     }
 
+    function dashboardUnlocked() {
+      return Boolean(dashboardKey);
+    }
+
+    function updateProtectedViews() {
+      const unlocked = dashboardUnlocked();
+      for (const view of document.querySelectorAll(".protected-view")) {
+        view.classList.toggle("locked", !unlocked);
+        const lock = view.querySelector(".dashboard-lock");
+        if (lock) lock.classList.toggle("hidden", unlocked);
+      }
+      updateVoiceLock();
+      if (unlocked) {
+        $("callInboxState").textContent = "Unlocked";
+      } else {
+        $("callInboxState").textContent = "Locked";
+      }
+    }
+
+    function unlockDashboard(value) {
+      const clean = String(value || "").trim();
+      dashboardKey = clean;
+      if (clean) {
+        localStorage.setItem(dashboardKeyStorage, clean);
+      } else {
+        localStorage.removeItem(dashboardKeyStorage);
+      }
+      for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
+        input.value = clean;
+      }
+      updateProtectedViews();
+      if (clean) {
+        loadEmergencyContact();
+        loadReservationValidation();
+        refreshCallInbox(true);
+      }
+    }
+
     async function fetchJson(url, options = {}) {
       const response = await fetch(url, options);
       let data = {};
@@ -1829,15 +2290,93 @@
       return { response, data };
     }
 
+    async function loadEmergencyContact() {
+      try {
+        const { data } = await fetchJson("/api/emergency-contact", { headers: callDataHeaders() });
+        const label = data.phone_number || data.masked_phone_number || "not configured";
+        $("emergencyContactState").textContent = "Current: " + label + (data.source ? " · " + data.source : "");
+        if (data.phone_number && !String(data.phone_number).includes("*")) {
+          $("emergencyPhone").value = data.phone_number;
+        } else if (!$("emergencyPhone").value) {
+          $("emergencyPhone").placeholder = data.masked_phone_number || "+525630907754";
+        }
+      } catch (error) {
+        $("emergencyContactState").textContent = "Could not load emergency number.";
+      }
+    }
+
+    async function saveEmergencyContact() {
+      const phone = $("emergencyPhone").value.trim();
+      if (!dashboardUnlocked()) {
+        $("emergencyContactState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      if (!phone) {
+        $("emergencyContactState").textContent = "Enter phone number.";
+        return;
+      }
+      $("saveEmergencyContact").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/emergency-contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone_number: phone, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not save emergency number.");
+        }
+        $("emergencyPhone").value = data.phone_number || phone;
+        $("emergencyContactState").textContent = "Current: " + (data.phone_number || phone) + " · saved";
+      } catch (error) {
+        $("emergencyContactState").textContent = error.message;
+      } finally {
+        $("saveEmergencyContact").textContent = "Save number";
+      }
+    }
+
+    async function loadReservationValidation() {
+      try {
+        const { data } = await fetchJson("/api/reservation-validation");
+        if (data.mode) $("reservationValidationMode").value = data.mode;
+        $("reservationValidationState").textContent = (data.description || "Validation mode loaded.") + (data.source ? " · " + data.source : "");
+      } catch (error) {
+        $("reservationValidationState").textContent = "Could not load validation mode.";
+      }
+    }
+
+    async function saveReservationValidation() {
+      const mode = $("reservationValidationMode").value;
+      if (!dashboardUnlocked()) {
+        $("reservationValidationState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      $("saveReservationValidation").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/reservation-validation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not save validation mode.");
+        $("reservationValidationMode").value = data.mode || mode;
+        $("reservationValidationState").textContent = (data.description || "Validation mode saved.") + " · saved";
+      } catch (error) {
+        $("reservationValidationState").textContent = error.message;
+      } finally {
+        $("saveReservationValidation").textContent = "Save mode";
+      }
+    }
+
     function switchTab(tabName) {
-      const safeName = tabName === "calls" ? "calls" : "voice";
+      const safeName = ["voice", "calls", "security"].includes(tabName) ? tabName : "voice";
       for (const button of document.querySelectorAll(".tab-button")) {
         const isActive = button.dataset.tab === safeName;
         button.classList.toggle("active", isActive);
         button.setAttribute("aria-selected", isActive ? "true" : "false");
       }
-      $("voiceView").classList.toggle("active", safeName === "voice");
-      $("callsView").classList.toggle("active", safeName === "calls");
+      for (const view of document.querySelectorAll(".tab-view")) {
+        view.classList.toggle("active", view.id === safeName + "View");
+      }
       if (safeName === "calls") {
         window.setTimeout(() => {
           renderCharts(lastMetrics, lastCallData);
@@ -1952,32 +2491,14 @@
     }
 
     function updateCallInboxAuth(authRequired = false) {
-      const auth = $("callInboxAuth");
-      const input = $("callInboxKey");
-      if (!auth || !input) return;
-      if (isLocalDashboard) {
-        auth.style.display = "none";
-        return;
-      }
-      auth.style.display = "flex";
-      if (dashboardKey && !authRequired) {
-        input.value = dashboardKey;
-        $("callInboxState").textContent = "Unlocked";
-      } else if (!input.value && dashboardKey) {
-        input.value = dashboardKey;
-      }
+      updateProtectedViews();
+      if (authRequired && !dashboardUnlocked()) $("callInboxState").textContent = "Locked";
     }
 
     function saveCallInboxKey() {
-      const value = $("callInboxKey").value.trim();
-      dashboardKey = value;
-      if (value) {
-        localStorage.setItem(dashboardKeyStorage, value);
-      } else {
-        localStorage.removeItem(dashboardKeyStorage);
-      }
+      const value = document.querySelector(".dashboardUnlockInput")?.value || "";
+      unlockDashboard(value);
       selectedThreadId = "";
-      refreshCallInbox(true);
     }
 
     function formatPct(value) {
@@ -1990,6 +2511,12 @@
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       return year + "-" + month + "-" + day;
+    }
+
+    function isoDateTimeInput(date) {
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return isoDateInput(date) + "T" + hours + ":" + minutes;
     }
 
     function startOfLocalDay(date) {
@@ -2008,6 +2535,10 @@
 
     function dateInputToLocalDate(value, endOfDay = false) {
       if (!value) return null;
+      if (value.includes("T")) {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
       const parts = value.split("-").map((part) => Number(part));
       if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
       const date = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -2157,26 +2688,6 @@
           value: metrics.human_handoffs ?? 0,
           detail: formatPct(metrics.handoff_rate_pct) + " handoff rate",
         },
-        {
-          label: "Unique callers",
-          value: metrics.unique_callers ?? 0,
-          detail: "Distinct caller numbers",
-        },
-        {
-          label: "Tool actions",
-          value: metrics.tool_actions ?? 0,
-          detail: "Guesty, SMS and bridge events",
-        },
-        {
-          label: "Guest messages",
-          value: metrics.guest_messages ?? 0,
-          detail: "Caller transcript turns",
-        },
-        {
-          label: "Avg messages",
-          value: metrics.avg_messages_per_call ?? 0,
-          detail: "Conversation density",
-        },
       ];
       grid.innerHTML = "";
       for (const row of rows) {
@@ -2192,6 +2703,28 @@
         card.appendChild(value);
         card.appendChild(detail);
         grid.appendChild(card);
+      }
+
+      const secondary = $("analyticsSecondary");
+      if (secondary) {
+        const secondaryRows = [
+          ["Unique callers", metrics.unique_callers ?? 0],
+          ["Tool actions", metrics.tool_actions ?? 0],
+          ["Guest turns", metrics.guest_messages ?? 0],
+          ["Avg messages", metrics.avg_messages_per_call ?? 0],
+        ];
+        secondary.innerHTML = "";
+        for (const [labelText, valueText] of secondaryRows) {
+          const item = document.createElement("div");
+          item.className = "mini-metric";
+          const label = document.createElement("strong");
+          label.textContent = labelText;
+          const value = document.createElement("span");
+          value.textContent = valueText;
+          item.appendChild(label);
+          item.appendChild(value);
+          secondary.appendChild(item);
+        }
       }
 
       const chips = $("keywordList");
@@ -2217,10 +2750,12 @@
       }
 
       const activeQuery = String(data.query || "").trim();
+      const activePhone = String(data.phone || "").trim();
       const rangeLabel = currentAnalyticsRange().label;
-      $("analyticsScope").textContent = activeQuery
-        ? rangeLabel + " · " + activeQuery
-        : rangeLabel;
+      const scopeParts = [rangeLabel];
+      if (activePhone) scopeParts.push("Phone " + activePhone);
+      if (activeQuery) scopeParts.push(activeQuery);
+      $("analyticsScope").textContent = scopeParts.join(" · ");
       renderCharts(metrics, data);
     }
 
@@ -2271,10 +2806,10 @@
         empty.type = "button";
         const title = document.createElement("span");
         title.className = "call-item-name";
-        title.textContent = "No conversations yet";
+        title.textContent = "No conversations found";
         const detail = document.createElement("span");
         detail.className = "call-item-time";
-        detail.textContent = "Waiting for the next caller.";
+        detail.textContent = "Adjust date, hour, phone, or keyword filters.";
         empty.appendChild(title);
         empty.appendChild(detail);
         list.appendChild(empty);
@@ -2342,7 +2877,7 @@
     }
 
     async function openCallThread(threadId) {
-      if (!threadId) return;
+      if (!threadId || !dashboardUnlocked()) return;
       selectedThreadId = threadId;
       for (const item of document.querySelectorAll(".call-item")) {
         item.classList.toggle("active", item.dataset.threadId === threadId);
@@ -2369,19 +2904,30 @@
     }
 
     async function refreshCallInbox(manual = false) {
+      if (!dashboardUnlocked()) {
+        updateProtectedViews();
+        return;
+      }
       if (manual) $("refreshCalls").textContent = "Checking...";
       try {
         updateCallInboxAuth(false);
         const query = callSearchQuery.trim();
+        const phone = callPhoneQuery.trim();
         const params = new URLSearchParams({ limit: "50", sort: callSortMode });
         if (query) params.set("q", query);
+        if (phone) params.set("phone", phone);
         appendAnalyticsRangeParams(params);
         const inboxUrl = "/api/calls/threads?" + params.toString();
         const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
         if (response.status === 403 || data.local_only || data.auth_required) {
+          if (response.status === 403 && data.auth_required) {
+            dashboardKey = "";
+            localStorage.removeItem(dashboardKeyStorage);
+            for (const input of document.querySelectorAll(".dashboardUnlockInput")) input.value = "";
+          }
           $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
           renderCallList([]);
-          renderKpis({}, { query });
+          renderKpis({}, { query, phone });
           updateCallInboxAuth(Boolean(data.auth_required));
           clearTranscript(
             "Call Inbox is protected",
@@ -2394,9 +2940,9 @@
         if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
         const threads = data.threads || [];
         const total = typeof data.filtered_total === "number" ? data.filtered_total : threads.length;
-        $("callInboxState").textContent = query ? total + " matches" : total + " conversations";
-        renderKpis(data.metrics || {}, data);
         updateCallInboxAuth(false);
+        $("callInboxState").textContent = query || phone ? total + " matches" : total + " conversations";
+        renderKpis(data.metrics || {}, data);
         renderCallList(threads);
         if (!selectedThreadId && threads.length) {
           await openCallThread(threads[0].thread_id);
@@ -2404,7 +2950,7 @@
       } catch (error) {
         $("callInboxState").textContent = "Unavailable";
         renderCallList([]);
-        renderKpis({}, { query: callSearchQuery });
+        renderKpis({}, { query: callSearchQuery, phone: callPhoneQuery });
         clearTranscript("Call Inbox unavailable", error.message);
       } finally {
         $("refreshCalls").textContent = "Refresh calls";
@@ -2415,6 +2961,7 @@
       window.clearTimeout(callSearchTimer);
       callSearchTimer = window.setTimeout(() => {
         callSearchQuery = $("callSearch").value.trim();
+        callPhoneQuery = $("callPhoneSearch").value.trim();
         selectedThreadId = "";
         refreshCallInbox(false);
       }, 240);
@@ -2422,7 +2969,9 @@
 
     function clearCallSearch() {
       $("callSearch").value = "";
+      $("callPhoneSearch").value = "";
       callSearchQuery = "";
+      callPhoneQuery = "";
       selectedThreadId = "";
       refreshCallInbox(true);
     }
@@ -2448,8 +2997,8 @@
 
     function initializeAnalyticsRangeInputs() {
       const now = new Date();
-      $("rangeStart").value = isoDateInput(now);
-      $("rangeEnd").value = isoDateInput(now);
+      $("rangeStart").value = isoDateTimeInput(startOfLocalDay(now));
+      $("rangeEnd").value = isoDateTimeInput(now);
     }
 
     function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
@@ -2493,8 +3042,41 @@
       $("startVoice").disabled = active;
       $("testVoice").disabled = active;
       $("stopVoice").disabled = !active;
-      $("voiceSelect").disabled = active;
-      for (const button of document.querySelectorAll(".voice-option")) button.disabled = active;
+      updateVoiceLock(active);
+    }
+
+    function voiceEngineFor(voice) {
+      return isVapiVoice(voice) ? "vapi" : "standard";
+    }
+
+    function renderVoiceSelect(engine, selectedVoice = "") {
+      const available = voiceCatalog.filter((voice) => voice.engine === engine);
+      $("voiceSelect").innerHTML = "";
+      for (const voice of available) {
+        const option = document.createElement("option");
+        option.value = voice.id;
+        option.textContent = voice.label;
+        $("voiceSelect").appendChild(option);
+      }
+      const fallback = available[0]?.id || "ash";
+      $("voiceSelect").value = available.some((voice) => voice.id === selectedVoice) ? selectedVoice : fallback;
+    }
+
+    function setVoiceEngine(engine, selectedVoice = "") {
+      const safeEngine = engine === "vapi" ? "vapi" : "standard";
+      $("voicePanel").dataset.engine = safeEngine;
+      $("voiceEngineSelect").value = safeEngine;
+      renderVoiceSelect(safeEngine, selectedVoice);
+    }
+
+    function updateVoiceLock(sessionActive = Boolean(peer)) {
+      const locked = !dashboardUnlocked();
+      $("voiceLockNotice").classList.toggle("hidden", !locked);
+      $("voiceEngineSelect").disabled = locked || sessionActive;
+      $("voiceSelect").disabled = locked || sessionActive;
+      for (const button of document.querySelectorAll(".voice-option")) {
+        button.disabled = locked || sessionActive;
+      }
     }
 
     function currentVoice() {
@@ -2502,11 +3084,47 @@
       return voices.includes(voice) ? voice : "ash";
     }
 
-    function setVoice(voice) {
+    function isVapiVoice(voice = currentVoice()) {
+      return String(voice || "").startsWith("vapi:");
+    }
+
+    function setVoice(voice, options = {}) {
       if (!voices.includes(voice) || peer) return;
+      if (options.persist !== false && !dashboardUnlocked()) {
+        appendMessage("System", "Unlock dashboard controls with MosesGlam before changing the call voice.", "system");
+        updateVoiceLock();
+        return;
+      }
+      setVoiceEngine(voiceEngineFor(voice), voice);
       $("voiceSelect").value = voice;
       for (const button of document.querySelectorAll(".voice-option")) {
         button.classList.toggle("active", button.dataset.voice === voice);
+      }
+      if (options.persist !== false) saveVoiceConfig(voice);
+    }
+
+    async function loadVoiceConfig() {
+      try {
+        const { data } = await fetchJson("/api/voice-config");
+        const voice = data.active_voice || data.default_voice;
+        if (voices.includes(voice)) setVoice(voice, { persist: false });
+      } catch {
+      }
+    }
+
+    async function saveVoiceConfig(voice) {
+      try {
+        const { response, data } = await fetchJson("/api/voice-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ voice, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || data.ok === false) throw new Error(data.error || "Voice config save failed");
+        if (data.active_voice && voices.includes(data.active_voice)) {
+          $("voiceSelect").value = data.active_voice;
+        }
+      } catch (error) {
+        appendMessage("System", "Voice selected locally, but it could not be saved for Twilio: " + error.message, "system");
       }
     }
 
@@ -2701,6 +3319,11 @@
 
     async function startSession(mode) {
       if (peer) return;
+      if (isVapiVoice()) {
+        appendMessage("System", "Vapi voice is configured for live Twilio calls only. Select Sage, Coral, Ash, or another OpenAI voice to use the browser voice console.", "system");
+        setStatus("Vapi voice applies to Twilio calls only.", "idle");
+        return;
+      }
       activeMode = mode;
       setControls(true);
       setStatus(mode === "test" ? "Preparing voice test..." : "Requesting microphone permission...", "working");
@@ -2733,11 +3356,11 @@
             const text = "Run a brief English voice test: 'Hello, this is the Glam Homes concierge. I am ready to handle booking calls with a premium and clear tone.'";
             appendMessage("System", "Voice test " + currentVoice() + " sent.", "system");
             sendEvent(createUserText(text));
-            sendEvent(createResponse("Respond only with the test phrase. Male, confident, warm, and professional voice."));
+            sendEvent(createResponse("Respond only with the test phrase. Confident, warm, and professional concierge voice."));
           } else {
             appendMessage("System", "Instant voice is open. Speak whenever you are ready.", "system");
             sendEvent(createUserText("Greet in one short sentence as GLAM HOMES CONCIERGE and confirm that you can handle booking and support."));
-            sendEvent(createResponse("Greet in English by default, with a male, premium, natural voice. Keep it brief."));
+            sendEvent(createResponse("Greet in English by default, with a premium, natural concierge voice. Keep it brief."));
           }
         });
 
@@ -2791,7 +3414,7 @@
         appendMessage("System", "Text saved on screen. Start voice to send it to the model.", "system");
         return;
       }
-      sendEvent(createResponse("Answer the message as the male Glam Homes concierge. Be brief, clear, and booking-oriented."));
+      sendEvent(createResponse("Answer the message as the Glam Homes concierge. Be brief, clear, and booking-oriented."));
       setStatus("Text sent to the Concierge.", "working");
     }
 
@@ -2800,6 +3423,8 @@
         const response = await fetch("/api/status");
         const data = await response.json();
         $("serverState").textContent = data.openai_configured ? "Local + Realtime ready" : "Missing OPENAI_API_KEY";
+        const configuredVoice = data.voice_config?.active_voice || data.default_voice;
+        if (voices.includes(configuredVoice)) setVoice(configuredVoice, { persist: false });
         if (!data.openai_configured) {
           appendMessage("System", "Configure OPENAI_API_KEY in .env or Keychain to activate real voice.", "system");
         }
@@ -2821,18 +3446,34 @@
     $("testMic").onclick = testMicrophone;
     $("sendText").onclick = sendManualText;
     $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
+    $("saveEmergencyContact").onclick = saveEmergencyContact;
+    $("saveReservationValidation").onclick = saveReservationValidation;
     $("refreshCalls").onclick = () => refreshCallInbox(true);
     $("clearCallSearch").onclick = clearCallSearch;
     $("applyRange").onclick = () => setAnalyticsRange("custom");
     $("callSearch").addEventListener("input", scheduleCallSearch);
-    $("unlockCalls").onclick = saveCallInboxKey;
-    $("callInboxKey").addEventListener("keydown", (event) => {
-      if (event.key === "Enter") saveCallInboxKey();
-    });
+    $("callPhoneSearch").addEventListener("input", scheduleCallSearch);
+    for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
+      input.value = dashboardKey;
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") unlockDashboard(input.value);
+      });
+    }
+    for (const button of document.querySelectorAll(".dashboardUnlockButton")) {
+      button.addEventListener("click", () => {
+        const input = button.closest(".dashboard-unlock")?.querySelector(".dashboardUnlockInput");
+        unlockDashboard(input?.value || "");
+      });
+    }
     $("manualInput").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
     });
     $("voiceSelect").addEventListener("change", () => setVoice($("voiceSelect").value));
+    $("voiceEngineSelect").addEventListener("change", () => {
+      const engine = $("voiceEngineSelect").value;
+      const fallback = engine === "vapi" ? vapiVoices[0] : standardVoices[0];
+      setVoice(fallback || "ash");
+    });
     $("micSelect").addEventListener("change", () => {
       selectedMicDeviceId = $("micSelect").value;
       $("micState").textContent = selectedMicDeviceId ? "Microphone selected." : "Using the system microphone.";
@@ -2855,7 +3496,12 @@
       if (peer) peer.close();
     });
 
+    setVoiceEngine("standard", "ash");
     loadStatus();
+    loadVoiceConfig();
+    updateProtectedViews();
+    loadEmergencyContact();
+    loadReservationValidation();
     initializeAnalyticsRangeInputs();
     updateCallInboxAuth(false);
     refreshTwilioMonitor();

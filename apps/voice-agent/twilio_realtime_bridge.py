@@ -41,17 +41,52 @@ def safety_identifier(call_sid: str) -> str:
     return base64.urlsafe_b64encode(digest)[:32].decode("ascii")
 
 
-def session_update(call_sid: str, caller: str, called: str) -> dict[str, Any]:
-    voice = os.environ.get("OPENAI_REALTIME_VOICE", glam.DEFAULT_VOICE)
-    if voice not in glam.ALLOWED_VOICES:
-        voice = glam.DEFAULT_VOICE
+def session_update(call_sid: str, caller: str, called: str, caller_context: dict[str, Any] | None = None) -> dict[str, Any]:
+    voice = glam.active_realtime_voice()
+    if caller_context is None:
+        caller_context_instruction = "\nCaller ID lookup: pending. Do not wait for it before greeting the caller."
+    elif caller_context.get("matched"):
+        reservation = caller_context.get("reservation") if isinstance(caller_context.get("reservation"), dict) else {}
+        guest_name = str(caller_context.get("guest_name") or "").strip()
+        context_state = str(caller_context.get("reservation_context_state") or "").strip()
+        has_active_reservation = bool(caller_context.get("has_active_reservation"))
+        base_context = (
+            "\nCaller ID lookup: matched a Guesty reservation for this caller phone."
+            f"\nRegistered guest name: {guest_name or 'unknown'}."
+            f"\nMatched reservation code for Guesty tool use: {reservation.get('confirmation_code') or 'unknown'}."
+            f"\nProperty on file: {reservation.get('listing_title') or 'unknown'}."
+            f"\nReservation status: {reservation.get('status') or 'unknown'}."
+            f"\nReservation dates: {reservation.get('check_in') or 'unknown'} to {reservation.get('check_out') or 'unknown'}."
+        )
+        if has_active_reservation:
+            caller_context_instruction = (
+                base_context
+                + "\nCaller ID state: active_or_upcoming."
+                + "\nGreet the caller by the registered guest first name if available, say you see a confirmed reservation on file, and offer concierge help for that stay."
+                + "\nIf the caller asks about this stay, you may use the reservation context and Guesty tools without asking for email or phone."
+                + "\nIf the guest provides a reservation code, repeat it back once, call Guesty immediately, confirm whether it exists, and say whose name it is under."
+            )
+        else:
+            caller_context_instruction = (
+                base_context
+                + f"\nCaller ID state: {context_state or 'past_or_inactive'}."
+                + "\nThis matched reservation is past or cancelled. Do not treat it as an active stay and do not imply they currently have a confirmed reservation."
+                + "\nGreet the caller by the registered guest first name if available and say welcome back. Offer help with feedback from their previous experience or with a forgotten item."
+                + "\nIf the caller asks about another reservation or an upcoming stay, ask for their reservation code like a normal call."
+            )
+    else:
+        caller_context_instruction = "\nCaller ID lookup: no matching Guesty reservation was found for the caller phone."
     instructions = (
         glam.AGENT_INSTRUCTIONS
         + "\n\nCurrent channel: Twilio Media Streams phone call."
         + f"\nCallSid: {call_sid}. Caller: {caller or 'unknown'}. To: {called or os.environ.get('TWILIO_PHONE_NUMBER', glam.TWILIO_PHONE_NUMBER)}."
-        + "\nUse Guesty tools when you need live reservation, property, or availability data."
-        + "\nUse the public property links bridge for shareable links. If the caller asks for a link, send it by SMS with twilio_send_property_link_sms when appropriate."
-        + "\nIf the caller asks for a person or does not want to continue with the AI, use twilio_send_human_handoff_sms with the reason and a concise call summary."
+        + caller_context_instruction
+        + "\nUse Guesty tools immediately when you need live reservation, property, or availability data. Keep the flow fast and simple."
+        + "\nUse the public property links bridge for shareable links. Always offer SMS delivery for useful links, and send accepted links with twilio_send_property_link_sms."
+        + "\nFor stay details such as address, door code, check-in instructions, or Wi-Fi, always offer SMS delivery to the caller number and use twilio_send_stay_details_sms when accepted."
+        + f"\n{glam.IMPORTANT_SMS_OFFER_RULE}"
+        + "\nFor any matter requiring human attention, including special services, towels, housekeeping, maintenance, access issues, complaints, policy exceptions, or a human request, tell the caller you will notify a human advisor now and use twilio_send_human_handoff_sms with caller number, reservation code if known, and a concise problem summary. After the SMS is sent, offer to connect the caller by phone; if they accept, use twilio_transfer_call_to_human."
+        + "\nIf the caller specifically asks to transfer the call to a human, use twilio_transfer_call_to_human."
     )
     return {
         "type": "session.update",
@@ -72,8 +107,8 @@ def session_update(call_sid: str, caller: str, called: str) -> dict[str, Any]:
                     "turn_detection": {
                         "type": "server_vad",
                         "threshold": 0.45,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 650,
+                        "prefix_padding_ms": 220,
+                        "silence_duration_ms": 460,
                     },
                 },
                 "output": {
@@ -139,14 +174,14 @@ async def run_function_call(openai_ws: websockets.ClientConnection, call_sid: st
     await openai_ws.send(
         json.dumps(
             create_response(
-                "Use the tool result to answer by phone. Keep it brief, natural, and do not reveal sensitive data without validation."
+                "Use the tool result to answer by phone. Keep it brief, natural, and direct. In code-only testing mode, the reservation code is enough for reservation and stay details."
             ),
             ensure_ascii=False,
         )
     )
 
 
-async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
+async def handle_media_stream_openai(twilio_ws: websockets.ServerConnection) -> None:
     api_key = glam.openai_api_key()
     if not api_key:
         await twilio_ws.close(code=1011, reason="Missing OPENAI_API_KEY")
@@ -204,6 +239,29 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
 
         async def receive_from_twilio() -> None:
             nonlocal stream_sid, call_sid, caller, called, latest_media_timestamp
+
+            async def lookup_and_send_caller_context(start_call_sid: str, start_caller: str, start_called: str) -> None:
+                timeout_seconds = float(os.environ.get("GLAM_CALLER_LOOKUP_TIMEOUT_SECONDS", "4"))
+                try:
+                    context = await asyncio.wait_for(
+                        asyncio.to_thread(glam.guesty_caller_reservation_context, start_caller),
+                        timeout=timeout_seconds,
+                    )
+                except asyncio.TimeoutError:
+                    context = {"ok": False, "matched": False, "reason": "caller_id_lookup_timeout"}
+                except Exception as exc:
+                    context = {"ok": False, "matched": False, "reason": "caller_id_lookup_failed", "error": str(exc)}
+                try:
+                    await openai_ws.send(json.dumps(session_update(start_call_sid, start_caller, start_called, context), ensure_ascii=False))
+                    await append_call_event(
+                        "System",
+                        "Caller ID lookup completed.",
+                        kind="caller_id_lookup",
+                        metadata=context,
+                    )
+                except Exception:
+                    return
+
             async for raw_message in twilio_ws:
                 data = json.loads(raw_message)
                 event = data.get("event")
@@ -215,7 +273,8 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
                     call_sid = custom.get("callSid") or call_sid
                     caller = custom.get("from") or caller
                     called = custom.get("to") or called
-                    await openai_ws.send(json.dumps(session_update(call_sid, caller, called), ensure_ascii=False))
+                    await openai_ws.send(json.dumps(session_update(call_sid, caller, called, None), ensure_ascii=False))
+                    asyncio.create_task(lookup_and_send_caller_context(call_sid, caller, called))
                     await openai_ws.send(
                         json.dumps(
                             create_user_text(
@@ -229,7 +288,7 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
                         "System",
                         "Call connected to OpenAI Realtime.",
                         kind="call_connected",
-                        metadata={"stream_sid": stream_sid, "from": caller, "to": called},
+                        metadata={"stream_sid": stream_sid, "from": caller, "to": called, "caller_context": {"status": "pending"}},
                     )
                 elif event == "media":
                     media = data.get("media") or {}
@@ -290,6 +349,107 @@ async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
                     await append_call_event("System", f"OpenAI Realtime error: {detail}", kind="error")
 
         await asyncio.gather(receive_from_twilio(), receive_from_openai())
+
+
+async def handle_media_stream_vapi(twilio_ws: websockets.ServerConnection) -> None:
+    if not glam.vapi_configured():
+        await twilio_ws.close(code=1011, reason="Missing Vapi configuration")
+        return
+
+    stream_sid = ""
+    call_sid = "twilio-vapi-pending"
+    caller = ""
+    called = ""
+    vapi_ws: websockets.ClientConnection | None = None
+    receive_vapi_task: asyncio.Task | None = None
+
+    async def append_call_event(speaker: str, text: str, *, kind: str = "message", metadata: dict[str, Any] | None = None) -> None:
+        glam.append_transcript_event(call_sid, speaker, text, channel="twilio", kind=kind, metadata=metadata or {})
+
+    async def receive_from_vapi(socket: websockets.ClientConnection) -> None:
+        async for message in socket:
+            if isinstance(message, (bytes, bytearray)):
+                if stream_sid:
+                    await twilio_ws.send(
+                        json.dumps(
+                            {
+                                "event": "media",
+                                "streamSid": stream_sid,
+                                "media": {"payload": base64.b64encode(bytes(message)).decode("ascii")},
+                            }
+                        )
+                    )
+                continue
+            try:
+                event = json.loads(str(message))
+            except json.JSONDecodeError:
+                event = {"type": "vapi_message", "message": str(message)[:500]}
+            event_type = str(event.get("type") or event.get("message") or "vapi_event")
+            transcript = str(event.get("transcript") or event.get("text") or "").strip()
+            if transcript:
+                await append_call_event("Vapi", transcript, kind="vapi_event", metadata={"event_type": event_type})
+
+    async for raw_message in twilio_ws:
+        data = json.loads(raw_message)
+        event = data.get("event")
+        if event == "start":
+            start = data.get("start") or {}
+            stream_sid = start.get("streamSid") or data.get("streamSid") or ""
+            call_sid = start.get("callSid") or call_sid
+            custom = start.get("customParameters") or {}
+            call_sid = custom.get("callSid") or call_sid
+            caller = custom.get("from") or caller
+            called = custom.get("to") or called
+            try:
+                call = await asyncio.to_thread(glam.vapi_create_websocket_call, glam.active_vapi_assistant_id())
+                vapi_ws = await websockets.connect(call["websocket_url"], ping_interval=20, ping_timeout=20)
+                receive_vapi_task = asyncio.create_task(receive_from_vapi(vapi_ws))
+                await append_call_event(
+                    "System",
+                    "Call connected to Vapi voice bridge.",
+                    kind="call_connected",
+                    metadata={
+                        "stream_sid": stream_sid,
+                        "from": caller,
+                        "to": called,
+                        "voice_engine": "vapi",
+                        "vapi_call_id": call.get("call_id", ""),
+                        "vapi_assistant_id": call.get("assistant_id", ""),
+                    },
+                )
+            except Exception as exc:
+                await append_call_event("System", f"Vapi bridge error: {exc}", kind="error")
+                await twilio_ws.close(code=1011, reason="Vapi bridge error")
+                break
+        elif event == "media":
+            media = data.get("media") or {}
+            payload = media.get("payload")
+            if payload and vapi_ws:
+                await vapi_ws.send(base64.b64decode(payload))
+        elif event == "stop":
+            await append_call_event("System", "Twilio closed the Vapi audio stream.", kind="call_stop")
+            if vapi_ws:
+                await vapi_ws.close()
+            if receive_vapi_task:
+                receive_vapi_task.cancel()
+            break
+
+
+async def handle_media_stream(twilio_ws: websockets.ServerConnection) -> None:
+    if glam.active_voice_engine() == "vapi":
+        await handle_media_stream_vapi(twilio_ws)
+        return
+    try:
+        await handle_media_stream_openai(twilio_ws)
+    except Exception as exc:
+        print(f"OpenAI media bridge failed: {exc}", flush=True)
+        if glam.vapi_configured():
+            try:
+                await handle_media_stream_vapi(twilio_ws)
+                return
+            except Exception as fallback_exc:
+                print(f"Vapi fallback failed: {fallback_exc}", flush=True)
+        raise
 
 
 async def main_async() -> None:

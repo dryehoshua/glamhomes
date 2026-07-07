@@ -7,7 +7,7 @@
 # - Twilio Media Streams WS -> 127.0.0.1:8877
 
 tunnel: glam-homes
-credentials-file: /Users/dryehoshuapython/.cloudflared/glam-homes.json
+credentials-file: /path/to/private/cloudflared/glam-homes.json
 
 ingress:
   - hostname: glamhomes.aipeople.app
