@@ -1,0 +1,105 @@
+{
+  "name": "guesty",
+  "version": "1.0.0",
+  "owner": "Ai People / Orbit",
+  "project": "GLAM HOMES",
+  "type": "documented-live-api-tool",
+  "source_runtime": "apps/voice-agent/server.py",
+  "tool_bridge": "apps/voice-agent/tool_bridge.py",
+  "registration_symbol": "REALTIME_TOOLS",
+  "data_sources": {
+    "guesty_open_api": "https://open-api.guesty.com/v1",
+    "public_property_database": "data/glam_homes_property_links.sqlite",
+    "public_property_exports": [
+      "data/guesty-property-links.json",
+      "data/guesty-property-links.csv",
+      "data/guesty-property-links.md"
+    ],
+    "conversation_knowledge_base": "data/private/guesty-conversations/GLAM HOMES KNOWLEDGE BASE"
+  },
+  "functions": [
+    {
+      "name": "guesty_status",
+      "category": "health",
+      "description": "Check whether Guesty Open API credentials are configured and reachable.",
+      "risk": "low",
+      "read_only": true
+    },
+    {
+      "name": "guesty_search_reservation",
+      "category": "reservation",
+      "description": "Search reservations by confirmation code, phone, email or guest name with fuzzy code support.",
+      "risk": "medium",
+      "read_only": true
+    },
+    {
+      "name": "guesty_confirm_reservation",
+      "category": "reservation",
+      "description": "Confirm reservation existence and return a safe summary after validation.",
+      "risk": "medium",
+      "read_only": true
+    },
+    {
+      "name": "guesty_confirmed_stay_details",
+      "category": "stay-details",
+      "description": "Retrieve confirmed stay details including address, check-in, access, Wi-Fi/StayFi, amenities and missing-field diagnostics.",
+      "risk": "high",
+      "read_only": true
+    },
+    {
+      "name": "guesty_get_reservation",
+      "category": "reservation",
+      "description": "Retrieve one reservation by internal Guesty reservation ID.",
+      "risk": "medium",
+      "read_only": true
+    },
+    {
+      "name": "guesty_list_listings",
+      "category": "listing",
+      "description": "List Guesty listings in read-only mode.",
+      "risk": "low",
+      "read_only": true
+    },
+    {
+      "name": "guesty_available_listings",
+      "category": "availability",
+      "description": "Search available listings by check-in, check-out and guest count.",
+      "risk": "medium",
+      "read_only": true
+    },
+    {
+      "name": "guesty_listing_calendar",
+      "category": "availability",
+      "description": "Retrieve minified listing calendar and nightly pricing.",
+      "risk": "medium",
+      "read_only": true
+    },
+    {
+      "name": "glam_search_public_property_links",
+      "category": "public-property-links",
+      "description": "Search active public Glam Homes direct, Airbnb, Booking or VRBO property links.",
+      "risk": "low",
+      "read_only": true
+    }
+  ],
+  "security_model": {
+    "guesty_write_access": "disabled",
+    "payments": "disabled",
+    "refunds": "human_approval_required",
+    "policy_exceptions": "human_approval_required",
+    "sensitive_stay_details": "reservation_validation_required",
+    "missing_fields": "escalate_to_human"
+  },
+  "environment_variables": [
+    "GUESTY_CLIENT_ID",
+    "GUESTY_CLIENT_SECRET",
+    "GUESTY_API_BASE_URL",
+    "GUESTY_TOKEN_URL",
+    "GLAM_RESERVATION_VALIDATION_MODE"
+  ],
+  "validation": {
+    "sqlite_integrity": "sqlite3 data/glam_homes_property_links.sqlite 'PRAGMA integrity_check;'",
+    "public_export_json": "python3 -m json.tool data/guesty-property-links.json >/tmp/glam_property_links_checked.json",
+    "runtime_import": "import apps/voice-agent/server.py and confirm knowledge_base_loaded"
+  }
+}

@@ -1,0 +1,4827 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLAM HOMES Concierge</title>
+  <link rel="icon" type="image/png" href="/assets/glam-homes-logo.png">
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ink: #17130c;
+      --muted: #6f6658;
+      --line: #dfd4bd;
+      --panel: #fffdf8;
+      --panel-strong: #fbf3df;
+      --gold: #c89b3c;
+      --gold-deep: #8a641a;
+      --champagne: #f8ead0;
+      --black: #17130c;
+      --green: #245a46;
+      --red: #a33a2d;
+      --shadow: 0 20px 46px rgba(72, 52, 16, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      height: auto;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: auto;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #fffaf0 0, #f7edda 44%, #eee1c5 100%);
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    header {
+      min-height: 74px;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: rgba(255, 253, 248, 0.94);
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    button,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.58;
+    }
+
+    .eyebrow {
+      color: var(--gold-deep);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 12px;
+      background: #fffaf0;
+      color: #4d412e;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .app-tabs {
+      min-height: 54px;
+      padding: 10px 18px 0;
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      overflow-x: auto;
+      background: rgba(255, 253, 248, 0.86);
+      border-bottom: 1px solid rgba(223, 212, 189, 0.72);
+    }
+
+    .tab-button {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      border-radius: 8px 8px 0 0;
+      padding: 10px 14px;
+      background: #fffaf0;
+      color: #4d412e;
+      font-weight: 780;
+      transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .tab-button.active,
+    .tab-button[aria-selected="true"] {
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: inset 0 3px 0 var(--gold);
+    }
+
+    .tab-button:focus-visible {
+      outline: 2px solid rgba(184, 137, 53, 0.4);
+      outline-offset: -2px;
+    }
+
+    main {
+      min-height: 0;
+      padding: 18px;
+      overflow: visible;
+    }
+
+    .tab-view {
+      display: none;
+      min-height: 0;
+      height: auto;
+    }
+
+    .tab-view.active {
+      display: grid;
+    }
+
+    .voice-layout {
+      grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .analytics-layout,
+    .calls-layout {
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .security-layout {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      min-height: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .control-panel {
+      display: grid;
+      grid-template-rows: auto auto auto auto;
+    }
+
+    .stage {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .portrait-wrap {
+      display: grid;
+      grid-template-columns: 124px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+    }
+
+    .portrait {
+      width: 124px;
+      height: 124px;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.16), transparent 28%),
+        linear-gradient(180deg, rgba(255, 248, 230, 0.1), rgba(200, 155, 60, 0.18)),
+        linear-gradient(150deg, #17130c, #2c2112 54%, #8a641a);
+      border: 1px solid #d5b66d;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      position: relative;
+      isolation: isolate;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .brand-avatar {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      filter: saturate(1.02) contrast(1.04);
+      display: block;
+      transform: scale(1.04) translateY(0);
+      animation: conciergeAvatarIdle 7s ease-in-out infinite;
+    }
+
+    .avatar-glow {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 42%, transparent 0 28%, rgba(240, 207, 122, 0.13) 30%, transparent 58%),
+        linear-gradient(180deg, transparent 0 56%, rgba(23, 19, 12, 0.68) 100%);
+    }
+
+    .speech-field {
+      position: absolute;
+      z-index: 4;
+      left: 13px;
+      right: 13px;
+      bottom: 10px;
+      height: 22px;
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      gap: 4px;
+      pointer-events: none;
+      opacity: 0.36;
+    }
+
+    .speech-field i {
+      width: 3px;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 240, 185, 0.88);
+      box-shadow: 0 0 12px rgba(240, 207, 122, 0.52);
+      transform-origin: bottom;
+    }
+
+    .speech-field i:nth-child(2) { height: 12px; }
+    .speech-field i:nth-child(3) { height: 17px; }
+    .speech-field i:nth-child(4) { height: 10px; }
+    .speech-field i:nth-child(5) { height: 15px; }
+
+    body[data-voice-state="speaking"] .brand-avatar,
+    body[data-voice-state="working"] .brand-avatar {
+      animation-duration: 4s;
+    }
+
+    body[data-voice-state="listening"] .speech-field {
+      opacity: 0.62;
+    }
+
+    body[data-voice-state="speaking"] .speech-field,
+    body[data-voice-state="working"] .speech-field {
+      opacity: 0.95;
+    }
+
+    body[data-voice-state="speaking"] .speech-field i,
+    body[data-voice-state="working"] .speech-field i {
+      animation: conciergeSignalVoice 0.82s ease-in-out infinite alternate;
+    }
+
+    body[data-voice-state="speaking"] .speech-field i:nth-child(2),
+    body[data-voice-state="working"] .speech-field i:nth-child(2) { animation-delay: 0.08s; }
+    body[data-voice-state="speaking"] .speech-field i:nth-child(3),
+    body[data-voice-state="working"] .speech-field i:nth-child(3) { animation-delay: 0.15s; }
+    body[data-voice-state="speaking"] .speech-field i:nth-child(4),
+    body[data-voice-state="working"] .speech-field i:nth-child(4) { animation-delay: 0.23s; }
+    body[data-voice-state="speaking"] .speech-field i:nth-child(5),
+    body[data-voice-state="working"] .speech-field i:nth-child(5) { animation-delay: 0.31s; }
+
+    .avatar-mark {
+      position: absolute;
+      z-index: 5;
+      right: 10px;
+      top: 10px;
+      min-width: 40px;
+      min-height: 23px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      color: #17130c;
+      background: linear-gradient(180deg, #f0cf7a, #b88420);
+      border: 1px solid #fff0b9;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .agent-meta {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .agent-name {
+      font-size: 17px;
+      line-height: 1.2;
+      font-weight: 780;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      min-height: 38px;
+    }
+
+    .voice-meter {
+      height: 86px;
+      border: 1px solid #d5b66d;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #fff8e6, #f8ead0);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .wave {
+      position: absolute;
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      border: 2px solid rgba(200, 155, 60, 0.34);
+      opacity: 0;
+      transform: scale(0.72);
+    }
+
+    .wave:nth-child(2) {
+      animation-delay: 0.34s;
+    }
+
+    .wave:nth-child(3) {
+      animation-delay: 0.68s;
+    }
+
+    body[data-voice-state="listening"] .wave,
+    body[data-voice-state="speaking"] .wave,
+    body[data-voice-state="working"] .wave {
+      animation: voiceWave 1.7s ease-out infinite;
+      opacity: 1;
+    }
+
+    body[data-voice-state="speaking"] .voice-meter {
+      background: linear-gradient(180deg, #fff1cc, #ead08f);
+    }
+
+    .mic-button {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      border: 1px solid var(--gold-deep);
+      color: var(--gold-deep);
+      background: #fffdf8;
+      display: grid;
+      place-items: center;
+      z-index: 2;
+    }
+
+    .mic-button svg {
+      width: 30px;
+      height: 30px;
+    }
+
+    @keyframes conciergeAvatarIdle {
+      0%, 100% { transform: scale(1.04) translateY(0); filter: saturate(1.02) contrast(1.04); }
+      45% { transform: scale(1.065) translateY(-1px); filter: saturate(1.08) contrast(1.06); }
+      68% { transform: scale(1.055) translateY(1px); }
+    }
+
+    @keyframes conciergeSignalVoice {
+      0% { transform: scaleY(0.52); opacity: 0.42; }
+      100% { transform: scaleY(1.32); opacity: 1; }
+    }
+
+    @keyframes voiceWave {
+      0% {
+        opacity: 0.92;
+        transform: scale(0.72);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(2.35);
+      }
+    }
+
+    .actions,
+    .device-panel,
+    .voice-panel {
+      padding: 14px 18px;
+      display: grid;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .primary,
+    .secondary,
+    .danger {
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      padding: 9px 13px;
+      font-weight: 760;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .primary {
+      background: linear-gradient(180deg, #d8ad4b, #b88420);
+      color: #17130c;
+      border-color: #8a641a;
+    }
+
+    .secondary {
+      background: #fffaf0;
+      color: #3f3321;
+      border-color: var(--line);
+    }
+
+    .danger {
+      background: #fff1ed;
+      color: var(--red);
+      border-color: #e8b0a5;
+    }
+
+    .compact {
+      min-height: 36px;
+      padding: 7px 10px;
+      font-size: 13px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fffdf8;
+      outline: none;
+    }
+
+    select {
+      min-height: 40px;
+      padding: 8px 10px;
+    }
+
+    textarea {
+      resize: none;
+      padding: 12px;
+      line-height: 1.45;
+    }
+
+    .level-meter {
+      height: 8px;
+      background: #eee0c2;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .level-meter span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--gold));
+      transition: width 120ms linear;
+    }
+
+    .device-state,
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .voice-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .voice-panel[data-engine="standard"] .voice-option[data-engine="vapi"],
+    .voice-panel[data-engine="vapi"] .voice-option[data-engine="standard"],
+    .voice-panel[data-engine="standard"] .vapi-copy,
+    .voice-panel[data-engine="vapi"] .standard-copy {
+      display: none;
+    }
+
+    .voice-admin-lock {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff4d7;
+      color: #4d3b18;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .voice-admin-lock.hidden {
+      display: none;
+    }
+
+    .voice-admin-lock .dashboard-unlock {
+      width: 100%;
+    }
+
+    .voice-option {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: #3f3321;
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    .voice-option.active {
+      border-color: var(--gold-deep);
+      background: #fff4d7;
+      box-shadow: inset 0 0 0 1px rgba(138, 100, 26, 0.22);
+    }
+
+    .side-notes {
+      min-height: 0;
+      padding: 18px;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .note {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .note strong {
+      font-size: 13px;
+    }
+
+    .note span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.38;
+    }
+
+    .note select,
+    .note input {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 9px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .security-panel {
+      width: 100%;
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .security-panel header {
+      min-height: auto;
+      padding: 0 0 12px;
+      display: grid;
+      gap: 5px;
+      background: transparent;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .security-panel header span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .security-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(320px, 1fr));
+      gap: 18px;
+    }
+
+    .security-card {
+      min-width: 0;
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      padding: 18px;
+      display: grid;
+      gap: 13px;
+      align-content: start;
+    }
+
+    .security-card strong {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .security-card span,
+    .security-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.38;
+      overflow-wrap: anywhere;
+    }
+
+    .security-form {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .security-card select,
+    .security-card input {
+      min-width: 0;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .protected-view.locked .protected-content {
+      display: none;
+    }
+
+    .calls-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: stretch;
+      min-height: min(760px, calc(100vh - 178px));
+      max-height: calc(100vh - 156px);
+    }
+
+    .analytics-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .security-layout > .protected-content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .dashboard-lock {
+      min-height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      display: grid;
+      align-content: center;
+      justify-items: start;
+      gap: 14px;
+    }
+
+    .dashboard-lock.hidden {
+      display: none;
+    }
+
+    .dashboard-lock span {
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .dashboard-unlock {
+      width: min(420px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .dashboard-unlock input {
+      min-width: 0;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 11px;
+      font: inherit;
+    }
+
+    .chat-panel {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+    }
+
+    .chat-header {
+      min-height: 70px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf0;
+    }
+
+    .ops-monitor {
+      padding: 14px 18px;
+      display: grid;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, #191409, #2c2112);
+      color: #fff8e8;
+    }
+
+    .ops-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .ops-monitor .eyebrow {
+      color: #f0cf7a;
+    }
+
+    .monitor-refresh {
+      min-height: 34px;
+      border: 1px solid rgba(240, 207, 122, 0.64);
+      border-radius: 8px;
+      padding: 7px 11px;
+      color: #fff8e8;
+      background: rgba(255, 250, 240, 0.08);
+      font-weight: 760;
+      white-space: nowrap;
+    }
+
+    .monitor-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .service-readout {
+      min-height: 74px;
+      border: 1px solid rgba(240, 207, 122, 0.35);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+      background: rgba(255, 250, 240, 0.07);
+    }
+
+    .service-readout strong {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      color: #e8d7a8;
+    }
+
+    .service-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 850;
+      line-height: 1.1;
+    }
+
+    .service-state::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: #9a8f78;
+      box-shadow: 0 0 0 4px rgba(154, 143, 120, 0.13);
+    }
+
+    .monitor-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: #9a8f78;
+      box-shadow: 0 0 0 4px rgba(154, 143, 120, 0.13);
+    }
+
+    .service-state.state-ok::before,
+    .state-ok .monitor-dot {
+      background: #3cc47c;
+      box-shadow: 0 0 0 4px rgba(60, 196, 124, 0.16), 0 0 16px rgba(60, 196, 124, 0.48);
+    }
+
+    .service-state.state-warn::before,
+    .state-warn .monitor-dot {
+      background: #f0bf49;
+      box-shadow: 0 0 0 4px rgba(240, 191, 73, 0.15), 0 0 16px rgba(240, 191, 73, 0.44);
+    }
+
+    .service-state.state-down::before,
+    .state-down .monitor-dot {
+      background: #ec6a5e;
+      box-shadow: 0 0 0 4px rgba(236, 106, 94, 0.15), 0 0 16px rgba(236, 106, 94, 0.44);
+    }
+
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .monitor-indicator {
+      min-height: 58px;
+      border: 1px solid rgba(240, 207, 122, 0.26);
+      border-radius: 8px;
+      padding: 9px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .monitor-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 820;
+      line-height: 1.2;
+    }
+
+    .monitor-detail {
+      display: block;
+      margin-top: 3px;
+      color: #d7c8a9;
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .monitor-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      color: #d7c8a9;
+      font-size: 12px;
+    }
+
+    .emergency-config {
+      border: 1px solid rgba(240, 207, 122, 0.28);
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .emergency-config header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .emergency-config strong {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #e8d7a8;
+    }
+
+    .emergency-config span {
+      color: #d7c8a9;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .emergency-form {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) minmax(130px, 0.8fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .emergency-form input {
+      min-width: 0;
+      height: 34px;
+      border: 1px solid rgba(240, 207, 122, 0.35);
+      border-radius: 8px;
+      background: rgba(255, 250, 240, 0.09);
+      color: #fff8e8;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .emergency-form input::placeholder {
+      color: #bfae8c;
+    }
+
+    .monitor-events {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .event-column {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+    }
+
+    .event-column h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #e8d7a8;
+      letter-spacing: 0;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 6px;
+      max-height: 116px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .event-row {
+      min-height: 38px;
+      border: 1px solid rgba(240, 207, 122, 0.22);
+      border-radius: 8px;
+      padding: 7px 8px;
+      display: grid;
+      gap: 3px;
+      background: rgba(255, 250, 240, 0.055);
+      color: #fff8e8;
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .event-row span {
+      color: #d7c8a9;
+      overflow-wrap: anywhere;
+    }
+
+    .analytics-dashboard {
+      padding: 12px 14px;
+      display: grid;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fff8eb;
+    }
+
+    .analytics-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .analytics-header span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .analytics-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .range-filters,
+    .custom-range {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .range-filter {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .range-filter.active {
+      background: #f8ead0;
+      color: var(--ink);
+      border-color: rgba(200, 155, 60, 0.52);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .custom-range input {
+      width: 168px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .kpi-card {
+      min-height: 72px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px;
+      background: #fffdf8;
+      display: grid;
+      align-content: space-between;
+      gap: 6px;
+    }
+
+    .kpi-card strong {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .kpi-card span {
+      font-size: 21px;
+      font-weight: 850;
+      line-height: 1;
+      overflow-wrap: anywhere;
+    }
+
+    .kpi-card small {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .analytics-secondary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .analytics-priority-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .priority-card {
+      min-height: 86px;
+      border: 1px solid rgba(223, 212, 189, 0.84);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf8;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+      box-shadow: inset 3px 0 0 rgba(200, 155, 60, 0.46);
+    }
+
+    .priority-card.alert {
+      background: #fff4f1;
+      border-color: rgba(204, 83, 58, 0.4);
+      box-shadow: inset 3px 0 0 rgba(204, 83, 58, 0.74);
+    }
+
+    .priority-card.good {
+      background: #f3fbf1;
+      border-color: rgba(72, 143, 79, 0.36);
+      box-shadow: inset 3px 0 0 rgba(72, 143, 79, 0.72);
+    }
+
+    .priority-card.watch {
+      background: #fff9eb;
+      border-color: rgba(204, 156, 47, 0.36);
+      box-shadow: inset 3px 0 0 rgba(204, 156, 47, 0.72);
+    }
+
+    .priority-card strong {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .priority-card span {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 850;
+      line-height: 1.05;
+      overflow-wrap: anywhere;
+    }
+
+    .priority-card small {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .mini-metric {
+      min-height: 36px;
+      border: 1px solid rgba(223, 212, 189, 0.78);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: rgba(255, 253, 248, 0.78);
+      display: grid;
+      gap: 2px;
+    }
+
+    .mini-metric strong {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+
+    .mini-metric span {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 820;
+      line-height: 1.1;
+    }
+
+    .keyword-panel {
+      display: grid;
+      gap: 7px;
+    }
+
+    .keyword-panel h3 {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-height: 28px;
+      max-height: 74px;
+      overflow: auto;
+    }
+
+    .keyword-chip {
+      min-height: 28px;
+      border: 1px solid rgba(200, 155, 60, 0.38);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #fffdf8;
+      color: #3f3321;
+      font-size: 11px;
+      line-height: 1.2;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+      gap: 10px;
+    }
+
+    .analytics-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .analytics-layout .kpi-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .analytics-layout .analytics-secondary {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .analytics-table-card {
+      min-height: 132px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf8;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .analytics-table-card h3 {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .analytics-table {
+      display: grid;
+      gap: 6px;
+      max-height: 150px;
+      overflow: auto;
+    }
+
+    .analytics-row {
+      min-height: 34px;
+      border: 1px solid rgba(223, 212, 189, 0.72);
+      border-radius: 8px;
+      padding: 6px 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255, 248, 235, 0.58);
+      font-size: 12px;
+    }
+
+    .analytics-row strong {
+      overflow-wrap: anywhere;
+    }
+
+    .analytics-row span {
+      color: var(--muted);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    .chart-card {
+      min-height: 178px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffdf8;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .chart-card h3 {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .chart-box {
+      position: relative;
+      min-height: 132px;
+    }
+
+    .call-inbox {
+      min-height: 248px;
+      border-bottom: 1px solid var(--line);
+      background: #fffdf8;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .analytics-layout .analytics-dashboard,
+    .calls-layout .call-inbox {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .analytics-layout .analytics-dashboard {
+      min-height: 0;
+      border-bottom: 1px solid var(--line);
+      overflow: auto;
+      max-height: 100%;
+    }
+
+    .analytics-layout .chart-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .analytics-layout .chart-card {
+      min-height: 210px;
+    }
+
+    .analytics-layout .chart-box {
+      min-height: 158px;
+    }
+
+    .calls-layout .call-inbox {
+      height: 100%;
+      min-height: 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .call-inbox-header {
+      padding: 13px 18px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf0;
+    }
+
+    .call-inbox-title {
+      min-width: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .call-inbox-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .call-inbox-actions {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.4fr) auto minmax(320px, 1fr);
+      align-items: end;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .call-filter-block {
+      min-width: 0;
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+
+    .filter-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 820;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .call-range-filters {
+      justify-content: flex-start;
+    }
+
+    .call-range-filter {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .call-range-filter.active {
+      background: #f8ead0;
+      color: var(--ink);
+      border-color: rgba(200, 155, 60, 0.52);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .call-custom-range {
+      justify-content: flex-start;
+    }
+
+    .call-custom-range input {
+      width: 168px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .call-inbox-actions .thread-filters {
+      align-self: end;
+    }
+
+    .call-inbox-actions .call-search {
+      justify-self: end;
+    }
+
+    .call-search {
+      display: grid;
+      grid-template-columns: minmax(130px, 0.9fr) minmax(160px, 1.1fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .call-search input {
+      width: 100%;
+    }
+
+    .call-search .secondary {
+      white-space: nowrap;
+    }
+
+    .thread-filters {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      flex-wrap: wrap;
+    }
+
+    .call-inbox-auth {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .call-inbox-auth input {
+      width: min(240px, 54vw);
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .call-inbox-auth input:focus {
+      outline: 2px solid rgba(184, 137, 53, 0.26);
+      border-color: var(--gold);
+    }
+
+    .thread-filter {
+      min-height: 30px;
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 9px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 780;
+      white-space: nowrap;
+    }
+
+    .thread-filter.active {
+      background: #f8ead0;
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.32);
+    }
+
+    .call-search input {
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .call-search input:focus {
+      outline: 2px solid rgba(184, 137, 53, 0.26);
+      border-color: var(--gold);
+    }
+
+    .call-inbox-layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    }
+
+    .call-list {
+      min-height: 0;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      grid-auto-rows: max-content;
+      border-right: 1px solid var(--line);
+      background: #fbf3df;
+    }
+
+    .calls-layout .call-list {
+      max-height: none;
+    }
+
+    .call-item {
+      width: 100%;
+      min-height: 76px;
+      border: 0;
+      border-bottom: 1px solid rgba(223, 212, 189, 0.84);
+      border-radius: 0;
+      background: transparent;
+      padding: 12px 14px;
+      display: grid;
+      grid-auto-rows: max-content;
+      align-content: start;
+      gap: 3px;
+      text-align: left;
+      color: var(--ink);
+      overflow: visible;
+    }
+
+    .call-item.active {
+      background: #fffdf8;
+      box-shadow: inset 3px 0 0 var(--gold);
+    }
+
+    .call-item.attention {
+      background: #fff0ee;
+      box-shadow: inset 4px 0 0 var(--red);
+    }
+
+    .call-item.attention.active {
+      background: #fff7f5;
+      box-shadow: inset 4px 0 0 var(--red), inset 0 0 0 1px rgba(163, 58, 45, 0.14);
+    }
+
+    .call-item.praise {
+      background: #f1f8f2;
+      box-shadow: inset 4px 0 0 var(--green);
+    }
+
+    .call-item.praise.active {
+      background: #f8fff8;
+      box-shadow: inset 4px 0 0 var(--green), inset 0 0 0 1px rgba(36, 90, 70, 0.14);
+    }
+
+    .call-item-name {
+      font-size: 14px;
+      font-weight: 840;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .call-item-number {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 720;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .call-item-time {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .call-item-note {
+      color: #8c342d;
+      font-size: 11px;
+      font-weight: 820;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .call-item.praise .call-item-note {
+      color: #245a46;
+    }
+
+    .call-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+      padding-bottom: 2px;
+      min-height: 0;
+    }
+
+    .call-badge {
+      border: 1px solid rgba(200, 155, 60, 0.36);
+      border-radius: 999px;
+      padding: 2px 6px;
+      background: #fff8eb;
+      color: #6b5732;
+      font-size: 10px;
+      line-height: 1.2;
+      font-weight: 780;
+      display: inline-flex;
+      align-items: center;
+      min-height: 20px;
+    }
+
+    .call-badge.escalation,
+    .call-badge.abandoned,
+    .call-badge.missed,
+    .call-badge.attention {
+      border-color: rgba(236, 106, 94, 0.42);
+      background: #fff0ee;
+      color: #8c342d;
+    }
+
+    .call-badge.praise {
+      border-color: rgba(36, 90, 70, 0.28);
+      background: #e9f6ef;
+      color: #245a46;
+    }
+
+    .call-badge.repeat,
+    .call-badge.same_topic,
+    .call-badge.same_subtopic,
+    .call-badge.multi_issue {
+      border-color: rgba(240, 191, 73, 0.44);
+      background: #fff5d9;
+      color: #7b5a10;
+    }
+
+    .call-badge.influencer {
+      border-color: rgba(200, 155, 60, 0.62);
+      background: #fff1bd;
+      color: #74510b;
+    }
+
+    .call-badge.recording {
+      border-color: rgba(82, 96, 160, 0.3);
+      background: #eef1ff;
+      color: #3b436a;
+    }
+
+    .vip-star {
+      color: var(--gold-deep);
+      font-size: 14px;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .transcript-panel {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
+      background: linear-gradient(180deg, #fffdf8, #fff8eb);
+    }
+
+    .transcript-header {
+      min-height: 52px;
+      padding: 11px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .transcript-title {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .thread-issue-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      max-width: 100%;
+    }
+
+    .transcript-header strong {
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-header span {
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      flex: 0 0 auto;
+    }
+
+    .call-detail-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf0;
+      overflow-x: auto;
+    }
+
+    .call-session-tabs {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fffdf8;
+      overflow-x: auto;
+    }
+
+    .call-session-tab {
+      min-width: 128px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: #fffaf0;
+      color: var(--ink);
+      display: grid;
+      gap: 3px;
+      text-align: left;
+      flex: 0 0 auto;
+    }
+
+    .call-session-tab.active {
+      border-color: rgba(200, 155, 60, 0.66);
+      background: #f8ead0;
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .call-session-tab strong {
+      font-size: 12px;
+      line-height: 1.15;
+    }
+
+    .call-session-tab span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .call-detail-tab {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 11px;
+      background: #fffdf8;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 820;
+      white-space: nowrap;
+    }
+
+    .call-detail-tab.active {
+      background: #f8ead0;
+      color: var(--ink);
+      border-color: rgba(200, 155, 60, 0.52);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.24);
+    }
+
+    .transcript-mode {
+      min-height: 28px;
+      border: 0;
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 820;
+      white-space: nowrap;
+    }
+
+    .transcript-mode.active {
+      background: #f8ead0;
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px rgba(200, 155, 60, 0.26);
+    }
+
+    .transcript-messages {
+      min-height: 0;
+      max-height: 228px;
+      overflow: auto;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .calls-layout .transcript-messages {
+      max-height: none;
+    }
+
+    .transcript-bubble {
+      max-width: 78%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      display: grid;
+      gap: 4px;
+      background: #ffffff;
+      font-size: 13px;
+      line-height: 1.38;
+      overflow-wrap: anywhere;
+    }
+
+    .transcript-bubble.guest {
+      justify-self: end;
+      background: #f8ead0;
+      border-color: #d5b66d;
+    }
+
+    .transcript-bubble.concierge {
+      justify-self: start;
+      background: #ffffff;
+    }
+
+    .transcript-bubble.system,
+    .transcript-bubble.tool {
+      justify-self: center;
+      max-width: 94%;
+      background: #f4efe5;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .transcript-bubble.tool {
+      border-color: #d5b66d;
+      background: #fff4d7;
+    }
+
+    .transcript-bubble.sms-outbound {
+      justify-self: end;
+      background: #e9f6ef;
+      border-color: rgba(36, 90, 70, 0.28);
+    }
+
+    .transcript-bubble.sms-inbound {
+      justify-self: start;
+      background: #ffffff;
+      border-color: var(--line);
+    }
+
+    .audio-panel {
+      width: min(720px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fffdf8;
+      display: grid;
+      gap: 12px;
+    }
+
+    .audio-panel strong {
+      color: var(--gold-deep);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .audio-panel p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      margin: 0;
+    }
+
+    .audio-player {
+      width: 100%;
+    }
+
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .audio-controls label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 820;
+      text-transform: uppercase;
+    }
+
+    .audio-controls select {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .transcript-speaker {
+      color: var(--gold-deep);
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .transcript-time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .chat-feed {
+      min-height: 0;
+      padding: 18px;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      background:
+        linear-gradient(180deg, rgba(255, 253, 248, 0.88), rgba(255, 250, 240, 0.72));
+    }
+
+    .message {
+      max-width: 82%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(72, 52, 16, 0.06);
+    }
+
+    .message.user {
+      justify-self: end;
+      background: #f8ead0;
+      border-color: #d5b66d;
+    }
+
+    .message.system {
+      justify-self: center;
+      background: #f4efe5;
+      color: var(--muted);
+      max-width: 96%;
+      font-size: 13px;
+    }
+
+    .speaker {
+      color: var(--gold-deep);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+
+    .bubble-text {
+      white-space: pre-wrap;
+      line-height: 1.46;
+      font-size: 14px;
+    }
+
+    .composer {
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      background: #fffdf8;
+    }
+
+    .composer textarea {
+      height: 48px;
+      min-height: 48px;
+      max-height: 96px;
+    }
+
+    .mobile-title {
+      display: none;
+    }
+
+    @media (max-width: 920px) {
+      body {
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+        display: block;
+      }
+
+      main {
+        min-height: auto;
+        overflow: visible;
+      }
+
+      .voice-layout,
+      .analytics-layout,
+      .calls-layout,
+      .security-layout,
+      .analytics-layout > .protected-content,
+      .calls-layout > .protected-content,
+      .security-layout > .protected-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        height: auto;
+        min-height: auto;
+        max-height: none;
+      }
+
+      .panel {
+        min-height: auto;
+        overflow: visible;
+      }
+
+      .control-panel {
+        display: block;
+      }
+
+      .side-notes {
+        max-height: none;
+        overflow: visible;
+      }
+
+      .chat-panel {
+        min-height: 620px;
+        overflow: hidden;
+      }
+
+      .monitor-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .emergency-form {
+        grid-template-columns: 1fr;
+      }
+
+      .security-grid,
+      .security-form {
+        grid-template-columns: 1fr;
+      }
+
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .analytics-layout .kpi-grid,
+      .analytics-layout .analytics-secondary,
+      .analytics-layout .analytics-priority-grid,
+      .analytics-layout .analytics-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .chart-grid,
+      .analytics-layout .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .analytics-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .analytics-layout .analytics-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .call-inbox-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .calls-layout .call-inbox {
+        order: -1;
+      }
+
+      .analytics-layout .analytics-dashboard {
+        max-height: none;
+        overflow: visible;
+      }
+
+      .call-list,
+      .calls-layout .call-list {
+        max-height: 260px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .calls-layout .transcript-messages {
+        min-height: 460px;
+        max-height: 620px;
+      }
+
+      .call-inbox-actions {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+
+      .call-inbox-actions .call-search {
+        justify-self: stretch;
+      }
+
+      .call-custom-range input {
+        flex: 1 1 168px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .app-tabs {
+        padding: 8px 12px 0;
+        overflow-x: auto;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--ink);
+        box-shadow: 0 8px 20px rgba(10, 8, 5, 0.18);
+      }
+
+      .tab-button {
+        min-width: max-content;
+      }
+
+      main {
+        padding: 12px;
+        gap: 12px;
+      }
+
+      .portrait-wrap,
+      .composer,
+      .dashboard-unlock {
+        grid-template-columns: 1fr;
+      }
+
+      .portrait {
+        width: 112px;
+        height: 112px;
+      }
+
+      .button-row {
+        grid-template-columns: 1fr;
+      }
+
+      .voice-list {
+        display: none;
+      }
+
+      .monitor-summary,
+      .monitor-grid,
+      .monitor-events,
+      .kpi-grid,
+      .chart-grid,
+      .analytics-layout .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-card {
+        min-height: 230px;
+      }
+
+      .chart-box {
+        min-height: 180px;
+      }
+
+      .analytics-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .analytics-header span {
+        text-align: left;
+      }
+
+      .analytics-controls,
+      .range-filters,
+      .custom-range {
+        width: 100%;
+      }
+
+      .range-filter {
+        flex: 1 0 auto;
+      }
+
+      .custom-range input {
+        flex: 1 1 130px;
+      }
+
+      .analytics-secondary {
+        grid-template-columns: 1fr;
+      }
+
+      .analytics-detail-grid,
+      .analytics-layout .kpi-grid,
+      .analytics-layout .analytics-secondary,
+      .analytics-layout .analytics-priority-grid,
+      .analytics-layout .analytics-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .call-inbox-header {
+        align-items: flex-start;
+      }
+
+      .call-inbox-title {
+        flex-direction: column;
+      }
+
+      .call-inbox-status {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .call-inbox-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+      }
+
+      .call-search {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .call-search input {
+        width: 100%;
+      }
+
+      .call-search .secondary {
+        grid-column: 1 / -1;
+      }
+
+      .thread-filters {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .call-range-filters {
+        width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .call-range-filter {
+        flex: 0 0 auto;
+      }
+
+      .call-custom-range {
+        width: 100%;
+      }
+
+      .call-custom-range input {
+        width: 100%;
+      }
+
+      .transcript-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .thread-filter {
+        flex: 1 0 auto;
+      }
+
+      .call-inbox-auth {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      .call-inbox-auth input {
+        width: 100%;
+      }
+
+      .call-inbox-actions .secondary {
+        width: 100%;
+      }
+
+      .transcript-bubble {
+        max-width: 94%;
+      }
+
+      .transcript-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .transcript-toggle {
+        width: 100%;
+      }
+
+      .transcript-mode {
+        flex: 1 1 0;
+      }
+
+      .message {
+        max-width: 96%;
+      }
+
+      .composer textarea {
+        height: 76px;
+        min-height: 76px;
+      }
+    }
+  </style>
+</head>
+<body data-voice-state="idle">
+  <header>
+    <div>
+      <p class="eyebrow">Private booking desk</p>
+      <h1>GLAM HOMES CONCIERGE</h1>
+    </div>
+    <span class="pill" id="serverState">Local starting</span>
+  </header>
+
+  <nav class="app-tabs" aria-label="Dashboard sections">
+    <button class="tab-button active" type="button" data-tab="voice" aria-selected="true">Voice Console</button>
+    <button class="tab-button" type="button" data-tab="analytics" aria-selected="false">Analytics</button>
+    <button class="tab-button" type="button" data-tab="calls" aria-selected="false">Calls</button>
+    <button class="tab-button" type="button" data-tab="security" aria-selected="false">Security</button>
+  </nav>
+
+  <main>
+    <section class="tab-view voice-layout active" id="voiceView" aria-label="Voice console">
+    <section class="panel control-panel" aria-label="Voice controls">
+      <div class="stage">
+        <div class="portrait-wrap">
+          <div class="portrait" aria-label="Glam Homes executive assistant">
+            <img class="brand-avatar" src="/assets/glam-concierge-agent.png" alt="GLAM HOMES Concierge">
+            <span class="avatar-glow" aria-hidden="true"></span>
+            <span class="speech-field" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+            <span class="avatar-mark">LIVE</span>
+          </div>
+          <div class="agent-meta">
+            <p class="agent-name">Concierge voice</p>
+            <p class="status" id="statusText">Ready for local testing. Select a voice, then test voice or start voice.</p>
+          </div>
+        </div>
+        <div class="voice-meter" aria-hidden="true">
+          <span class="wave"></span>
+          <span class="wave"></span>
+          <span class="wave"></span>
+          <div class="mic-button">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 1 0 6 0V6a3 3 0 0 0-3-3Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="button-row">
+          <button class="primary" id="startVoice">Start voice</button>
+          <button class="secondary" id="testVoice">Test voice</button>
+        </div>
+        <button class="danger" id="stopVoice" disabled>End session</button>
+      </div>
+
+      <div class="voice-panel" id="voicePanel" data-engine="standard">
+        <div class="voice-admin-lock" id="voiceLockNotice">
+          <span>Unlock dashboard controls to change the call voice.</span>
+          <div class="dashboard-unlock">
+            <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+            <button class="secondary compact dashboardUnlockButton" type="button">Unlock</button>
+          </div>
+        </div>
+        <label>
+          Voice engine
+          <select id="voiceEngineSelect">
+            <option value="standard">Standard voices</option>
+            <option value="vapi">Vapi voices</option>
+          </select>
+        </label>
+        <label>
+          Active voice
+          <select id="voiceSelect">
+            <option value="ash" selected>Ash - warm masculine</option>
+            <option value="echo">Echo - clear masculine</option>
+            <option value="cedar">Cedar - calm masculine</option>
+            <option value="verse">Verse - conversational masculine</option>
+            <option value="marin">Marin - premium recommended</option>
+            <option value="coral">Coral - bright feminine</option>
+            <option value="shimmer">Shimmer - soft feminine</option>
+            <option value="sage">Sage - warm feminine</option>
+            <option value="alloy">Alloy - balanced neutral</option>
+            <option value="ballad">Ballad - expressive neutral</option>
+          </select>
+        </label>
+        <p class="hint standard-copy">Standard voices use the OpenAI/Twilio realtime flow for calls and browser testing.</p>
+        <p class="hint vapi-copy">Vapi voices switch live Twilio calls to the Vapi bridge. Browser voice testing remains available only for Standard voices.</p>
+        <div class="voice-list" id="voiceButtons">
+          <button class="voice-option active" data-engine="standard" data-voice="ash">Ash</button>
+          <button class="voice-option" data-engine="standard" data-voice="echo">Echo</button>
+          <button class="voice-option" data-engine="standard" data-voice="cedar">Cedar</button>
+          <button class="voice-option" data-engine="standard" data-voice="verse">Verse</button>
+          <button class="voice-option" data-engine="standard" data-voice="marin">Marin</button>
+          <button class="voice-option" data-engine="standard" data-voice="coral">Coral</button>
+          <button class="voice-option" data-engine="standard" data-voice="shimmer">Shimmer</button>
+          <button class="voice-option" data-engine="standard" data-voice="sage">Sage</button>
+          <button class="voice-option" data-engine="standard" data-voice="alloy">Alloy</button>
+          <button class="voice-option" data-engine="standard" data-voice="ballad">Ballad</button>
+          <button class="voice-option" data-engine="vapi" data-voice="vapi:riley">Riley / Elliot</button>
+        </div>
+        <p class="hint">To change voices after the concierge speaks, end the session and open a new one.</p>
+      </div>
+
+      <div class="device-panel">
+        <label>
+          Microphone
+          <select id="micSelect">
+            <option value="">System</option>
+          </select>
+        </label>
+        <button class="secondary compact" id="testMic">Test microphone</button>
+        <div class="level-meter" aria-hidden="true"><span id="micLevel"></span></div>
+        <span class="device-state" id="micState">The browser will ask for permission when you start voice.</span>
+      </div>
+
+      <div class="side-notes">
+        <div class="note">
+          <strong>Local mode</strong>
+          <span>Runs on this Mac for the Cloudflare tunnel and Twilio webhooks.</span>
+        </div>
+        <div class="note">
+          <strong>Scope</strong>
+          <span>Concierge frontend plus instant voice. Guesty remains read-only for reservations and properties.</span>
+        </div>
+        <div class="note" id="guestyNote">
+          <strong>Guesty</strong>
+          <span id="guestyState">Checking local connection...</span>
+        </div>
+        <div class="note">
+          <strong>Brand</strong>
+          <span>Gold palette, premium tone, and selectable concierge voices for booking calls.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel chat-panel" aria-label="Conversation">
+      <div class="chat-header">
+        <div>
+          <p class="eyebrow">Realtime console</p>
+          <h2 id="threadTitle">GLAM HOMES Session</h2>
+        </div>
+        <span class="pill" id="sessionLabel">No call</span>
+      </div>
+
+      <div class="ops-monitor" aria-label="Twilio operations monitor">
+        <div class="ops-header">
+          <div>
+            <p class="eyebrow">Twilio operations</p>
+            <h2>Call & SMS Monitor</h2>
+          </div>
+          <button class="monitor-refresh" id="monitorRefresh" type="button">Refresh</button>
+        </div>
+        <div class="monitor-summary">
+          <div class="service-readout">
+            <strong>Voice service</strong>
+            <span class="service-state state-warn" id="voiceServiceState">Checking</span>
+          </div>
+          <div class="service-readout">
+            <strong>SMS service</strong>
+            <span class="service-state state-warn" id="smsServiceState">Checking</span>
+          </div>
+        </div>
+        <div class="monitor-grid" id="monitorGrid">
+          <div class="monitor-indicator state-warn"><span class="monitor-dot"></span><span><strong class="monitor-label">Loading monitor</strong><span class="monitor-detail">Waiting for local server response.</span></span></div>
+        </div>
+        <div class="monitor-meta">
+          <span id="monitorLastChecked">Last check: pending</span>
+          <span id="monitorPhone">Line: pending</span>
+          <span id="monitorPublicUrl">Tunnel: pending</span>
+        </div>
+        <div class="monitor-events">
+          <div class="event-column">
+            <h3>Recent calls</h3>
+            <div class="event-list" id="recentCalls"><div class="event-row">Waiting for Twilio data...</div></div>
+          </div>
+          <div class="event-column">
+            <h3>Recent SMS</h3>
+            <div class="event-list" id="recentMessages"><div class="event-row">Waiting for Twilio data...</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-feed" id="chatFeed">
+        <div class="message system">
+          <div class="bubble-text">Ready. Voice uses local WebRTC; if OPENAI_API_KEY is missing, the server will stop before connecting.</div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <textarea id="manualInput" placeholder="Type an instruction for the Concierge..."></textarea>
+        <button class="primary" id="sendText">Send</button>
+      </div>
+    </section>
+    </section>
+
+    <section class="tab-view analytics-layout protected-view locked" id="analyticsView" aria-label="Call analytics">
+      <div class="dashboard-lock" id="analyticsLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Analytics Locked</h2>
+        <span>Enter the dashboard password to unlock analytics, call memory, security controls, and protected phone data.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
+      <div class="analytics-dashboard" aria-label="Call center analytics">
+        <div class="analytics-header">
+          <div>
+            <p class="eyebrow">Call center analytics</p>
+            <h2>Performance Snapshot</h2>
+          </div>
+          <span id="analyticsScope">All stored conversations</span>
+        </div>
+        <div class="analytics-controls">
+          <div class="range-filters" aria-label="Analytics range">
+            <button class="range-filter" type="button" data-range="today">Today</button>
+            <button class="range-filter active" type="button" data-range="week">7 days</button>
+            <button class="range-filter" type="button" data-range="month">30 days</button>
+            <button class="range-filter" type="button" data-range="all">All</button>
+            <button class="range-filter" type="button" data-range="custom">Custom</button>
+          </div>
+          <div class="custom-range" id="customRangeControls" style="display: none;">
+            <input id="rangeStart" type="datetime-local" aria-label="Start date and time">
+            <input id="rangeEnd" type="datetime-local" aria-label="End date and time">
+            <button class="secondary compact" id="applyRange" type="button">Apply</button>
+          </div>
+        </div>
+        <div class="kpi-grid" id="kpiGrid">
+          <div class="kpi-card"><strong>Total calls</strong><span>--</span><small>Waiting for transcripts</small></div>
+          <div class="kpi-card"><strong>Prospects</strong><span>--</span><small>Booking intent detected</small></div>
+          <div class="kpi-card"><strong>Coverage</strong><span>--</span><small>Calls with transcript</small></div>
+          <div class="kpi-card"><strong>Human handoffs</strong><span>--</span><small>Escalations logged</small></div>
+        </div>
+        <div class="analytics-secondary" id="analyticsSecondary">
+          <div class="mini-metric"><strong>Unique callers</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Tool actions</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Guest turns</strong><span>--</span></div>
+          <div class="mini-metric"><strong>Avg messages</strong><span>--</span></div>
+        </div>
+        <div class="analytics-priority-grid" id="analyticsPriorityGrid" aria-label="Operations priorities">
+          <div class="priority-card"><strong>Priority queue</strong><span>--</span><small>Calls needing review</small></div>
+          <div class="priority-card"><strong>Repeat issue</strong><span>--</span><small>Same subtopic callbacks</small></div>
+          <div class="priority-card"><strong>VIP pipeline</strong><span>--</span><small>Influencer or VIP signals</small></div>
+          <div class="priority-card"><strong>Quality signal</strong><span>--</span><small>Guest praise captured</small></div>
+        </div>
+        <div class="chart-grid" aria-label="Call center charts">
+          <div class="chart-card">
+            <h3>Topics by call volume</h3>
+            <div class="chart-box"><canvas id="topicChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>Pipeline mix</h3>
+            <div class="chart-box"><canvas id="mixChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <h3>Calls by day and hour</h3>
+            <div class="chart-box"><canvas id="hourHeatmapChart"></canvas></div>
+          </div>
+        </div>
+        <div class="analytics-detail-grid" aria-label="Operational analytics tables">
+          <div class="analytics-table-card">
+            <h3>Subtopics and repeats</h3>
+            <div class="analytics-table" id="subtopicTable">
+              <div class="analytics-row"><strong>No subtopic data</strong><span>--</span></div>
+            </div>
+          </div>
+          <div class="analytics-table-card">
+            <h3>Escalations by reason</h3>
+            <div class="analytics-table" id="escalationTable">
+              <div class="analytics-row"><strong>No escalation data</strong><span>--</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="keyword-panel">
+          <h3>Frequent concepts</h3>
+          <div class="keyword-list" id="keywordList">
+            <span class="keyword-chip">Waiting for call data</span>
+          </div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="tab-view calls-layout protected-view locked" id="callsView" aria-label="Call inbox">
+      <div class="dashboard-lock" id="callsLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Calls Locked</h2>
+        <span>Enter the dashboard password to unlock call memory, transcripts, phone filters, and customer issue history.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
+      <div class="call-inbox" aria-label="Call inbox">
+        <div class="call-inbox-header">
+          <div class="call-inbox-title">
+            <div>
+            <p class="eyebrow">Call center memory</p>
+            <h2>Conversation Inbox</h2>
+            </div>
+            <div class="call-inbox-status">
+              <span class="pill" id="callInboxState">Local conversations</span>
+              <button class="secondary compact" id="refreshCalls" type="button">Refresh calls</button>
+            </div>
+          </div>
+          <div class="call-inbox-actions">
+            <div class="call-filter-block">
+              <span class="filter-label">Time range</span>
+              <div class="range-filters call-range-filters" aria-label="Call inbox range">
+                <button class="call-range-filter active" type="button" data-range="today">Today</button>
+                <button class="call-range-filter" type="button" data-range="week">7 days</button>
+                <button class="call-range-filter" type="button" data-range="month">30 days</button>
+                <button class="call-range-filter" type="button" data-range="all">All</button>
+                <button class="call-range-filter" type="button" data-range="custom">Custom</button>
+              </div>
+              <div class="custom-range call-custom-range" id="callCustomRangeControls" style="display: none;">
+                <input id="callRangeStart" type="datetime-local" aria-label="Call start date and time">
+                <input id="callRangeEnd" type="datetime-local" aria-label="Call end date and time">
+                <button class="secondary compact" id="applyCallRange" type="button">Apply</button>
+              </div>
+            </div>
+            <div class="thread-filters" aria-label="Conversation sorting">
+              <button class="thread-filter active" type="button" data-sort="recent">Recent</button>
+              <button class="thread-filter" type="button" data-sort="relevant">Relevant</button>
+              <button class="thread-filter" type="button" data-sort="most">Most interaction</button>
+              <button class="thread-filter" type="button" data-sort="least">Least interaction</button>
+            </div>
+            <div class="call-search">
+              <input id="callPhoneSearch" type="search" inputmode="tel" autocomplete="off" placeholder="Phone number">
+              <input id="callSearch" type="search" autocomplete="off" placeholder="Name or keyword">
+              <button class="secondary compact" id="clearCallSearch" type="button">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="call-inbox-layout">
+          <div class="call-list" id="callList">
+            <button class="call-item" type="button"><span class="call-item-name">Loading conversations...</span><span class="call-item-time">Checking local transcripts.</span></button>
+          </div>
+          <div class="transcript-panel">
+            <div class="transcript-header" id="transcriptHeader">
+              <strong>Select a conversation</strong>
+              <span>Each phone number keeps one continuous history.</span>
+            </div>
+            <div class="call-session-tabs" id="callSessionTabs" aria-label="Calls in this conversation"></div>
+            <div class="call-detail-tabs" id="callDetailTabs" aria-label="Call detail views">
+              <button class="call-detail-tab active" type="button" data-mode="clean">Chat</button>
+              <button class="call-detail-tab" type="button" data-mode="sms">SMS</button>
+              <button class="call-detail-tab" type="button" data-mode="technical">Technical</button>
+              <button class="call-detail-tab" type="button" data-mode="audio">Audio</button>
+            </div>
+            <div class="transcript-messages" id="transcriptMessages">
+              <div class="transcript-bubble system">
+                <span class="transcript-speaker">System</span>
+                <span>Choose a recent caller to open the continuous conversation.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="tab-view security-layout protected-view locked" id="securityView" aria-label="Security settings">
+      <div class="dashboard-lock" id="securityLock">
+        <p class="eyebrow">Protected dashboard</p>
+        <h2>Security Locked</h2>
+        <span>Enter the dashboard password once to unlock all admin controls.</span>
+        <div class="dashboard-unlock">
+          <input class="dashboardUnlockInput" type="password" autocomplete="current-password" placeholder="Dashboard password">
+          <button class="primary dashboardUnlockButton" type="button">Unlock</button>
+        </div>
+      </div>
+      <div class="protected-content">
+      <section class="panel security-panel" aria-label="Reservation access settings">
+        <header>
+          <p class="eyebrow">Access controls</p>
+          <h2>Reservation Security</h2>
+          <span>Temporary testing can stay simple now, then move back to stricter checks later.</span>
+        </header>
+        <div class="security-card">
+          <strong>Reservation validation</strong>
+          <span id="reservationValidationState">Loading validation mode...</span>
+          <div class="security-form">
+            <select id="reservationValidationMode">
+              <option value="code_only">Code only: reservation unlocks details</option>
+              <option value="relaxed">Relaxed: reservation + similar name</option>
+              <option value="strict">Strict: confirmed code + matching detail</option>
+            </select>
+            <button class="secondary compact" id="saveReservationValidation" type="button">Save mode</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel security-panel" aria-label="Human support and SMS settings">
+        <header>
+          <p class="eyebrow">Human escalation</p>
+          <h2>Advisor SMS</h2>
+          <span>Human issues notify this number. Caller-facing SMS uses the number that called in.</span>
+        </header>
+        <div class="security-grid">
+          <div class="security-card">
+            <strong>Emergency advisor SMS</strong>
+            <span id="emergencyContactState">Loading emergency line...</span>
+            <div class="security-form">
+              <input id="emergencyPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
+              <button class="secondary compact" id="saveEmergencyContact" type="button">Save number</button>
+            </div>
+          </div>
+          <div class="security-card">
+            <strong>VIP Reservations</strong>
+            <span id="vipReservationsState">Loading VIP reservations line...</span>
+            <div class="security-form">
+              <input id="vipReservationsPhone" type="tel" autocomplete="tel" placeholder="+525630907754">
+              <button class="secondary compact" id="saveVipReservationsContact" type="button">Save number</button>
+            </div>
+          </div>
+          <div class="security-card">
+            <strong>Current call rules</strong>
+            <p>Use caller ID when it matches Guesty. With a reservation code, confirm the reservation and guest name, then answer directly from Guesty. Offer SMS to the caller number for useful details. Transfer live calls when a guest asks for a human.</p>
+          </div>
+        </div>
+      </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="/vendor/chart.umd.min.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const voiceCatalog = [
+      { id: "ash", label: "Ash - warm masculine", engine: "standard" },
+      { id: "echo", label: "Echo - clear masculine", engine: "standard" },
+      { id: "cedar", label: "Cedar - calm masculine", engine: "standard" },
+      { id: "verse", label: "Verse - conversational masculine", engine: "standard" },
+      { id: "marin", label: "Marin - premium neutral", engine: "standard" },
+      { id: "coral", label: "Coral - bright feminine", engine: "standard" },
+      { id: "shimmer", label: "Shimmer - soft feminine", engine: "standard" },
+      { id: "sage", label: "Sage - warm feminine", engine: "standard" },
+      { id: "alloy", label: "Alloy - balanced neutral", engine: "standard" },
+      { id: "ballad", label: "Ballad - expressive neutral", engine: "standard" },
+      { id: "vapi:riley", label: "Riley / Elliot - Vapi voice", engine: "vapi" },
+    ];
+    const voices = voiceCatalog.map((voice) => voice.id);
+    const standardVoices = voiceCatalog.filter((voice) => voice.engine === "standard").map((voice) => voice.id);
+    const vapiVoices = voiceCatalog.filter((voice) => voice.engine === "vapi").map((voice) => voice.id);
+    let peer = null;
+    let channel = null;
+    let micStream = null;
+    let micTestStream = null;
+    let assistantDraft = "";
+    let assistantBubble = null;
+    let assistantFinalLogged = false;
+    let selectedMicDeviceId = "";
+    let activeMode = "";
+    let selectedThreadId = "";
+    let callSearchQuery = "";
+    let callPhoneQuery = "";
+    let callSearchTimer = null;
+    let callSortMode = "recent";
+    let analyticsRangeMode = "week";
+    let topicChart = null;
+    let mixChart = null;
+    let hourHeatmapChart = null;
+    let lastMetrics = {};
+    let lastCallData = {};
+    let transcriptViewMode = "clean";
+    let lastTranscriptSummary = {};
+    let lastTranscriptEvents = [];
+    let lastSmsEvents = [];
+    let lastCallAnalyses = [];
+    let selectedCallSid = "";
+    let currentAudioObjectUrl = "";
+    let audioLoadToken = 0;
+    const isLocalDashboard = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
+    const dashboardKeyStorage = "glamHomesDashboardKey";
+    let dashboardKey = localStorage.getItem(dashboardKeyStorage) || "";
+    const sessionId = "GH-" + new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+
+    $("sessionLabel").textContent = sessionId;
+
+    function setStatus(text, state = "idle") {
+      $("statusText").textContent = text;
+      document.body.dataset.voiceState = state;
+    }
+
+    function monitorState(item) {
+      const state = String(item?.state || "").toLowerCase();
+      if (["ok", "warn", "down"].includes(state)) return state;
+      return item?.ok ? "ok" : "warn";
+    }
+
+    function monitorStateText(state) {
+      if (state === "ok") return "Active";
+      if (state === "down") return "Down";
+      return "Warning";
+    }
+
+    function setServiceReadout(id, active) {
+      const node = $(id);
+      const state = active ? "ok" : "down";
+      node.className = "service-state state-" + state;
+      node.textContent = active ? "Active" : "Down";
+    }
+
+    function compactDate(value) {
+      if (!value) return "No timestamp";
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return String(value);
+      return parsed.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function compactSid(value) {
+      const clean = String(value || "");
+      return clean.length > 10 ? clean.slice(0, 8) + "..." : clean;
+    }
+
+    function callDataHeaders() {
+      return dashboardKey ? { "X-Glam-Dashboard-Key": dashboardKey } : {};
+    }
+
+    function dashboardUnlocked() {
+      return Boolean(dashboardKey);
+    }
+
+    function updateProtectedViews() {
+      const unlocked = dashboardUnlocked();
+      for (const view of document.querySelectorAll(".protected-view")) {
+        view.classList.toggle("locked", !unlocked);
+        const lock = view.querySelector(".dashboard-lock");
+        if (lock) lock.classList.toggle("hidden", unlocked);
+      }
+      updateVoiceLock();
+      if (unlocked) {
+        $("callInboxState").textContent = "Unlocked";
+      } else {
+        $("callInboxState").textContent = "Locked";
+      }
+    }
+
+    function unlockDashboard(value) {
+      const clean = String(value || "").trim();
+      dashboardKey = clean;
+      if (clean) {
+        localStorage.setItem(dashboardKeyStorage, clean);
+      } else {
+        localStorage.removeItem(dashboardKeyStorage);
+      }
+      for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
+        input.value = clean;
+      }
+      updateProtectedViews();
+      if (clean) {
+        loadEmergencyContact();
+        loadVipReservationsContact();
+        loadReservationValidation();
+        refreshCallInbox(true);
+      }
+    }
+
+    async function fetchJson(url, options = {}) {
+      const response = await fetch(url, options);
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+      return { response, data };
+    }
+
+    async function loadEmergencyContact() {
+      try {
+        const { data } = await fetchJson("/api/emergency-contact", { headers: callDataHeaders() });
+        const label = data.phone_number || data.masked_phone_number || "not configured";
+        $("emergencyContactState").textContent = "Current: " + label + (data.source ? " · " + data.source : "");
+        if (data.phone_number && !String(data.phone_number).includes("*")) {
+          $("emergencyPhone").value = data.phone_number;
+        } else if (!$("emergencyPhone").value) {
+          $("emergencyPhone").placeholder = data.masked_phone_number || "+525630907754";
+        }
+      } catch (error) {
+        $("emergencyContactState").textContent = "Could not load emergency number.";
+      }
+    }
+
+    async function saveEmergencyContact() {
+      const phone = $("emergencyPhone").value.trim();
+      if (!dashboardUnlocked()) {
+        $("emergencyContactState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      if (!phone) {
+        $("emergencyContactState").textContent = "Enter phone number.";
+        return;
+      }
+      $("saveEmergencyContact").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/emergency-contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone_number: phone, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not save emergency number.");
+        }
+        $("emergencyPhone").value = data.phone_number || phone;
+        $("emergencyContactState").textContent = "Current: " + (data.phone_number || phone) + " · saved";
+      } catch (error) {
+        $("emergencyContactState").textContent = error.message;
+      } finally {
+        $("saveEmergencyContact").textContent = "Save number";
+      }
+    }
+
+    async function loadVipReservationsContact() {
+      try {
+        const { data } = await fetchJson("/api/vip-reservations-contact", { headers: callDataHeaders() });
+        const label = data.phone_number || data.masked_phone_number || "not configured";
+        $("vipReservationsState").textContent = "Current: " + label + (data.source ? " · " + data.source : "");
+        if (data.phone_number && !String(data.phone_number).includes("*")) {
+          $("vipReservationsPhone").value = data.phone_number;
+        } else if (!$("vipReservationsPhone").value) {
+          $("vipReservationsPhone").placeholder = data.masked_phone_number || "+525630907754";
+        }
+      } catch (error) {
+        $("vipReservationsState").textContent = "Could not load VIP Reservations number.";
+      }
+    }
+
+    async function saveVipReservationsContact() {
+      const phone = $("vipReservationsPhone").value.trim();
+      if (!dashboardUnlocked()) {
+        $("vipReservationsState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      if (!phone) {
+        $("vipReservationsState").textContent = "Enter phone number.";
+        return;
+      }
+      $("saveVipReservationsContact").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/vip-reservations-contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone_number: phone, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "Could not save VIP Reservations number.");
+        }
+        $("vipReservationsPhone").value = data.phone_number || phone;
+        $("vipReservationsState").textContent = "Current: " + (data.phone_number || phone) + " · saved";
+      } catch (error) {
+        $("vipReservationsState").textContent = error.message;
+      } finally {
+        $("saveVipReservationsContact").textContent = "Save number";
+      }
+    }
+
+    async function loadReservationValidation() {
+      try {
+        const { data } = await fetchJson("/api/reservation-validation");
+        if (data.mode) $("reservationValidationMode").value = data.mode;
+        $("reservationValidationState").textContent = (data.description || "Validation mode loaded.") + (data.source ? " · " + data.source : "");
+      } catch (error) {
+        $("reservationValidationState").textContent = "Could not load validation mode.";
+      }
+    }
+
+    async function saveReservationValidation() {
+      const mode = $("reservationValidationMode").value;
+      if (!dashboardUnlocked()) {
+        $("reservationValidationState").textContent = "Unlock the dashboard first.";
+        return;
+      }
+      $("saveReservationValidation").textContent = "Saving...";
+      try {
+        const { response, data } = await fetchJson("/api/reservation-validation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || !data.ok) throw new Error(data.error || "Could not save validation mode.");
+        $("reservationValidationMode").value = data.mode || mode;
+        $("reservationValidationState").textContent = (data.description || "Validation mode saved.") + " · saved";
+      } catch (error) {
+        $("reservationValidationState").textContent = error.message;
+      } finally {
+        $("saveReservationValidation").textContent = "Save mode";
+      }
+    }
+
+    function switchTab(tabName) {
+      const safeName = ["voice", "analytics", "calls", "security"].includes(tabName) ? tabName : "voice";
+      for (const button of document.querySelectorAll(".tab-button")) {
+        const isActive = button.dataset.tab === safeName;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
+      }
+      for (const view of document.querySelectorAll(".tab-view")) {
+        view.classList.toggle("active", view.id === safeName + "View");
+      }
+      if (safeName === "analytics" || safeName === "calls") {
+        window.setTimeout(() => {
+          renderCharts(lastMetrics, lastCallData);
+          if (!selectedThreadId) refreshCallInbox(false);
+        }, 60);
+      }
+    }
+
+    function renderMonitorGrid(indicators) {
+      const grid = $("monitorGrid");
+      grid.innerHTML = "";
+      for (const item of indicators || []) {
+        const state = monitorState(item);
+        const row = document.createElement("div");
+        row.className = "monitor-indicator state-" + state;
+
+        const dot = document.createElement("span");
+        dot.className = "monitor-dot";
+        row.appendChild(dot);
+
+        const body = document.createElement("span");
+        const label = document.createElement("strong");
+        label.className = "monitor-label";
+        label.textContent = item.label || "Service";
+        const detail = document.createElement("span");
+        detail.className = "monitor-detail";
+        const extra = [];
+        if (item.detail) extra.push(item.detail);
+        if (item.status) extra.push("HTTP " + item.status);
+        if (typeof item.latency_ms === "number") extra.push(item.latency_ms + " ms");
+        detail.textContent = extra.join(" · ") || monitorStateText(state);
+        body.appendChild(label);
+        body.appendChild(detail);
+        row.appendChild(body);
+        grid.appendChild(row);
+      }
+      if (!grid.children.length) {
+        const row = document.createElement("div");
+        row.className = "monitor-indicator state-warn";
+        row.innerHTML = '<span class="monitor-dot"></span><span><strong class="monitor-label">No monitor data</strong><span class="monitor-detail">Refresh the panel.</span></span>';
+        grid.appendChild(row);
+      }
+    }
+
+    function renderEventList(id, rows, emptyText, type) {
+      const list = $(id);
+      list.innerHTML = "";
+      const records = Array.isArray(rows) ? rows : [];
+      if (!records.length) {
+        const empty = document.createElement("div");
+        empty.className = "event-row";
+        empty.textContent = emptyText;
+        list.appendChild(empty);
+        return;
+      }
+      for (const row of records.slice(0, 5)) {
+        const event = document.createElement("div");
+        event.className = "event-row";
+        const headline = document.createElement("strong");
+        const status = row.status || "unknown";
+        headline.textContent = (type === "sms" ? "SMS" : "Call") + " " + status;
+        const detail = document.createElement("span");
+        const when = compactDate(row.start_time || row.date_sent);
+        const direction = row.direction || "unknown";
+        const fromTo = (row.from || "?") + " -> " + (row.to || "?");
+        const error = row.error_code ? " · Error " + row.error_code : "";
+        detail.textContent = when + " · " + direction + " · " + fromTo + " · " + compactSid(row.sid) + error;
+        event.appendChild(headline);
+        event.appendChild(detail);
+        list.appendChild(event);
+      }
+    }
+
+    function renderTwilioMonitor(data) {
+      setServiceReadout("voiceServiceState", Boolean(data.voice_active));
+      setServiceReadout("smsServiceState", Boolean(data.sms_active));
+      $("monitorLastChecked").textContent = "Last check: " + compactDate(data.generated_at);
+      $("monitorPhone").textContent = "Line: " + (data.phone_number || "not configured");
+      $("monitorPublicUrl").textContent = "Tunnel: " + (data.public_base_url || "not configured");
+      renderMonitorGrid(data.indicators || []);
+      if (data.protected_details || data.local_only) {
+        renderEventList("recentCalls", [], "Detailed call metadata is protected. Open http://127.0.0.1:3000 on this Mac for the full monitor.", "call");
+        renderEventList("recentMessages", [], "Detailed SMS metadata is protected. Open the local dashboard for full details.", "sms");
+      } else {
+        renderEventList("recentCalls", data.recent_calls, "No recent calls found on this Glam line.", "call");
+        renderEventList("recentMessages", data.recent_messages, "No recent SMS found on this Glam line.", "sms");
+      }
+      $("serverState").textContent = data.ok ? "Voice + SMS active" : "Monitor warning";
+    }
+
+    async function refreshTwilioMonitor(manual = false) {
+      if (manual) $("monitorRefresh").textContent = "Checking...";
+      try {
+        const primaryUrl = isLocalDashboard ? "/api/twilio/monitor?deep=1" : "/api/twilio/public-health";
+        let { response, data } = await fetchJson(primaryUrl);
+        if (response.status === 403 || data.local_only) {
+          ({ response, data } = await fetchJson("/api/twilio/public-health"));
+        }
+        if (!response.ok || (data.ok === false && data.error)) throw new Error(data.error || "Monitor check failed");
+        renderTwilioMonitor(data);
+      } catch (error) {
+        setServiceReadout("voiceServiceState", false);
+        setServiceReadout("smsServiceState", false);
+        renderMonitorGrid([{ label: "Monitor endpoint", state: "down", detail: error.message }]);
+        renderEventList("recentCalls", [], "Monitor unavailable.", "call");
+        renderEventList("recentMessages", [], "Monitor unavailable.", "sms");
+        $("monitorLastChecked").textContent = "Last check: failed";
+        $("serverState").textContent = "Monitor unavailable";
+      } finally {
+        $("monitorRefresh").textContent = "Refresh";
+      }
+    }
+
+    function updateCallInboxAuth(authRequired = false) {
+      updateProtectedViews();
+      if (authRequired && !dashboardUnlocked()) $("callInboxState").textContent = "Locked";
+    }
+
+    function saveCallInboxKey() {
+      const value = document.querySelector(".dashboardUnlockInput")?.value || "";
+      unlockDashboard(value);
+      selectedThreadId = "";
+    }
+
+    function formatPct(value) {
+      const number = Number(value || 0);
+      return Number.isFinite(number) ? number.toFixed(number % 1 ? 1 : 0) + "%" : "--";
+    }
+
+    function formatDuration(seconds) {
+      const value = Number(seconds || 0);
+      if (!Number.isFinite(value) || value <= 0) return "--";
+      const mins = Math.floor(value / 60);
+      const secs = Math.round(value % 60);
+      if (mins <= 0) return secs + "s";
+      return mins + "m " + String(secs).padStart(2, "0") + "s";
+    }
+
+    function isoDateInput(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return year + "-" + month + "-" + day;
+    }
+
+    function isoDateTimeInput(date) {
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return isoDateInput(date) + "T" + hours + ":" + minutes;
+    }
+
+    function startOfLocalDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+    }
+
+    function endOfLocalDay(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+    }
+
+    function addDays(date, days) {
+      const copy = new Date(date);
+      copy.setDate(copy.getDate() + days);
+      return copy;
+    }
+
+    function dateInputToLocalDate(value, endOfDay = false) {
+      if (!value) return null;
+      if (value.includes("T")) {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+      const parts = value.split("-").map((part) => Number(part));
+      if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+      const date = new Date(parts[0], parts[1] - 1, parts[2]);
+      return endOfDay ? endOfLocalDay(date) : startOfLocalDay(date);
+    }
+
+    function currentAnalyticsRange() {
+      const now = new Date();
+      if (analyticsRangeMode === "all") return { start: "", end: "", label: "All stored conversations" };
+      if (analyticsRangeMode === "week") {
+        return { start: startOfLocalDay(addDays(now, -6)).toISOString(), end: now.toISOString(), label: "Last 7 days" };
+      }
+      if (analyticsRangeMode === "month") {
+        return { start: startOfLocalDay(addDays(now, -29)).toISOString(), end: now.toISOString(), label: "Last 30 days" };
+      }
+      if (analyticsRangeMode === "custom") {
+        const start = dateInputToLocalDate($("rangeStart").value, false);
+        const end = dateInputToLocalDate($("rangeEnd").value, true);
+        const startLabel = $("rangeStart").value || "Start";
+        const endLabel = $("rangeEnd").value || "End";
+        return {
+          start: start ? start.toISOString() : "",
+          end: end ? end.toISOString() : "",
+          label: start || end ? startLabel + " to " + endLabel : "Custom range",
+        };
+      }
+      return { start: startOfLocalDay(now).toISOString(), end: now.toISOString(), label: "Today" };
+    }
+
+    function appendAnalyticsRangeParams(params) {
+      const range = currentAnalyticsRange();
+      if (range.start) params.set("start", range.start);
+      if (range.end) params.set("end", range.end);
+      return range;
+    }
+
+    function chartTheme() {
+      return {
+        gold: "#c89b3c",
+        goldDeep: "#8a641a",
+        green: "#245a46",
+        champagne: "#f8ead0",
+        red: "#a33a2d",
+        ink: "#17130c",
+        muted: "#6f6658",
+        line: "#dfd4bd",
+      };
+    }
+
+    function destroyCharts() {
+      if (topicChart) topicChart.destroy();
+      if (mixChart) mixChart.destroy();
+      if (hourHeatmapChart) hourHeatmapChart.destroy();
+      topicChart = null;
+      mixChart = null;
+      hourHeatmapChart = null;
+    }
+
+    function renderCharts(metrics = {}, data = {}) {
+      lastMetrics = metrics || {};
+      lastCallData = data || {};
+      if (!window.Chart || !$("analyticsView").classList.contains("active")) return;
+      const topicCanvas = $("topicChart");
+      const mixCanvas = $("mixChart");
+      const heatmapCanvas = $("hourHeatmapChart");
+      if (!topicCanvas || !mixCanvas || !heatmapCanvas) return;
+      destroyCharts();
+      const theme = chartTheme();
+      const topics = Array.isArray(metrics.topics) && metrics.topics.length
+        ? metrics.topics
+        : [{ label: "No topic data", count: 1 }];
+      topicChart = new Chart(topicCanvas, {
+        type: "bar",
+        data: {
+          labels: topics.map((item) => item.label),
+          datasets: [{
+            label: "Calls",
+            data: topics.map((item) => item.count),
+            backgroundColor: [theme.gold, theme.green, "#a86f2d", theme.red, "#6f6658"],
+            borderColor: theme.goldDeep,
+            borderWidth: 1,
+            borderRadius: 6,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (item) => " " + item.raw + " calls" } },
+          },
+          scales: {
+            x: { ticks: { color: theme.muted }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { precision: 0, color: theme.muted }, grid: { color: "rgba(223, 212, 189, 0.42)" } },
+          },
+        },
+      });
+
+      const totalCalls = Number(metrics.total_calls || 0);
+      const prospects = Number(metrics.prospect_calls || 0);
+      const handoffs = Number(metrics.human_handoffs || 0);
+      const support = Math.max(0, (metrics.topics || []).find((item) => item.label === "Support")?.count || 0);
+      const other = Math.max(0, totalCalls - prospects - handoffs - support);
+      const mixLabels = ["Prospects", "Support", "Handoffs", "Other"];
+      const mixValues = [prospects, support, handoffs, other];
+      mixChart = new Chart(mixCanvas, {
+        type: "doughnut",
+        data: {
+          labels: mixLabels,
+          datasets: [{
+            data: mixValues.some(Boolean) ? mixValues : [1],
+            backgroundColor: [theme.gold, theme.green, theme.red, theme.champagne],
+            borderColor: "#fffdf8",
+            borderWidth: 3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "62%",
+          plugins: {
+            legend: { position: "bottom", labels: { color: theme.muted, boxWidth: 12, boxHeight: 12 } },
+          },
+        },
+      });
+
+      const dayIndex = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      const heatRows = Array.isArray(metrics.calls_by_day_hour) ? metrics.calls_by_day_hour : [];
+      const maxHeat = Math.max(1, ...heatRows.map((item) => Number(item.count || 0)));
+      const heatData = heatRows.map((item) => ({
+        x: Number(item.hour || 0),
+        y: dayIndex[item.day] ?? 0,
+        r: 5 + (Number(item.count || 0) / maxHeat) * 14,
+        count: Number(item.count || 0),
+        label: item.label || "",
+      }));
+      hourHeatmapChart = new Chart(heatmapCanvas, {
+        type: "bubble",
+        data: {
+          datasets: [{
+            label: "Calls",
+            data: heatData.length ? heatData : [{ x: 12, y: 3, r: 5, count: 0, label: "No calls" }],
+            backgroundColor: heatData.length ? "rgba(200, 155, 60, 0.62)" : "rgba(111, 102, 88, 0.28)",
+            borderColor: theme.goldDeep,
+            borderWidth: 1,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (item) => " " + (item.raw.label || "") + " · " + item.raw.count + " calls",
+              },
+            },
+          },
+          scales: {
+            x: {
+              min: 0,
+              max: 23,
+              ticks: { stepSize: 3, color: theme.muted, callback: (value) => value + ":00" },
+              grid: { color: "rgba(223, 212, 189, 0.32)" },
+            },
+            y: {
+              min: -0.5,
+              max: 6.5,
+              ticks: {
+                stepSize: 1,
+                color: theme.muted,
+                callback: (value) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][value] || "",
+              },
+              grid: { color: "rgba(223, 212, 189, 0.32)" },
+            },
+          },
+        },
+      });
+    }
+
+    function labelFromSnake(value) {
+      return String(value || "other")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+    }
+
+    function smsTypeLabel(value) {
+      const labels = {
+        property_link: "Property links",
+        stay_details: "Stay details",
+        human_handoff: "Human alerts",
+        caller_confirmation: "Caller confirmations",
+        inbound_sms: "Inbound SMS",
+        sms: "Other SMS",
+      };
+      return labels[value] || labelFromSnake(value);
+    }
+
+    function renderAnalyticsTable(id, rows, emptyLabel, labelGetter, valueGetter) {
+      const table = $(id);
+      if (!table) return;
+      table.innerHTML = "";
+      const records = Array.isArray(rows) ? rows : [];
+      if (!records.length) {
+        const empty = document.createElement("div");
+        empty.className = "analytics-row";
+        empty.innerHTML = "<strong></strong><span>--</span>";
+        empty.querySelector("strong").textContent = emptyLabel;
+        table.appendChild(empty);
+        return;
+      }
+      for (const row of records.slice(0, 8)) {
+        const item = document.createElement("div");
+        item.className = "analytics-row";
+        const label = document.createElement("strong");
+        label.textContent = labelGetter(row);
+        const value = document.createElement("span");
+        value.textContent = valueGetter(row);
+        item.appendChild(label);
+        item.appendChild(value);
+        table.appendChild(item);
+      }
+    }
+
+    function renderOperationalTables(metrics = {}) {
+      renderAnalyticsTable(
+        "subtopicTable",
+        metrics.subtopics || [],
+        "No subtopic data",
+        (row) => row.label || "Unclassified",
+        (row) => {
+          const pieces = [(row.count || 0) + " calls"];
+          if (row.repeat_count) pieces.push(row.repeat_count + " repeat");
+          if (row.escalated_count) pieces.push(row.escalated_count + " escalated");
+          if (row.avg_resolution_seconds) pieces.push(formatDuration(row.avg_resolution_seconds));
+          return pieces.join(" · ");
+        },
+      );
+      renderAnalyticsTable(
+        "escalationTable",
+        metrics.escalations_by_reason || [],
+        "No escalation data",
+        (row) => labelFromSnake(row.reason_category),
+        (row) => (row.count || 0) + " calls",
+      );
+    }
+
+    function renderPriorityGrid(metrics = {}) {
+      const grid = $("analyticsPriorityGrid");
+      if (!grid) return;
+      const subtopics = Array.isArray(metrics.subtopics) ? metrics.subtopics : [];
+      const topRepeat = subtopics.find((item) => Number(item.repeat_count || 0) > 0) || {};
+      const attentionCount = Number(metrics.attention_calls || 0);
+      const sameSubtopicRepeats = Number(metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0);
+      const influencerCalls = Number(metrics.influencer_calls || 0);
+      const praiseCalls = Number(metrics.praise_calls || 0);
+      const rows = [
+        {
+          label: "Priority queue",
+          value: attentionCount,
+          detail: attentionCount ? "Review red conversations first" : "No red conversations in range",
+          tone: attentionCount ? "alert" : "",
+        },
+        {
+          label: "Repeat issue",
+          value: sameSubtopicRepeats,
+          detail: topRepeat.label
+            ? topRepeat.label + " · " + (topRepeat.repeat_count || 0) + " repeats"
+            : "No same-subtopic callbacks",
+          tone: sameSubtopicRepeats ? "watch" : "",
+        },
+        {
+          label: "VIP pipeline",
+          value: influencerCalls,
+          detail: (metrics.influencer_callers || 0) + " unique influencer callers",
+          tone: influencerCalls ? "watch" : "",
+        },
+        {
+          label: "Quality signal",
+          value: praiseCalls,
+          detail: praiseCalls ? "Positive guest sentiment captured" : "No praise calls in range",
+          tone: praiseCalls ? "good" : "",
+        },
+      ];
+      grid.innerHTML = "";
+      for (const row of rows) {
+        const card = document.createElement("div");
+        card.className = "priority-card" + (row.tone ? " " + row.tone : "");
+        const label = document.createElement("strong");
+        label.textContent = row.label;
+        const value = document.createElement("span");
+        value.textContent = row.value;
+        const detail = document.createElement("small");
+        detail.textContent = row.detail;
+        card.appendChild(label);
+        card.appendChild(value);
+        card.appendChild(detail);
+        grid.appendChild(card);
+      }
+    }
+
+    function renderKpis(metrics = {}, data = {}) {
+      const grid = $("kpiGrid");
+      lastMetrics = metrics || {};
+      lastCallData = data || {};
+      const rows = [
+        {
+          label: "Total calls",
+          value: metrics.total_calls ?? 0,
+          detail: (data.filtered_total ?? 0) + " matching · " + (data.total_available ?? 0) + " stored",
+        },
+        {
+          label: "Prospects",
+          value: metrics.prospect_calls ?? 0,
+          detail: "Booking intent detected",
+        },
+        {
+          label: "Transcript coverage",
+          value: formatPct(metrics.transcript_coverage_pct),
+          detail: (metrics.calls_with_transcript ?? 0) + " calls with transcript",
+        },
+        {
+          label: "Human handoffs",
+          value: metrics.human_handoffs ?? 0,
+          detail: formatPct(metrics.handoff_rate_pct) + " handoff rate",
+        },
+        {
+          label: "First call resolution",
+          value: formatPct(metrics.fcr_pct),
+          detail: (metrics.fcr_resolved_calls ?? 0) + " of " + (metrics.fcr_eligible_calls ?? 0) + " eligible",
+        },
+        {
+          label: "Avg resolution",
+          value: formatDuration(metrics.avg_resolution_seconds),
+          detail: "Start to end or transfer",
+        },
+        {
+          label: "Repeat contact",
+          value: formatPct(metrics.repeat_contact_rate_pct),
+          detail: (metrics.repeat_contacts ?? 0) + " repeat · " + (metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0) + " same subtopic",
+        },
+        {
+          label: "Issues detected",
+          value: metrics.issues_detected ?? 0,
+          detail: (metrics.multi_issue_calls ?? 0) + " calls with multiple issues",
+        },
+        {
+          label: "Influencers",
+          value: metrics.influencer_callers ?? 0,
+          detail: (metrics.influencer_calls ?? 0) + " calls flagged",
+        },
+        {
+          label: "Needs attention",
+          value: metrics.attention_calls ?? 0,
+          detail: (metrics.praise_calls ?? 0) + " praise calls",
+        },
+        {
+          label: "Missed / abandoned",
+          value: (metrics.missed_calls ?? 0) + " / " + (metrics.abandoned_calls ?? 0),
+          detail: "Telephony status and short unresolved calls",
+        },
+        {
+          label: "SMS sent",
+          value: metrics.sms_sent ?? 0,
+          detail: "Guest and advisor messages",
+        },
+      ];
+      grid.innerHTML = "";
+      for (const row of rows) {
+        const card = document.createElement("div");
+        card.className = "kpi-card";
+        const label = document.createElement("strong");
+        label.textContent = row.label;
+        const value = document.createElement("span");
+        value.textContent = row.value;
+        const detail = document.createElement("small");
+        detail.textContent = row.detail;
+        card.appendChild(label);
+        card.appendChild(value);
+        card.appendChild(detail);
+        grid.appendChild(card);
+      }
+
+      const secondary = $("analyticsSecondary");
+      if (secondary) {
+        const secondaryRows = [
+          ["Unique callers", metrics.unique_callers ?? 0],
+          ["Tool actions", metrics.tool_actions ?? 0],
+          ["Guest turns", metrics.guest_messages ?? 0],
+          ["Avg messages", metrics.avg_messages_per_call ?? 0],
+          ["Same-subtopic repeats", metrics.same_subtopic_repeats ?? metrics.same_topic_repeats ?? 0],
+          ["Multi-issue calls", metrics.multi_issue_calls ?? 0],
+          ["Influencer calls", metrics.influencer_calls ?? 0],
+          ["Needs attention", metrics.attention_calls ?? 0],
+          ["Praise", metrics.praise_calls ?? 0],
+          ["Abandoned", metrics.abandoned_calls ?? 0],
+        ];
+        secondary.innerHTML = "";
+        for (const [labelText, valueText] of secondaryRows) {
+          const item = document.createElement("div");
+          item.className = "mini-metric";
+          const label = document.createElement("strong");
+          label.textContent = labelText;
+          const value = document.createElement("span");
+          value.textContent = valueText;
+          item.appendChild(label);
+          item.appendChild(value);
+          secondary.appendChild(item);
+        }
+      }
+
+      const chips = $("keywordList");
+      chips.innerHTML = "";
+      const subtopics = Array.isArray(metrics.subtopics) ? metrics.subtopics : [];
+      const topics = Array.isArray(metrics.topics) ? metrics.topics : [];
+      const combined = [
+        ...subtopics.map((item) => ({
+          text: item.label + " · " + (item.count || 0) + (item.repeat_count ? " · repeat " + item.repeat_count : ""),
+        })),
+        ...topics
+          .filter((item) => !subtopics.some((subtopic) => subtopic.label === item.label))
+          .map((item) => ({ text: item.label + " · " + item.count })),
+      ];
+      if (!combined.length) {
+        const empty = document.createElement("span");
+        empty.className = "keyword-chip";
+        empty.textContent = "No recurring concepts yet";
+        chips.appendChild(empty);
+      } else {
+        for (const item of combined.slice(0, 16)) {
+          const chip = document.createElement("span");
+          chip.className = "keyword-chip";
+          chip.textContent = item.text;
+          chips.appendChild(chip);
+        }
+      }
+
+      const activeQuery = String(data.query || "").trim();
+      const activePhone = String(data.phone || "").trim();
+      const rangeLabel = currentAnalyticsRange().label;
+      const scopeParts = [rangeLabel];
+      if (activePhone) scopeParts.push("Phone " + activePhone);
+      if (activeQuery) scopeParts.push(activeQuery);
+      $("analyticsScope").textContent = scopeParts.join(" · ");
+      renderPriorityGrid(metrics);
+      renderOperationalTables(metrics);
+      renderCharts(metrics, data);
+    }
+
+    function clearTranscript(title, detail) {
+      $("transcriptHeader").innerHTML = "";
+      renderCallDetailTabs();
+      renderCallSessionTabs([]);
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "transcript-title";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const sub = document.createElement("span");
+      sub.textContent = detail;
+      titleWrap.appendChild(heading);
+      titleWrap.appendChild(sub);
+      $("transcriptHeader").appendChild(titleWrap);
+      $("transcriptMessages").innerHTML = "";
+      const bubble = document.createElement("div");
+      bubble.className = "transcript-bubble system";
+      const speaker = document.createElement("span");
+      speaker.className = "transcript-speaker";
+      speaker.textContent = "System";
+      const body = document.createElement("span");
+      body.textContent = detail;
+      bubble.appendChild(speaker);
+      bubble.appendChild(body);
+      $("transcriptMessages").appendChild(bubble);
+    }
+
+    function setTranscriptMode(mode) {
+      transcriptViewMode = ["technical", "sms", "audio"].includes(mode) ? mode : "clean";
+      renderTranscript(lastTranscriptSummary, lastTranscriptEvents, lastSmsEvents);
+    }
+
+    function renderCallDetailTabs() {
+      for (const button of document.querySelectorAll(".call-detail-tab")) {
+        button.classList.toggle("active", button.dataset.mode === transcriptViewMode);
+      }
+    }
+
+    function selectedCallLabel() {
+      if (!selectedCallSid) return "All calls";
+      const index = lastCallAnalyses.findIndex((call) => call.call_sid === selectedCallSid);
+      return index >= 0 ? "Call " + (index + 1) : "Selected call";
+    }
+
+    function renderCallSessionTabs(calls = []) {
+      const tabs = $("callSessionTabs");
+      if (!tabs) return;
+      tabs.innerHTML = "";
+      const records = Array.isArray(calls) ? calls : [];
+      if (!records.length) {
+        const empty = document.createElement("button");
+        empty.className = "call-session-tab active";
+        empty.type = "button";
+        empty.innerHTML = "<strong>All calls</strong><span>No call sessions loaded</span>";
+        tabs.appendChild(empty);
+        return;
+      }
+      if (records.length > 1) {
+        const allButton = document.createElement("button");
+        allButton.className = "call-session-tab" + (!selectedCallSid ? " active" : "");
+        allButton.type = "button";
+        const totalIssues = records.reduce((sum, call) => sum + Number(call.issue_count || 0), 0);
+        allButton.innerHTML = "<strong>All calls</strong><span></span>";
+        allButton.querySelector("span").textContent = records.length + " calls" + (totalIssues ? " · " + totalIssues + " issues" : "");
+        allButton.addEventListener("click", () => setSelectedCallSid(""));
+        tabs.appendChild(allButton);
+      }
+      records.forEach((call, index) => {
+        const button = document.createElement("button");
+        const callSid = String(call.call_sid || "");
+        button.className = "call-session-tab" + (selectedCallSid === callSid || (records.length === 1 && !selectedCallSid) ? " active" : "");
+        button.type = "button";
+        const title = document.createElement("strong");
+        title.textContent = "Call " + (index + 1);
+        const detail = document.createElement("span");
+        const parts = [compactDate(call.started_at)];
+        const subtopics = Array.isArray(call.subtopics) ? call.subtopics.filter(Boolean) : [];
+        if (subtopics.length) parts.push(subtopics.slice(0, 2).join(", "));
+        if (call.resolution_seconds) parts.push(formatDuration(call.resolution_seconds));
+        detail.textContent = parts.filter(Boolean).join(" · ") || compactSid(callSid);
+        button.appendChild(title);
+        button.appendChild(detail);
+        button.addEventListener("click", () => setSelectedCallSid(callSid));
+        tabs.appendChild(button);
+      });
+    }
+
+    function setSelectedCallSid(callSid) {
+      selectedCallSid = String(callSid || "");
+      renderTranscript(lastTranscriptSummary, lastTranscriptEvents, lastSmsEvents, lastCallAnalyses);
+    }
+
+    function rowsForSelectedCall(rows) {
+      const records = Array.isArray(rows) ? rows : [];
+      if (!selectedCallSid) return records;
+      return records.filter((row) => row.call_sid === selectedCallSid);
+    }
+
+    function transcriptRowsForMode(events) {
+      const rows = rowsForSelectedCall(events);
+      if (transcriptViewMode === "technical") return rows;
+      if (transcriptViewMode === "sms") return [];
+      return rows.filter((event) => ["guest", "concierge"].includes(event.role) && String(event.text || "").trim());
+    }
+
+    function renderTranscriptHeader(summary) {
+      $("transcriptHeader").innerHTML = "";
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "transcript-title";
+      const heading = document.createElement("strong");
+      heading.textContent = callTitle(summary || {});
+      const sub = document.createElement("span");
+      const selectedAnalysis = selectedCallSid
+        ? lastCallAnalyses.find((call) => call.call_sid === selectedCallSid)
+        : null;
+      const calls = Number(summary?.call_count || 0);
+      const topic = summary?.primary_topic && summary.primary_topic !== "Unclassified" ? " · " + summary.primary_topic : "";
+      const issueText = summary?.issue_count ? " · " + summary.issue_count + " issues" : "";
+      if (selectedAnalysis) {
+        const selectedIssues = Number(selectedAnalysis.issue_count || 0);
+        const selectedTopic = selectedAnalysis.topic && selectedAnalysis.topic !== "Unclassified" ? " · " + selectedAnalysis.topic : "";
+        sub.textContent = selectedCallLabel() + " · " + compactDate(selectedAnalysis.started_at) + (selectedIssues ? " · " + selectedIssues + " issues" : "") + selectedTopic;
+      } else {
+        sub.textContent = selectedCallLabel() + " · Last contact: " + compactDate(callerLastSpoke(summary || {})) + (calls ? " · " + calls + " calls" : "") + issueText + topic;
+      }
+      titleWrap.appendChild(heading);
+      titleWrap.appendChild(sub);
+
+      const issueRows = selectedAnalysis
+        ? (selectedAnalysis.subtopics || []).map((label) => ({ label, count: 1, repeat_count: 0 }))
+        : (Array.isArray(summary?.subtopics) ? summary.subtopics : []);
+      if (issueRows.length) {
+        const chips = document.createElement("div");
+        chips.className = "thread-issue-list";
+        for (const item of issueRows.slice(0, 5)) {
+          const chip = document.createElement("span");
+          chip.className = "call-badge " + (item.repeat_count ? "same_subtopic" : "topic");
+          chip.textContent = item.label + " " + item.count + (item.repeat_count ? " · repeat " + item.repeat_count : "");
+          chips.appendChild(chip);
+        }
+        titleWrap.appendChild(chips);
+      }
+
+      $("transcriptHeader").appendChild(titleWrap);
+    }
+
+    function callerDisplayName(call) {
+      const name = String(call?.caller_name || "").trim();
+      return name || "Unknown";
+    }
+
+    function callerDisplayNumber(call) {
+      return String(call?.phone || call?.from || "").trim() || "No caller number";
+    }
+
+    function callerLastSpoke(call) {
+      return call?.last_guest_at || call?.last_at || call?.started_at || "";
+    }
+
+    function callTitle(call) {
+      return callerDisplayName(call) + " · " + callerDisplayNumber(call);
+    }
+
+    function renderCallList(threads) {
+      const list = $("callList");
+      list.innerHTML = "";
+      if (!threads.length) {
+        const empty = document.createElement("button");
+        empty.className = "call-item";
+        empty.type = "button";
+        const title = document.createElement("span");
+        title.className = "call-item-name";
+        title.textContent = "No conversations found";
+        const detail = document.createElement("span");
+        detail.className = "call-item-time";
+        detail.textContent = "Adjust date, hour, phone, or keyword filters.";
+        empty.appendChild(title);
+        empty.appendChild(detail);
+        list.appendChild(empty);
+        return;
+      }
+      for (const thread of threads) {
+        const button = document.createElement("button");
+        const statusClass = ["attention", "praise"].includes(thread.conversation_status) ? " " + thread.conversation_status : "";
+        button.className = "call-item" + statusClass + (thread.thread_id === selectedThreadId ? " active" : "");
+        button.type = "button";
+        button.dataset.threadId = thread.thread_id || "";
+
+        const title = document.createElement("span");
+        title.className = "call-item-name";
+        if (thread.influencer) {
+          const star = document.createElement("span");
+          star.className = "vip-star";
+          star.textContent = "★";
+          star.title = "Influencer / VIP Reservations";
+          title.appendChild(star);
+        }
+        const titleText = document.createElement("span");
+        titleText.textContent = callerDisplayName(thread);
+        title.appendChild(titleText);
+        const number = document.createElement("span");
+        number.className = "call-item-number";
+        number.textContent = callerDisplayNumber(thread);
+        const detail = document.createElement("span");
+        detail.className = "call-item-time";
+        detail.textContent = compactDate(callerLastSpoke(thread));
+        const note = document.createElement("span");
+        note.className = "call-item-note";
+        note.textContent = thread.conversation_note || "";
+        const badges = document.createElement("span");
+        badges.className = "call-badges";
+        const badgeRows = Array.isArray(thread.badges) ? thread.badges : [];
+        for (const badge of badgeRows.slice(0, 4)) {
+          const chip = document.createElement("span");
+          chip.className = "call-badge " + String(badge.type || "topic").replace(/[^a-z0-9_-]/gi, "");
+          chip.textContent = badge.label + (Number(badge.count || 0) > 1 ? " " + badge.count : "");
+          badges.appendChild(chip);
+        }
+
+        button.appendChild(title);
+        button.appendChild(number);
+        button.appendChild(detail);
+        if (note.textContent) button.appendChild(note);
+        if (badges.children.length) button.appendChild(badges);
+        button.addEventListener("click", () => openCallThread(thread.thread_id));
+        list.appendChild(button);
+      }
+    }
+
+    function renderSmsMessages(summary, smsEvents) {
+      renderTranscriptHeader(summary || {});
+      renderCallSessionTabs(lastCallAnalyses);
+      renderCallDetailTabs();
+      const feed = $("transcriptMessages");
+      feed.innerHTML = "";
+      const rows = rowsForSelectedCall(smsEvents);
+      if (!rows.length) {
+        const bubble = document.createElement("div");
+        bubble.className = "transcript-bubble system";
+        const speaker = document.createElement("span");
+        speaker.className = "transcript-speaker";
+        speaker.textContent = "SMS";
+        const body = document.createElement("span");
+        body.textContent = "No SMS messages logged for this conversation.";
+        bubble.appendChild(speaker);
+        bubble.appendChild(body);
+        feed.appendChild(bubble);
+        return;
+      }
+      for (const event of rows) {
+        const inbound = event.direction === "inbound" || event.sms_type === "inbound_sms";
+        const bubble = document.createElement("div");
+        bubble.className = "transcript-bubble " + (inbound ? "sms-inbound" : "sms-outbound");
+        const speaker = document.createElement("span");
+        speaker.className = "transcript-speaker";
+        speaker.textContent = inbound ? "Guest SMS" : smsTypeLabel(event.sms_type || "sms");
+        const body = document.createElement("span");
+        body.textContent = event.preview || "(no SMS body preview)";
+        const time = document.createElement("span");
+        time.className = "transcript-time";
+        const route = inbound
+          ? ((event.from || "?") + " -> " + (event.to || "?"))
+          : ((event.from || "?") + " -> " + (event.to || "?"));
+        time.textContent = compactDate(event.timestamp) + " · " + (event.status || "sent") + " · " + route;
+        bubble.appendChild(speaker);
+        bubble.appendChild(body);
+        bubble.appendChild(time);
+        feed.appendChild(bubble);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function selectedAudioCall() {
+      if (selectedCallSid) {
+        return lastCallAnalyses.find((call) => call.call_sid === selectedCallSid) || null;
+      }
+      if (lastCallAnalyses.length === 1) return lastCallAnalyses[0];
+      return null;
+    }
+
+    function clearAudioObjectUrl() {
+      if (currentAudioObjectUrl) {
+        URL.revokeObjectURL(currentAudioObjectUrl);
+        currentAudioObjectUrl = "";
+      }
+    }
+
+    function audioPanelMessage(title, message) {
+      const panel = document.createElement("div");
+      panel.className = "audio-panel";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const body = document.createElement("p");
+      body.textContent = message;
+      panel.appendChild(heading);
+      panel.appendChild(body);
+      return panel;
+    }
+
+    function renderAudioPlayer(summary) {
+      renderTranscriptHeader(summary || {});
+      renderCallSessionTabs(lastCallAnalyses);
+      renderCallDetailTabs();
+      clearAudioObjectUrl();
+      const token = ++audioLoadToken;
+      const feed = $("transcriptMessages");
+      feed.innerHTML = "";
+
+      const call = selectedAudioCall();
+      if (!call) {
+        feed.appendChild(audioPanelMessage("Select a call", "Choose Call 1, Call 2, or another session above to listen to its recording."));
+        return;
+      }
+
+      const recordings = Array.isArray(call.recordings) ? call.recordings.filter((row) => row.available) : [];
+      if (!call.has_recording || !recordings.length) {
+        feed.appendChild(audioPanelMessage("No Twilio recording found", "Twilio does not have an audio file for this CallSid. Past calls cannot be recovered unless they were recorded at call time; new calls will appear here after Twilio completes processing."));
+        return;
+      }
+
+      const recording = recordings[0];
+      const panel = document.createElement("div");
+      panel.className = "audio-panel";
+      const heading = document.createElement("strong");
+      heading.textContent = "Call recording";
+      const details = document.createElement("p");
+      const detailParts = [selectedCallLabel(), compactDate(call.started_at)];
+      if (recording.duration) detailParts.push(recording.duration + "s");
+      details.textContent = detailParts.filter(Boolean).join(" · ");
+      const loading = document.createElement("p");
+      loading.textContent = "Loading protected Twilio audio...";
+      panel.appendChild(heading);
+      panel.appendChild(details);
+      panel.appendChild(loading);
+      feed.appendChild(panel);
+
+      const params = new URLSearchParams({ call_sid: call.call_sid || "" });
+      if (recording.recording_sid) params.set("recording_sid", recording.recording_sid);
+      fetch("/api/calls/recording-audio?" + params.toString(), { headers: callDataHeaders() })
+        .then(async (response) => {
+          if (!response.ok) {
+            let errorText = "Recording unavailable.";
+            try {
+              const data = await response.json();
+              errorText = data.error || errorText;
+            } catch (_error) {
+              errorText = response.statusText || errorText;
+            }
+            throw new Error(errorText);
+          }
+          return response.blob();
+        })
+        .then((blob) => {
+          if (token !== audioLoadToken) return;
+          clearAudioObjectUrl();
+          currentAudioObjectUrl = URL.createObjectURL(blob);
+          loading.remove();
+          const audio = document.createElement("audio");
+          audio.className = "audio-player";
+          audio.controls = true;
+          audio.preload = "metadata";
+          audio.src = currentAudioObjectUrl;
+          const controls = document.createElement("div");
+          controls.className = "audio-controls";
+          const label = document.createElement("label");
+          label.textContent = "Speed";
+          const speed = document.createElement("select");
+          for (const value of ["0.75", "1", "1.25", "1.5", "2"]) {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = value + "x";
+            if (value === "1") option.selected = true;
+            speed.appendChild(option);
+          }
+          speed.addEventListener("change", () => {
+            audio.playbackRate = Number(speed.value || 1);
+          });
+          controls.appendChild(label);
+          controls.appendChild(speed);
+          panel.appendChild(audio);
+          panel.appendChild(controls);
+        })
+        .catch((error) => {
+          if (token !== audioLoadToken) return;
+          loading.textContent = error.message || "Recording unavailable.";
+        });
+    }
+
+    function renderTranscript(summary, events, smsEvents = lastSmsEvents, callAnalyses = lastCallAnalyses) {
+      lastTranscriptSummary = summary || {};
+      lastTranscriptEvents = Array.isArray(events) ? events : [];
+      lastSmsEvents = Array.isArray(smsEvents) ? smsEvents : [];
+      lastCallAnalyses = Array.isArray(callAnalyses) ? callAnalyses : [];
+      if (selectedCallSid && !lastCallAnalyses.some((call) => call.call_sid === selectedCallSid)) selectedCallSid = "";
+      if (transcriptViewMode !== "audio") {
+        audioLoadToken += 1;
+        clearAudioObjectUrl();
+      }
+      if (transcriptViewMode === "sms") {
+        renderSmsMessages(summary || {}, lastSmsEvents);
+        return;
+      }
+      if (transcriptViewMode === "audio") {
+        renderAudioPlayer(summary || {});
+        return;
+      }
+      renderTranscriptHeader(summary || {});
+      renderCallSessionTabs(lastCallAnalyses);
+      renderCallDetailTabs();
+
+      const feed = $("transcriptMessages");
+      feed.innerHTML = "";
+      const rows = transcriptRowsForMode(events);
+      if (!rows.length) {
+        if (transcriptViewMode === "clean" && Array.isArray(events) && events.length) {
+          const bubble = document.createElement("div");
+          bubble.className = "transcript-bubble system";
+          const speaker = document.createElement("span");
+          speaker.className = "transcript-speaker";
+          speaker.textContent = "System";
+          const body = document.createElement("span");
+          body.textContent = "No guest/concierge messages in clean chat. Switch to Technical for system and tool events.";
+          bubble.appendChild(speaker);
+          bubble.appendChild(body);
+          feed.appendChild(bubble);
+          return;
+        }
+        clearTranscript("No transcript yet", "This call has Twilio metadata, but no local conversation transcript has been saved yet.");
+        return;
+      }
+      for (const event of rows) {
+        const role = ["guest", "concierge", "tool", "system"].includes(event.role) ? event.role : "system";
+        const bubble = document.createElement("div");
+        bubble.className = "transcript-bubble " + role;
+        const speaker = document.createElement("span");
+        speaker.className = "transcript-speaker";
+        speaker.textContent = event.speaker || role;
+        const body = document.createElement("span");
+        body.textContent = event.text || "(no text)";
+        const time = document.createElement("span");
+        time.className = "transcript-time";
+        time.textContent = compactDate(event.timestamp) + " · " + (event.kind || "message");
+        bubble.appendChild(speaker);
+        bubble.appendChild(body);
+        bubble.appendChild(time);
+        feed.appendChild(bubble);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    async function openCallThread(threadId) {
+      if (!threadId || !dashboardUnlocked()) return;
+      selectedThreadId = threadId;
+      selectedCallSid = "";
+      for (const item of document.querySelectorAll(".call-item")) {
+        item.classList.toggle("active", item.dataset.threadId === threadId);
+      }
+      clearTranscript("Loading conversation", "Opening caller history...");
+      try {
+        const { response, data } = await fetchJson(
+          (() => {
+            const params = new URLSearchParams({ thread_id: threadId });
+            appendAnalyticsRangeParams(params);
+            return "/api/calls/thread?" + params.toString();
+          })(),
+          { headers: callDataHeaders() },
+        );
+        if (response.status === 403 && data.auth_required) {
+          updateCallInboxAuth(true);
+          throw new Error("Enter the dashboard key to open caller history.");
+        }
+        if (!response.ok) throw new Error(data.error || "Conversation unavailable");
+        renderTranscript(data.summary || {}, data.events || [], data.sms_events || [], data.call_analyses || []);
+      } catch (error) {
+        clearTranscript("Conversation unavailable", error.message);
+      }
+    }
+
+    async function refreshCallInbox(manual = false) {
+      if (!dashboardUnlocked()) {
+        updateProtectedViews();
+        return;
+      }
+      if (manual) $("refreshCalls").textContent = "Checking...";
+      try {
+        updateCallInboxAuth(false);
+        const query = callSearchQuery.trim();
+        const phone = callPhoneQuery.trim();
+        const params = new URLSearchParams({ limit: "50", sort: callSortMode });
+        if (query) params.set("q", query);
+        if (phone) params.set("phone", phone);
+        appendAnalyticsRangeParams(params);
+        const inboxUrl = "/api/calls/threads?" + params.toString();
+        const { response, data } = await fetchJson(inboxUrl, { headers: callDataHeaders() });
+        if (response.status === 403 || data.local_only || data.auth_required) {
+          if (response.status === 403 && data.auth_required) {
+            dashboardKey = "";
+            localStorage.removeItem(dashboardKeyStorage);
+            for (const input of document.querySelectorAll(".dashboardUnlockInput")) input.value = "";
+          }
+          $("callInboxState").textContent = data.auth_required ? "Locked" : "Local only";
+          renderCallList([]);
+          renderKpis({}, { query, phone });
+          updateCallInboxAuth(Boolean(data.auth_required));
+          clearTranscript(
+            "Call Inbox is protected",
+            data.auth_required
+              ? "Enter the dashboard key to view phone numbers and literal call transcripts."
+              : "Open http://127.0.0.1:3000 on this Mac to view phone numbers and transcripts.",
+          );
+          return;
+        }
+        if (!response.ok) throw new Error(data.error || "Call inbox unavailable");
+        const threads = data.threads || [];
+        const total = typeof data.filtered_total === "number" ? data.filtered_total : threads.length;
+        updateCallInboxAuth(false);
+        $("callInboxState").textContent = query || phone ? total + " matches" : total + " conversations";
+        renderKpis(data.metrics || {}, data);
+        renderCallList(threads);
+        if (!selectedThreadId && threads.length) {
+          await openCallThread(threads[0].thread_id);
+        }
+      } catch (error) {
+        $("callInboxState").textContent = "Unavailable";
+        renderCallList([]);
+        renderKpis({}, { query: callSearchQuery, phone: callPhoneQuery });
+        clearTranscript("Call Inbox unavailable", error.message);
+      } finally {
+        $("refreshCalls").textContent = "Refresh calls";
+      }
+    }
+
+    function scheduleCallSearch() {
+      window.clearTimeout(callSearchTimer);
+      callSearchTimer = window.setTimeout(() => {
+        callSearchQuery = $("callSearch").value.trim();
+        callPhoneQuery = $("callPhoneSearch").value.trim();
+        selectedThreadId = "";
+        refreshCallInbox(false);
+      }, 240);
+    }
+
+    function clearCallSearch() {
+      $("callSearch").value = "";
+      $("callPhoneSearch").value = "";
+      callSearchQuery = "";
+      callPhoneQuery = "";
+      selectedThreadId = "";
+      refreshCallInbox(true);
+    }
+
+    function setCallSortMode(mode) {
+      callSortMode = ["recent", "relevant", "most", "least"].includes(mode) ? mode : "recent";
+      for (const button of document.querySelectorAll(".thread-filter")) {
+        button.classList.toggle("active", button.dataset.sort === callSortMode);
+      }
+      selectedThreadId = "";
+      refreshCallInbox(true);
+    }
+
+    function setAnalyticsRange(mode, source = "analytics") {
+      analyticsRangeMode = ["today", "week", "month", "all", "custom"].includes(mode) ? mode : "today";
+      if (analyticsRangeMode === "custom") syncCustomRangeInputs(source);
+      updateRangeControls();
+      selectedThreadId = "";
+      refreshCallInbox(true);
+    }
+
+    function initializeAnalyticsRangeInputs() {
+      const now = new Date();
+      $("rangeStart").value = isoDateTimeInput(startOfLocalDay(now));
+      $("rangeEnd").value = isoDateTimeInput(now);
+      $("callRangeStart").value = $("rangeStart").value;
+      $("callRangeEnd").value = $("rangeEnd").value;
+    }
+
+    function syncCustomRangeInputs(source) {
+      if (source === "calls") {
+        $("rangeStart").value = $("callRangeStart").value;
+        $("rangeEnd").value = $("callRangeEnd").value;
+      } else {
+        $("callRangeStart").value = $("rangeStart").value;
+        $("callRangeEnd").value = $("rangeEnd").value;
+      }
+    }
+
+    function updateRangeControls() {
+      for (const button of document.querySelectorAll(".range-filter")) {
+        button.classList.toggle("active", button.dataset.range === analyticsRangeMode);
+      }
+      for (const button of document.querySelectorAll(".call-range-filter")) {
+        button.classList.toggle("active", button.dataset.range === analyticsRangeMode);
+      }
+      $("customRangeControls").style.display = analyticsRangeMode === "custom" ? "inline-flex" : "none";
+      $("callCustomRangeControls").style.display = analyticsRangeMode === "custom" ? "inline-flex" : "none";
+    }
+
+    function logTranscript(speaker, text, kind = "assistant", metadata = {}) {
+      const clean = String(text || "").trim();
+      if (!clean) return;
+      fetch("/api/transcripts/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel: "web",
+          speaker,
+          text: clean,
+          kind,
+          metadata
+        })
+      }).catch(() => {});
+    }
+
+    function appendMessage(speaker, text, kind = "assistant", shouldLog = true) {
+      const feed = $("chatFeed");
+      const message = document.createElement("div");
+      message.className = "message " + (kind === "user" ? "user" : kind === "system" ? "system" : "assistant");
+      if (kind !== "system") {
+        const label = document.createElement("div");
+        label.className = "speaker";
+        label.textContent = speaker;
+        message.appendChild(label);
+      }
+      const body = document.createElement("div");
+      body.className = "bubble-text";
+      body.textContent = text;
+      message.appendChild(body);
+      feed.appendChild(message);
+      feed.scrollTop = feed.scrollHeight;
+      if (shouldLog) logTranscript(speaker, text, kind, { source: "screen" });
+      return body;
+    }
+
+    function setControls(active) {
+      $("startVoice").disabled = active;
+      $("testVoice").disabled = active;
+      $("stopVoice").disabled = !active;
+      updateVoiceLock(active);
+    }
+
+    function voiceEngineFor(voice) {
+      return isVapiVoice(voice) ? "vapi" : "standard";
+    }
+
+    function renderVoiceSelect(engine, selectedVoice = "") {
+      const available = voiceCatalog.filter((voice) => voice.engine === engine);
+      $("voiceSelect").innerHTML = "";
+      for (const voice of available) {
+        const option = document.createElement("option");
+        option.value = voice.id;
+        option.textContent = voice.label;
+        $("voiceSelect").appendChild(option);
+      }
+      const fallback = available[0]?.id || "ash";
+      $("voiceSelect").value = available.some((voice) => voice.id === selectedVoice) ? selectedVoice : fallback;
+    }
+
+    function setVoiceEngine(engine, selectedVoice = "") {
+      const safeEngine = engine === "vapi" ? "vapi" : "standard";
+      $("voicePanel").dataset.engine = safeEngine;
+      $("voiceEngineSelect").value = safeEngine;
+      renderVoiceSelect(safeEngine, selectedVoice);
+    }
+
+    function updateVoiceLock(sessionActive = Boolean(peer)) {
+      const locked = !dashboardUnlocked();
+      $("voiceLockNotice").classList.toggle("hidden", !locked);
+      $("voiceEngineSelect").disabled = locked || sessionActive;
+      $("voiceSelect").disabled = locked || sessionActive;
+      for (const button of document.querySelectorAll(".voice-option")) {
+        button.disabled = locked || sessionActive;
+      }
+    }
+
+    function currentVoice() {
+      const voice = $("voiceSelect").value || "ash";
+      return voices.includes(voice) ? voice : "ash";
+    }
+
+    function isVapiVoice(voice = currentVoice()) {
+      return String(voice || "").startsWith("vapi:");
+    }
+
+    function setVoice(voice, options = {}) {
+      if (!voices.includes(voice) || peer) return;
+      if (options.persist !== false && !dashboardUnlocked()) {
+        appendMessage("System", "Unlock dashboard controls with MosesGlam before changing the call voice.", "system");
+        updateVoiceLock();
+        return;
+      }
+      setVoiceEngine(voiceEngineFor(voice), voice);
+      $("voiceSelect").value = voice;
+      for (const button of document.querySelectorAll(".voice-option")) {
+        button.classList.toggle("active", button.dataset.voice === voice);
+      }
+      if (options.persist !== false) saveVoiceConfig(voice);
+    }
+
+    async function loadVoiceConfig() {
+      try {
+        const { data } = await fetchJson("/api/voice-config");
+        const voice = data.active_voice || data.default_voice;
+        if (voices.includes(voice)) setVoice(voice, { persist: false });
+      } catch {
+      }
+    }
+
+    async function saveVoiceConfig(voice) {
+      try {
+        const { response, data } = await fetchJson("/api/voice-config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ voice, password: dashboardKey, updated_by: "dashboard" })
+        });
+        if (!response.ok || data.ok === false) throw new Error(data.error || "Voice config save failed");
+        if (data.active_voice && voices.includes(data.active_voice)) {
+          $("voiceSelect").value = data.active_voice;
+        }
+      } catch (error) {
+        appendMessage("System", "Voice selected locally, but it could not be saved for Twilio: " + error.message, "system");
+      }
+    }
+
+    function audioConstraints() {
+      const audio = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      };
+      if (selectedMicDeviceId) audio.deviceId = { exact: selectedMicDeviceId };
+      return { audio };
+    }
+
+    async function loadDevices() {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices.filter((device) => device.kind === "audioinput");
+        const select = $("micSelect");
+        select.innerHTML = '<option value="">System</option>' + inputs.map((device, index) => {
+          const label = device.label || "Microphone " + (index + 1);
+          return '<option value="' + device.deviceId + '">' + label.replace(/[<>&"]/g, "") + '</option>';
+        }).join("");
+      } catch (error) {
+        $("micState").textContent = "Could not list microphones: " + error.message;
+      }
+    }
+
+    async function testMicrophone() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        $("micState").textContent = "This browser does not allow microphone testing.";
+        return;
+      }
+      $("micState").textContent = "Testing microphone: speak now...";
+      try {
+        if (micTestStream) micTestStream.getTracks().forEach((track) => track.stop());
+        micTestStream = await navigator.mediaDevices.getUserMedia(audioConstraints());
+        await loadDevices();
+        const audioContext = new AudioContext();
+        const analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(micTestStream);
+        source.connect(analyser);
+        analyser.fftSize = 512;
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        let peak = 0;
+        let ticks = 0;
+        const interval = setInterval(() => {
+          analyser.getByteTimeDomainData(data);
+          let sum = 0;
+          for (const value of data) {
+            const centered = (value - 128) / 128;
+            sum += centered * centered;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          peak = Math.max(peak, rms);
+          $("micLevel").style.width = Math.min(100, Math.round(rms * 360)) + "%";
+          ticks += 1;
+          if (ticks > 45) {
+            clearInterval(interval);
+            micTestStream.getTracks().forEach((track) => track.stop());
+            micTestStream = null;
+            audioContext.close();
+            $("micLevel").style.width = "0%";
+            $("micState").textContent = peak > 0.035 ? "Microphone detected correctly." : "Low signal. Try another microphone.";
+          }
+        }, 100);
+      } catch (error) {
+        $("micState").textContent = "Could not open the microphone: " + error.message;
+      }
+    }
+
+    function sendEvent(event) {
+      if (!channel || channel.readyState !== "open") return false;
+      channel.send(JSON.stringify(event));
+      return true;
+    }
+
+    function createUserText(text) {
+      return {
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text }]
+        }
+      };
+    }
+
+    function createResponse(instructions) {
+      return {
+        type: "response.create",
+        response: {
+          output_modalities: ["audio"],
+          instructions
+        }
+      };
+    }
+
+    async function runFunctionCall(call) {
+      let args = {};
+      try {
+        args = JSON.parse(call.arguments || "{}");
+      } catch {
+        args = {};
+      }
+      setStatus("Checking tool bridge...", "working");
+      let result;
+      try {
+        const response = await fetch("/api/guesty/tool", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: call.name, arguments: args })
+        });
+        result = await response.json();
+      } catch (error) {
+        result = { ok: false, error: error.message };
+      }
+      logTranscript("Tool Bridge", call.name + " -> " + JSON.stringify({ ok: result.ok, arguments: args }), "tool", { tool: call.name });
+      sendEvent({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: call.call_id,
+          output: JSON.stringify(result)
+        }
+      });
+      sendEvent(createResponse("Use the tool result to answer by voice. If credentials or data are unavailable, say so clearly and offer team follow-up. Do not reveal sensitive data without validation."));
+    }
+
+    function functionCallsFromResponse(event) {
+      return (event.response?.output || []).filter((item) => item.type === "function_call");
+    }
+
+    function handleRealtimeEvent(raw) {
+      let event;
+      try {
+        event = JSON.parse(raw.data);
+      } catch {
+        return;
+      }
+      if (event.type === "session.created" || event.type === "session.updated") {
+        setStatus("Realtime session connected with voice " + currentVoice() + ".", activeMode === "test" ? "speaking" : "listening");
+      }
+      if (event.type === "conversation.item.input_audio_transcription.completed") {
+        const text = (event.transcript || "").trim();
+        if (text) appendMessage("Guest", text, "user");
+      }
+      if (event.type === "response.output_audio_transcript.delta" || event.type === "response.output_text.delta") {
+        assistantDraft += event.delta || "";
+        if (!assistantBubble) assistantBubble = appendMessage("Concierge", "", "assistant", false);
+        assistantBubble.textContent = assistantDraft || "Speaking...";
+        setStatus("Concierge speaking...", "speaking");
+      }
+      if (event.type === "response.output_audio_transcript.done" || event.type === "response.output_text.done") {
+        if (event.transcript && !assistantDraft) assistantDraft = event.transcript;
+        if (event.text && !assistantDraft) assistantDraft = event.text;
+        if (assistantBubble) assistantBubble.textContent = assistantDraft || assistantBubble.textContent;
+        if (assistantDraft.trim() && !assistantFinalLogged) {
+          logTranscript("Concierge", assistantDraft, "assistant", { event_type: event.type });
+          assistantFinalLogged = true;
+        }
+      }
+      if (event.type === "response.done") {
+        const functionCalls = functionCallsFromResponse(event);
+        if (functionCalls.length) {
+          assistantDraft = "";
+          assistantBubble = null;
+          assistantFinalLogged = false;
+          setStatus("Checking tool bridge...", "working");
+          for (const call of functionCalls) runFunctionCall(call);
+          return;
+        }
+        if (assistantDraft.trim() && !assistantFinalLogged) {
+          logTranscript("Concierge", assistantDraft, "assistant", { event_type: event.type });
+        }
+        assistantDraft = "";
+        assistantBubble = null;
+        assistantFinalLogged = false;
+        if (activeMode === "test") {
+          setStatus("Voice test finished. Change voice or start a session.", "idle");
+          window.setTimeout(() => stopSession("Voice test finished. Change voice or start a session."), 450);
+        } else {
+          setStatus("Listening...", "listening");
+        }
+      }
+      if (event.type === "error") {
+        const detail = event.error?.message || event.error?.code || "Error Realtime";
+        appendMessage("System", detail, "system");
+        setStatus(detail, "idle");
+      }
+    }
+
+    async function startSession(mode) {
+      if (peer) return;
+      if (isVapiVoice()) {
+        appendMessage("System", "Vapi voice is configured for live Twilio calls only. Select Sage, Coral, Ash, or another OpenAI voice to use the browser voice console.", "system");
+        setStatus("Vapi voice applies to Twilio calls only.", "idle");
+        return;
+      }
+      activeMode = mode;
+      setControls(true);
+      setStatus(mode === "test" ? "Preparing voice test..." : "Requesting microphone permission...", "working");
+      assistantDraft = "";
+      assistantBubble = null;
+      assistantFinalLogged = false;
+
+      try {
+        peer = new RTCPeerConnection();
+        const remoteAudio = document.createElement("audio");
+        remoteAudio.autoplay = true;
+        peer.ontrack = (event) => {
+          remoteAudio.srcObject = event.streams[0];
+        };
+
+        if (mode === "call") {
+          micStream = await navigator.mediaDevices.getUserMedia(audioConstraints());
+          await loadDevices();
+          const label = micStream.getAudioTracks()[0]?.label || "System";
+          $("micState").textContent = "Listening through: " + label;
+          peer.addTrack(micStream.getAudioTracks()[0], micStream);
+        } else {
+          peer.addTransceiver("audio", { direction: "recvonly" });
+        }
+
+        channel = peer.createDataChannel("oai-events");
+        channel.addEventListener("message", handleRealtimeEvent);
+        channel.addEventListener("open", () => {
+          if (mode === "test") {
+            const text = "Run a brief English voice test: 'Hello, this is the Glam Homes concierge. I am ready to handle booking calls with a premium and clear tone.'";
+            appendMessage("System", "Voice test " + currentVoice() + " sent.", "system");
+            sendEvent(createUserText(text));
+            sendEvent(createResponse("Respond only with the test phrase. Confident, warm, and professional concierge voice."));
+          } else {
+            appendMessage("System", "Instant voice is open. Speak whenever you are ready.", "system");
+            sendEvent(createUserText("Greet in one short sentence as GLAM HOMES CONCIERGE and confirm that you can handle booking and support."));
+            sendEvent(createResponse("Greet in English by default, with a premium, natural concierge voice. Keep it brief."));
+          }
+        });
+
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        const response = await fetch("/api/realtime-call?voice=" + encodeURIComponent(currentVoice()), {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: offer.sdp
+        });
+        const answerSdp = await response.text();
+        if (!response.ok) {
+          throw new Error(answerSdp.slice(0, 600));
+        }
+        await peer.setRemoteDescription({ type: "answer", sdp: answerSdp });
+        setStatus(mode === "test" ? "Playing test..." : "Listening...", mode === "test" ? "speaking" : "listening");
+      } catch (error) {
+        appendMessage("System", "Could not open Realtime: " + error.message, "system");
+        await stopSession();
+      }
+    }
+
+    async function stopSession(finalStatus) {
+      if (channel) {
+        try { channel.close(); } catch {}
+      }
+      if (peer) {
+        try { peer.close(); } catch {}
+      }
+      if (micStream) {
+        micStream.getTracks().forEach((track) => track.stop());
+      }
+      channel = null;
+      peer = null;
+      micStream = null;
+      activeMode = "";
+      assistantDraft = "";
+      assistantBubble = null;
+      assistantFinalLogged = false;
+      setControls(false);
+      setStatus(finalStatus || "Session ended. You can test another voice or start again.", "idle");
+      logTranscript("System", finalStatus || "Session ended.", "system", { source: "stopSession" });
+    }
+
+    function sendManualText() {
+      const text = $("manualInput").value.trim();
+      if (!text) return;
+      $("manualInput").value = "";
+      appendMessage("Operator", text, "user");
+      if (!sendEvent(createUserText(text))) {
+        appendMessage("System", "Text saved on screen. Start voice to send it to the model.", "system");
+        return;
+      }
+      sendEvent(createResponse("Answer the message as the Glam Homes concierge. Be brief, clear, and booking-oriented."));
+      setStatus("Text sent to the Concierge.", "working");
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch("/api/status");
+        const data = await response.json();
+        $("serverState").textContent = data.openai_configured ? "Local + Realtime ready" : "Missing OPENAI_API_KEY";
+        const configuredVoice = data.voice_config?.active_voice || data.default_voice;
+        if (voices.includes(configuredVoice)) setVoice(configuredVoice, { persist: false });
+        if (!data.openai_configured) {
+          appendMessage("System", "Configure OPENAI_API_KEY in .env or Keychain to activate real voice.", "system");
+        }
+        $("guestyState").textContent = data.guesty_configured
+          ? "Credentials detected. The agent can query Guesty in read-only mode."
+          : "Missing Client ID and Client Secret. Use setup_guesty_env.py.";
+        if (data.twilio_configured) {
+          appendMessage("System", "Twilio is prepared for " + data.twilio_phone_number + ". Point the public webhook after the Cloudflare tunnel is up.", "system");
+        }
+      } catch (error) {
+        $("serverState").textContent = "Server unavailable";
+        $("guestyState").textContent = "Could not check Guesty.";
+      }
+    }
+
+    $("startVoice").onclick = () => startSession("call");
+    $("testVoice").onclick = () => startSession("test");
+    $("stopVoice").onclick = stopSession;
+    $("testMic").onclick = testMicrophone;
+    $("sendText").onclick = sendManualText;
+    $("monitorRefresh").onclick = () => refreshTwilioMonitor(true);
+    $("saveEmergencyContact").onclick = saveEmergencyContact;
+    $("saveVipReservationsContact").onclick = saveVipReservationsContact;
+    $("saveReservationValidation").onclick = saveReservationValidation;
+    $("refreshCalls").onclick = () => refreshCallInbox(true);
+    $("clearCallSearch").onclick = clearCallSearch;
+    $("applyRange").onclick = () => setAnalyticsRange("custom", "analytics");
+    $("applyCallRange").onclick = () => setAnalyticsRange("custom", "calls");
+    $("callSearch").addEventListener("input", scheduleCallSearch);
+    $("callPhoneSearch").addEventListener("input", scheduleCallSearch);
+    for (const input of document.querySelectorAll(".dashboardUnlockInput")) {
+      input.value = dashboardKey;
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") unlockDashboard(input.value);
+      });
+    }
+    for (const button of document.querySelectorAll(".dashboardUnlockButton")) {
+      button.addEventListener("click", () => {
+        const input = button.closest(".dashboard-unlock")?.querySelector(".dashboardUnlockInput");
+        unlockDashboard(input?.value || "");
+      });
+    }
+    $("manualInput").addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") sendManualText();
+    });
+    $("voiceSelect").addEventListener("change", () => setVoice($("voiceSelect").value));
+    $("voiceEngineSelect").addEventListener("change", () => {
+      const engine = $("voiceEngineSelect").value;
+      const fallback = engine === "vapi" ? vapiVoices[0] : standardVoices[0];
+      setVoice(fallback || "ash");
+    });
+    $("micSelect").addEventListener("change", () => {
+      selectedMicDeviceId = $("micSelect").value;
+      $("micState").textContent = selectedMicDeviceId ? "Microphone selected." : "Using the system microphone.";
+    });
+    for (const button of document.querySelectorAll(".voice-option")) {
+      button.addEventListener("click", () => setVoice(button.dataset.voice));
+    }
+    for (const button of document.querySelectorAll(".tab-button")) {
+      button.addEventListener("click", () => switchTab(button.dataset.tab));
+    }
+    for (const button of document.querySelectorAll(".thread-filter")) {
+      button.addEventListener("click", () => setCallSortMode(button.dataset.sort));
+    }
+    for (const button of document.querySelectorAll(".range-filter")) {
+      button.addEventListener("click", () => setAnalyticsRange(button.dataset.range, "analytics"));
+    }
+    for (const button of document.querySelectorAll(".call-range-filter")) {
+      button.addEventListener("click", () => setAnalyticsRange(button.dataset.range, "calls"));
+    }
+    for (const button of document.querySelectorAll(".call-detail-tab")) {
+      button.addEventListener("click", () => setTranscriptMode(button.dataset.mode));
+    }
+
+    window.addEventListener("beforeunload", () => {
+      if (micStream) micStream.getTracks().forEach((track) => track.stop());
+      if (peer) peer.close();
+    });
+
+    setVoiceEngine("standard", "ash");
+    loadStatus();
+    loadVoiceConfig();
+    updateProtectedViews();
+    loadEmergencyContact();
+    loadVipReservationsContact();
+    loadReservationValidation();
+    initializeAnalyticsRangeInputs();
+    updateRangeControls();
+    updateCallInboxAuth(false);
+    refreshTwilioMonitor();
+    refreshCallInbox();
+    window.setInterval(refreshTwilioMonitor, 45000);
+    window.setInterval(refreshCallInbox, 60000);
+    loadDevices();
+  </script>
+</body>
+</html>

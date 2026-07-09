@@ -1,0 +1,297 @@
+{
+  "buttons": [
+    {
+      "cls": "primary dashboardUnlockButton",
+      "data": {
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Unlock"
+    },
+    {
+      "cls": "secondary compact",
+      "data": {
+        "type": "button"
+      },
+      "id": "refreshCalls",
+      "tag": "BUTTON",
+      "text": "Refresh calls"
+    },
+    {
+      "cls": "call-range-filter",
+      "data": {
+        "data-range": "today",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Today"
+    },
+    {
+      "cls": "call-range-filter active",
+      "data": {
+        "data-range": "week",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "7 days"
+    },
+    {
+      "cls": "call-range-filter",
+      "data": {
+        "data-range": "month",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "30 days"
+    },
+    {
+      "cls": "call-range-filter",
+      "data": {
+        "data-range": "all",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "All"
+    },
+    {
+      "cls": "call-range-filter",
+      "data": {
+        "data-range": "custom",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Custom"
+    },
+    {
+      "cls": "secondary compact",
+      "data": {
+        "type": "button"
+      },
+      "id": "applyCallRange",
+      "tag": "BUTTON",
+      "text": "Apply"
+    },
+    {
+      "cls": "thread-filter active",
+      "data": {
+        "data-sort": "recent",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Recent"
+    },
+    {
+      "cls": "thread-filter",
+      "data": {
+        "data-sort": "relevant",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Relevant"
+    },
+    {
+      "cls": "thread-filter",
+      "data": {
+        "data-sort": "most",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Most interaction"
+    },
+    {
+      "cls": "thread-filter",
+      "data": {
+        "data-sort": "least",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Least interaction"
+    },
+    {
+      "cls": "secondary compact",
+      "data": {
+        "type": "button"
+      },
+      "id": "clearCallSearch",
+      "tag": "BUTTON",
+      "text": "Clear"
+    },
+    {
+      "cls": "call-item",
+      "data": {
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Loading conversations...Checking local transcripts."
+    },
+    {
+      "cls": "call-detail-tab active",
+      "data": {
+        "data-mode": "clean",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Chat"
+    },
+    {
+      "cls": "call-detail-tab",
+      "data": {
+        "data-mode": "sms",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "SMS"
+    },
+    {
+      "cls": "call-detail-tab",
+      "data": {
+        "data-mode": "technical",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Technical"
+    },
+    {
+      "cls": "call-detail-tab",
+      "data": {
+        "data-mode": "audio",
+        "type": "button"
+      },
+      "id": "",
+      "tag": "BUTTON",
+      "text": "Audio"
+    }
+  ],
+  "canvases": [],
+  "cards": [
+    {
+      "cls": "dashboard-lock",
+      "data": {},
+      "id": "callsLock",
+      "tag": "DIV",
+      "text": "Protected dashboard Calls Locked Enter the dashboard password to unlock call memory, transcripts, phone filters, and customer issue history. Unlock"
+    },
+    {
+      "cls": "call-inbox",
+      "data": {
+        "aria-label": "Call inbox"
+      },
+      "id": "",
+      "tag": "DIV",
+      "text": "Call center memory Conversation Inbox Locked Refresh calls Time range Today 7 days 30 days All Custom Apply Recent Relevant Most interaction Least interaction Clear Loading conversations...Checking local transcripts. Select a conversation Each phone number keeps one continuous history. Chat SMS Technical Audio System Choose a recent caller to open the continuous conversation."
+    },
+    {
+      "cls": "transcript-panel",
+      "data": {},
+      "id": "",
+      "tag": "DIV",
+      "text": "Select a conversation Each phone number keeps one continuous history. Chat SMS Technical Audio System Choose a recent caller to open the continuous conversation."
+    }
+  ],
+  "headings": [
+    {
+      "cls": "eyebrow",
+      "data": {},
+      "id": "",
+      "tag": "P",
+      "text": "Protected dashboard"
+    },
+    {
+      "cls": "",
+      "data": {},
+      "id": "",
+      "tag": "H2",
+      "text": "Calls Locked"
+    },
+    {
+      "cls": "eyebrow",
+      "data": {},
+      "id": "",
+      "tag": "P",
+      "text": "Call center memory"
+    },
+    {
+      "cls": "",
+      "data": {},
+      "id": "",
+      "tag": "H2",
+      "text": "Conversation Inbox"
+    },
+    {
+      "cls": "",
+      "data": {},
+      "id": "",
+      "tag": "STRONG",
+      "text": "Select a conversation"
+    }
+  ],
+  "inputs": [
+    {
+      "cls": "dashboardUnlockInput",
+      "data": {
+        "placeholder": "Dashboard password",
+        "type": "password"
+      },
+      "id": "",
+      "tag": "INPUT",
+      "text": ""
+    },
+    {
+      "cls": "",
+      "data": {
+        "aria-label": "Call start date and time",
+        "type": "datetime-local"
+      },
+      "id": "callRangeStart",
+      "tag": "INPUT",
+      "text": ""
+    },
+    {
+      "cls": "",
+      "data": {
+        "aria-label": "Call end date and time",
+        "type": "datetime-local"
+      },
+      "id": "callRangeEnd",
+      "tag": "INPUT",
+      "text": ""
+    },
+    {
+      "cls": "",
+      "data": {
+        "placeholder": "Phone number",
+        "type": "search"
+      },
+      "id": "callPhoneSearch",
+      "tag": "INPUT",
+      "text": ""
+    },
+    {
+      "cls": "",
+      "data": {
+        "placeholder": "Name or keyword",
+        "type": "search"
+      },
+      "id": "callSearch",
+      "tag": "INPUT",
+      "text": ""
+    }
+  ],
+  "sectionText": "Protected dashboard Calls Locked Enter the dashboard password to unlock call memory, transcripts, phone filters, and customer issue history. Unlock Call center memory Conversation Inbox Locked Refresh calls Time range Today 7 days 30 days All Custom Apply Recent Relevant Most interaction Least interaction Clear Loading conversations...Checking local transcripts. Select a conversation Each phone number keeps one continuous history. Chat SMS Technical Audio System Choose a recent caller to open the continuous conversation.",
+  "title": "GLAM HOMES Concierge",
+  "url": "https://glamhomes.aipeople.app/"
+}

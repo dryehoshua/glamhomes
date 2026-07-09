@@ -1,0 +1,516 @@
+[
+  {
+    "aria": "Voice console",
+    "buttons": [
+      {
+        "cls": "primary",
+        "data": "",
+        "id": "startVoice",
+        "text": "Start voice"
+      },
+      {
+        "cls": "secondary",
+        "data": "",
+        "id": "testVoice",
+        "text": "Test voice"
+      },
+      {
+        "cls": "danger",
+        "data": "",
+        "id": "stopVoice",
+        "text": "End session"
+      },
+      {
+        "cls": "secondary compact dashboardUnlockButton",
+        "data": "",
+        "id": "",
+        "text": "Unlock"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Ash"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Echo"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Cedar"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Verse"
+      },
+      {
+        "cls": "voice-option active",
+        "data": "",
+        "id": "",
+        "text": "Marin"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Coral"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Shimmer"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Sage"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Alloy"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Ballad"
+      },
+      {
+        "cls": "voice-option",
+        "data": "",
+        "id": "",
+        "text": "Riley / Elliot"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "testMic",
+        "text": "Test microphone"
+      },
+      {
+        "cls": "monitor-refresh",
+        "data": "",
+        "id": "monitorRefresh",
+        "text": "Refresh"
+      },
+      {
+        "cls": "primary",
+        "data": "",
+        "id": "sendText",
+        "text": "Send"
+      }
+    ],
+    "classes": "tab-view voice-layout",
+    "headings": [
+      "Local mode",
+      "Scope",
+      "Guesty",
+      "Brand",
+      "Realtime console",
+      "GLAM HOMES Session",
+      "Twilio operations",
+      "Call & SMS Monitor",
+      "Voice service",
+      "SMS service",
+      "Backend API",
+      "Media bridge",
+      "Public proxy",
+      "Public Twilio health",
+      "Twilio number",
+      "Voice webhook",
+      "SMS webhook",
+      "Call recording",
+      "Voice engine",
+      "Voice provider network",
+      "Recent calls",
+      "Recent SMS"
+    ],
+    "id": "voiceView",
+    "inputs": [
+      {
+        "aria": null,
+        "id": "",
+        "placeholder": "Dashboard password",
+        "tag": "INPUT",
+        "type": "password"
+      },
+      {
+        "aria": null,
+        "id": "voiceEngineSelect",
+        "placeholder": null,
+        "tag": "SELECT",
+        "type": null
+      },
+      {
+        "aria": null,
+        "id": "voiceSelect",
+        "placeholder": null,
+        "tag": "SELECT",
+        "type": null
+      },
+      {
+        "aria": null,
+        "id": "micSelect",
+        "placeholder": null,
+        "tag": "SELECT",
+        "type": null
+      },
+      {
+        "aria": null,
+        "id": "manualInput",
+        "placeholder": "Type an instruction for the Concierge...",
+        "tag": "TEXTAREA",
+        "type": null
+      }
+    ],
+    "text": "LIVE Concierge voice Ready for local testing. Select a voice, then test voice or start voice. Start voice Test voice End session Unlock dashboard controls to change the call voice. Unlock Voice engine Standard voices Vapi voices Active voice Ash - warm masculineEcho - clear masculineCedar - calm masculineVerse - conversational masculineMarin - premium neutralCoral - bright feminineShimmer - soft feminineSage - warm feminineAlloy - balanced neutralBallad - expressive neutral Standard voices use the OpenAI/Twilio realtime flow for calls and browser testing. Vapi voices switch live Twilio calls to the Vapi bridge. Browser voice testing remains available only for Standard voices. Ash Echo Cedar Verse Marin Coral Shimmer Sage Alloy Ballad Riley / Elliot To change voices after the concierge speaks, end the session and open a new one. Microphone SystemMicrophone 1 Test microphone The browser will ask for permission when you start voice. Local mode Runs on this Mac for the Cloudflare tunnel and Twilio webhooks. Scope Concierge frontend plus instant voice. Guesty remains read-only for reservations and properties. Guesty Credentials detected. The agent can query Guesty in read-only mode. Brand Gold palette, premium tone, and selectable concierge voices for booking calls. Realtime console GLAM HOMES Session GH-20260708012234 Twilio operations Call & SMS Monitor Refresh Voice service Active SMS service Active Backend APIReadyMedia bridgeReadyPublic proxyReadyPublic Twilio healthHTTP 200Twilio numberConfiguredVoice webhookConfiguredSMS webhookConfiguredCall recordingEnabled for new callsVoice engineopenai: marinVoice provider networkapi.openai.com:443 · 206 ms Last check: 7 jul, 07:22 p.m. Line: +17864813013 Tunnel: https://glamhomes.aipeople.app Recent calls Detailed call metadata is protected. Open http://127.0.0.1:3000 on this Mac for the full monitor. Recent SMS Detailed SMS metadata is protected. Open the local dashboard for full details. Ready. Voice uses local WebRTC; if OPENAI_API_KEY is missing, the server will stop before connecting. Twilio is prepared for +17864813013. Point the public webhook after the Cloudflare tunnel is up. Send",
+    "visible": false
+  },
+  {
+    "aria": "Call analytics",
+    "buttons": [
+      {
+        "cls": "primary dashboardUnlockButton",
+        "data": "",
+        "id": "",
+        "text": "Unlock"
+      },
+      {
+        "cls": "range-filter",
+        "data": "today",
+        "id": "",
+        "text": "Today"
+      },
+      {
+        "cls": "range-filter active",
+        "data": "week",
+        "id": "",
+        "text": "7 days"
+      },
+      {
+        "cls": "range-filter",
+        "data": "month",
+        "id": "",
+        "text": "30 days"
+      },
+      {
+        "cls": "range-filter",
+        "data": "all",
+        "id": "",
+        "text": "All"
+      },
+      {
+        "cls": "range-filter",
+        "data": "custom",
+        "id": "",
+        "text": "Custom"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "applyRange",
+        "text": "Apply"
+      }
+    ],
+    "classes": "tab-view analytics-layout protected-view locked active",
+    "headings": [
+      "PROTECTED DASHBOARD",
+      "Analytics Locked",
+      "Call center analytics",
+      "Performance Snapshot",
+      "Total calls",
+      "Prospects",
+      "Coverage",
+      "Human handoffs",
+      "Unique callers",
+      "Tool actions",
+      "Guest turns",
+      "Avg messages",
+      "Priority queue",
+      "Repeat issue",
+      "VIP pipeline",
+      "Quality signal",
+      "Topics by call volume",
+      "Pipeline mix",
+      "Calls by day and hour",
+      "Subtopics and repeats",
+      "No subtopic data",
+      "Escalations by reason",
+      "No escalation data",
+      "Frequent concepts"
+    ],
+    "id": "analyticsView",
+    "inputs": [
+      {
+        "aria": null,
+        "id": "",
+        "placeholder": "Dashboard password",
+        "tag": "INPUT",
+        "type": "password"
+      },
+      {
+        "aria": "Start date and time",
+        "id": "rangeStart",
+        "placeholder": null,
+        "tag": "INPUT",
+        "type": "datetime-local"
+      },
+      {
+        "aria": "End date and time",
+        "id": "rangeEnd",
+        "placeholder": null,
+        "tag": "INPUT",
+        "type": "datetime-local"
+      }
+    ],
+    "text": "PROTECTED DASHBOARD Analytics Locked Enter the dashboard password to unlock analytics, call memory, security controls, and protected phone data. Unlock",
+    "visible": true
+  },
+  {
+    "aria": "Call inbox",
+    "buttons": [
+      {
+        "cls": "primary dashboardUnlockButton",
+        "data": "",
+        "id": "",
+        "text": "Unlock"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "refreshCalls",
+        "text": "Refresh calls"
+      },
+      {
+        "cls": "call-range-filter",
+        "data": "today",
+        "id": "",
+        "text": "Today"
+      },
+      {
+        "cls": "call-range-filter active",
+        "data": "week",
+        "id": "",
+        "text": "7 days"
+      },
+      {
+        "cls": "call-range-filter",
+        "data": "month",
+        "id": "",
+        "text": "30 days"
+      },
+      {
+        "cls": "call-range-filter",
+        "data": "all",
+        "id": "",
+        "text": "All"
+      },
+      {
+        "cls": "call-range-filter",
+        "data": "custom",
+        "id": "",
+        "text": "Custom"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "applyCallRange",
+        "text": "Apply"
+      },
+      {
+        "cls": "thread-filter active",
+        "data": "recent",
+        "id": "",
+        "text": "Recent"
+      },
+      {
+        "cls": "thread-filter",
+        "data": "relevant",
+        "id": "",
+        "text": "Relevant"
+      },
+      {
+        "cls": "thread-filter",
+        "data": "most",
+        "id": "",
+        "text": "Most interaction"
+      },
+      {
+        "cls": "thread-filter",
+        "data": "least",
+        "id": "",
+        "text": "Least interaction"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "clearCallSearch",
+        "text": "Clear"
+      },
+      {
+        "cls": "call-item",
+        "data": "",
+        "id": "",
+        "text": "Loading conversations...Checking local transcripts."
+      },
+      {
+        "cls": "call-detail-tab active",
+        "data": "clean",
+        "id": "",
+        "text": "Chat"
+      },
+      {
+        "cls": "call-detail-tab",
+        "data": "sms",
+        "id": "",
+        "text": "SMS"
+      },
+      {
+        "cls": "call-detail-tab",
+        "data": "technical",
+        "id": "",
+        "text": "Technical"
+      },
+      {
+        "cls": "call-detail-tab",
+        "data": "audio",
+        "id": "",
+        "text": "Audio"
+      }
+    ],
+    "classes": "tab-view calls-layout protected-view locked",
+    "headings": [
+      "Protected dashboard",
+      "Calls Locked",
+      "Call center memory",
+      "Conversation Inbox",
+      "Select a conversation"
+    ],
+    "id": "callsView",
+    "inputs": [
+      {
+        "aria": null,
+        "id": "",
+        "placeholder": "Dashboard password",
+        "tag": "INPUT",
+        "type": "password"
+      },
+      {
+        "aria": "Call start date and time",
+        "id": "callRangeStart",
+        "placeholder": null,
+        "tag": "INPUT",
+        "type": "datetime-local"
+      },
+      {
+        "aria": "Call end date and time",
+        "id": "callRangeEnd",
+        "placeholder": null,
+        "tag": "INPUT",
+        "type": "datetime-local"
+      },
+      {
+        "aria": null,
+        "id": "callPhoneSearch",
+        "placeholder": "Phone number",
+        "tag": "INPUT",
+        "type": "search"
+      },
+      {
+        "aria": null,
+        "id": "callSearch",
+        "placeholder": "Name or keyword",
+        "tag": "INPUT",
+        "type": "search"
+      }
+    ],
+    "text": "Protected dashboard Calls Locked Enter the dashboard password to unlock call memory, transcripts, phone filters, and customer issue history. Unlock Call center memory Conversation Inbox Locked Refresh calls Time range Today 7 days 30 days All Custom Apply Recent Relevant Most interaction Least interaction Clear Loading conversations...Checking local transcripts. Select a conversation Each phone number keeps one continuous history. Chat SMS Technical Audio System Choose a recent caller to open the continuous conversation.",
+    "visible": false
+  },
+  {
+    "aria": "Security settings",
+    "buttons": [
+      {
+        "cls": "primary dashboardUnlockButton",
+        "data": "",
+        "id": "",
+        "text": "Unlock"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "saveReservationValidation",
+        "text": "Save mode"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "saveEmergencyContact",
+        "text": "Save number"
+      },
+      {
+        "cls": "secondary compact",
+        "data": "",
+        "id": "saveVipReservationsContact",
+        "text": "Save number"
+      }
+    ],
+    "classes": "tab-view security-layout protected-view locked",
+    "headings": [
+      "Protected dashboard",
+      "Security Locked",
+      "Access controls",
+      "Reservation Security",
+      "Reservation validation",
+      "Human escalation",
+      "Advisor SMS",
+      "Emergency advisor SMS",
+      "VIP Reservations",
+      "Current call rules"
+    ],
+    "id": "securityView",
+    "inputs": [
+      {
+        "aria": null,
+        "id": "",
+        "placeholder": "Dashboard password",
+        "tag": "INPUT",
+        "type": "password"
+      },
+      {
+        "aria": null,
+        "id": "reservationValidationMode",
+        "placeholder": null,
+        "tag": "SELECT",
+        "type": null
+      },
+      {
+        "aria": null,
+        "id": "emergencyPhone",
+        "placeholder": "+********7754",
+        "tag": "INPUT",
+        "type": "tel"
+      },
+      {
+        "aria": null,
+        "id": "vipReservationsPhone",
+        "placeholder": "+********7754",
+        "tag": "INPUT",
+        "type": "tel"
+      }
+    ],
+    "text": "Protected dashboard Security Locked Enter the dashboard password once to unlock all admin controls. Unlock Access controls Reservation Security Temporary testing can stay simple now, then move back to stricter checks later. Reservation validation Code only: reservation code unlocks reservation, stay, and property details for testing. · dashboard Code only: reservation unlocks details Relaxed: reservation + similar name Strict: confirmed code + matching detail Save mode Human escalation Advisor SMS Human issues notify this number. Caller-facing SMS uses the number that called in. Emergency advisor SMS Current: +********7754 · temporary Save number VIP Reservations Current: +********7754 · env_or_default Save number Current call rules Use caller ID when it matches Guesty. With a reservation code, confirm the reservation and guest name, then answer directly from Guesty. Offer SMS to the caller number for useful details. Transfer live calls when a guest asks for a human.",
+    "visible": false
+  }
+]
